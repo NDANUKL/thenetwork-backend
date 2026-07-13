@@ -1,0 +1,33 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:FP-QNR-.####",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["questionnaire_code", "title", "version", "status", "description", "schema_hash", "published_at"],
+  "fields": [
+    {"fieldname": "questionnaire_code", "fieldtype": "Data", "in_list_view": 1, "label": "Questionnaire Code", "reqd": 1},
+    {"fieldname": "title", "fieldtype": "Data", "in_list_view": 1, "label": "Title", "reqd": 1},
+    {"default": "1", "fieldname": "version", "fieldtype": "Int", "in_list_view": 1, "label": "Version", "reqd": 1},
+    {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nPublished\nArchived", "reqd": 1},
+    {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
+    {"fieldname": "schema_hash", "fieldtype": "Data", "label": "Schema Hash"},
+    {"fieldname": "published_at", "fieldtype": "Datetime", "label": "Published At"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Questionnaire",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}
+

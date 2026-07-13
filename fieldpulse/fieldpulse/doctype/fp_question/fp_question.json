@@ -1,0 +1,37 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:FP-QST-.####",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["questionnaire", "client_uuid", "question_code", "label", "help_text", "question_type", "sequence", "required", "validation_json", "display_logic_json", "active"],
+  "fields": [
+    {"fieldname": "questionnaire", "fieldtype": "Link", "in_list_view": 1, "label": "Questionnaire", "options": "FP Questionnaire", "reqd": 1},
+    {"fieldname": "client_uuid", "fieldtype": "Data", "label": "Client UUID", "unique": 1},
+    {"fieldname": "question_code", "fieldtype": "Data", "in_list_view": 1, "label": "Question Code", "reqd": 1},
+    {"fieldname": "label", "fieldtype": "Small Text", "in_list_view": 1, "label": "Label", "reqd": 1},
+    {"fieldname": "help_text", "fieldtype": "Small Text", "label": "Help Text"},
+    {"fieldname": "question_type", "fieldtype": "Select", "in_list_view": 1, "label": "Question Type", "options": "short_text\nlong_text\nnumber\ndate_time\nsingle_select\nmulti_select\nyes_no\nrating_scale\nconditional_logic\ngps_point\nphoto\nfile_attachment\nsignature", "reqd": 1},
+    {"fieldname": "sequence", "fieldtype": "Int", "in_list_view": 1, "label": "Sequence", "reqd": 1},
+    {"default": "0", "fieldname": "required", "fieldtype": "Check", "label": "Required"},
+    {"fieldname": "validation_json", "fieldtype": "Code", "label": "Validation JSON", "options": "JSON"},
+    {"fieldname": "display_logic_json", "fieldtype": "Code", "label": "Display Logic JSON", "options": "JSON"},
+    {"default": "1", "fieldname": "active", "fieldtype": "Check", "label": "Active"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Question",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "sequence",
+  "sort_order": "ASC",
+  "states": []
+}
+

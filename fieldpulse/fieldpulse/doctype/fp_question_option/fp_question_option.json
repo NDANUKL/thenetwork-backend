@@ -1,0 +1,32 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:FP-QOP-.####",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["question", "option_code", "label", "sequence", "score", "active"],
+  "fields": [
+    {"fieldname": "question", "fieldtype": "Link", "in_list_view": 1, "label": "Question", "options": "FP Question", "reqd": 1},
+    {"fieldname": "option_code", "fieldtype": "Data", "in_list_view": 1, "label": "Option Code", "reqd": 1},
+    {"fieldname": "label", "fieldtype": "Data", "in_list_view": 1, "label": "Label", "reqd": 1},
+    {"fieldname": "sequence", "fieldtype": "Int", "in_list_view": 1, "label": "Sequence", "reqd": 1},
+    {"fieldname": "score", "fieldtype": "Float", "label": "Score"},
+    {"default": "1", "fieldname": "active", "fieldtype": "Check", "label": "Active"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Question Option",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "sequence",
+  "sort_order": "ASC",
+  "states": []
+}
+

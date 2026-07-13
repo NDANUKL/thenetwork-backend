@@ -1,0 +1,39 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "field:sync_session_id",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["sync_session_id", "agent", "device_id", "started_at", "completed_at", "direction", "status", "pulled_count", "pushed_count", "accepted_count", "rejected_count", "error_count", "summary_json"],
+  "fields": [
+    {"fieldname": "sync_session_id", "fieldtype": "Data", "in_list_view": 1, "label": "Sync Session ID", "reqd": 1, "unique": 1},
+    {"fieldname": "agent", "fieldtype": "Link", "in_list_view": 1, "label": "Agent", "options": "FP Agent", "reqd": 1},
+    {"fieldname": "device_id", "fieldtype": "Data", "label": "Device ID"},
+    {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At"},
+    {"fieldname": "completed_at", "fieldtype": "Datetime", "label": "Completed At"},
+    {"fieldname": "direction", "fieldtype": "Select", "in_list_view": 1, "label": "Direction", "options": "Pull\nPush\nAttachment Upload\nMixed", "reqd": 1},
+    {"fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Success\nPartial Success\nFailed", "reqd": 1},
+    {"default": "0", "fieldname": "pulled_count", "fieldtype": "Int", "label": "Pulled Count"},
+    {"default": "0", "fieldname": "pushed_count", "fieldtype": "Int", "label": "Pushed Count"},
+    {"default": "0", "fieldname": "accepted_count", "fieldtype": "Int", "label": "Accepted Count"},
+    {"default": "0", "fieldname": "rejected_count", "fieldtype": "Int", "label": "Rejected Count"},
+    {"default": "0", "fieldname": "error_count", "fieldtype": "Int", "label": "Error Count"},
+    {"fieldname": "summary_json", "fieldtype": "Code", "label": "Summary JSON", "options": "JSON"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Sync Log",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1},
+    {"create": 1, "read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}
+

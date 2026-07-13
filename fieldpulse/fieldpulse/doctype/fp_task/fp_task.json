@@ -1,0 +1,46 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "field:task_code",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["client_uuid", "task_code", "agent", "location", "questionnaire", "questionnaire_version", "intent_template_code", "routing_mode", "consent_status", "verification_nonce", "assignment_source", "status", "priority", "qa_status", "dispute_status", "due_at", "assigned_at", "submitted_at", "server_updated_at", "match_metadata_json"],
+  "fields": [
+    {"fieldname": "client_uuid", "fieldtype": "Data", "label": "Client UUID", "unique": 1},
+    {"fieldname": "task_code", "fieldtype": "Data", "in_list_view": 1, "label": "Task Code", "reqd": 1, "unique": 1},
+    {"fieldname": "agent", "fieldtype": "Link", "in_list_view": 1, "label": "Agent", "options": "FP Agent", "reqd": 1},
+    {"fieldname": "location", "fieldtype": "Link", "in_list_view": 1, "label": "Location", "options": "FP Location", "reqd": 1},
+    {"fieldname": "questionnaire", "fieldtype": "Link", "label": "Questionnaire", "options": "FP Questionnaire", "reqd": 1},
+    {"fieldname": "questionnaire_version", "fieldtype": "Int", "label": "Questionnaire Version", "reqd": 1},
+    {"fieldname": "intent_template_code", "fieldtype": "Data", "label": "Intent Template Code"},
+    {"default": "Trust", "fieldname": "routing_mode", "fieldtype": "Select", "label": "Routing Mode", "options": "Trust\nOutcome", "reqd": 1},
+    {"default": "Pending", "fieldname": "consent_status", "fieldtype": "Select", "label": "Consent Status", "options": "Pending\nGranted\nDeclined\nRevoked\nNot Required", "reqd": 1},
+    {"fieldname": "verification_nonce", "fieldtype": "Data", "label": "Verification Nonce"},
+    {"default": "Manual", "fieldname": "assignment_source", "fieldtype": "Select", "label": "Assignment Source", "options": "Manual\nAuto Match", "reqd": 1},
+    {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nAssigned\nIn Progress\nSubmitted\nApproved\nRejected\nCancelled", "reqd": 1},
+    {"default": "Normal", "fieldname": "priority", "fieldtype": "Select", "label": "Priority", "options": "Low\nNormal\nHigh"},
+    {"default": "Pending", "fieldname": "qa_status", "fieldtype": "Select", "label": "QA Status", "options": "Pending\nPassed\nFailed\nNeeds Review"},
+    {"default": "None", "fieldname": "dispute_status", "fieldtype": "Select", "label": "Dispute Status", "options": "None\nOpen\nResolved"},
+    {"fieldname": "due_at", "fieldtype": "Datetime", "label": "Due At"},
+    {"fieldname": "assigned_at", "fieldtype": "Datetime", "label": "Assigned At"},
+    {"fieldname": "submitted_at", "fieldtype": "Datetime", "label": "Submitted At"},
+    {"fieldname": "server_updated_at", "fieldtype": "Datetime", "label": "Server Updated At"},
+    {"fieldname": "match_metadata_json", "fieldtype": "Code", "label": "Match Metadata JSON", "options": "JSON"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Task",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}
+

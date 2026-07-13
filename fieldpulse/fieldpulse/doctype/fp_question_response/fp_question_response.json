@@ -1,0 +1,36 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:FP-QRS-.####",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["client_uuid", "task_response", "question", "question_code", "question_type", "answer_text", "answer_json", "client_updated_at", "validation_status", "validation_message"],
+  "fields": [
+    {"fieldname": "client_uuid", "fieldtype": "Data", "in_list_view": 1, "label": "Client UUID", "reqd": 1, "unique": 1},
+    {"fieldname": "task_response", "fieldtype": "Link", "in_list_view": 1, "label": "Task Response", "options": "FP Task Response", "reqd": 1},
+    {"fieldname": "question", "fieldtype": "Link", "label": "Question", "options": "FP Question", "reqd": 1},
+    {"fieldname": "question_code", "fieldtype": "Data", "in_list_view": 1, "label": "Question Code", "reqd": 1},
+    {"fieldname": "question_type", "fieldtype": "Data", "label": "Question Type", "reqd": 1},
+    {"fieldname": "answer_text", "fieldtype": "Long Text", "label": "Answer Text"},
+    {"fieldname": "answer_json", "fieldtype": "Code", "label": "Answer JSON", "options": "JSON"},
+    {"fieldname": "client_updated_at", "fieldtype": "Datetime", "label": "Client Updated At", "reqd": 1},
+    {"default": "Unknown", "fieldname": "validation_status", "fieldtype": "Select", "label": "Validation Status", "options": "Unknown\nValid\nInvalid"},
+    {"fieldname": "validation_message", "fieldtype": "Small Text", "label": "Validation Message"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Question Response",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"create": 1, "read": 1, "role": "Field Agent", "write": 1}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}
+

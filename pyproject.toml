@@ -1,0 +1,16 @@
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "fieldpulse"
+authors = [{ name = "FieldPulse Team" }]
+description = "Offline-first geo-coded task platform for field agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = []
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0"
+
