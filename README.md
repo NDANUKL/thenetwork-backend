@@ -1,6 +1,6 @@
 # FieldPulse
 
-Offline-first geo-coded task platform for field agents.
+Offline-first geo-coded task platform for field agents (part of The Network).
 
 This repository contains the Frappe backend app for the FieldPulse Trust Market MVP:
 
@@ -52,4 +52,3 @@ DocTypes are committed as JSON fixtures under `fieldpulse/fieldpulse/doctype`.
 Seed roles and question types are defined in `fieldpulse/install.py`.
 
 Whitelisted sync API stubs are in `fieldpulse/api.py`.
-

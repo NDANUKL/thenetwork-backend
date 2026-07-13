@@ -1,0 +1,39 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:FP-AGT-.####",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["agent_code", "user", "full_name", "phone", "status", "trust_tier", "kyc_status", "bond_status", "default_location", "service_latitude", "service_longitude", "service_radius_km", "last_sync_at"],
+  "fields": [
+    {"fieldname": "agent_code", "fieldtype": "Data", "in_list_view": 1, "label": "Agent Code", "reqd": 1, "unique": 1},
+    {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "unique": 1},
+    {"fieldname": "full_name", "fieldtype": "Data", "in_list_view": 1, "label": "Full Name", "reqd": 1},
+    {"fieldname": "phone", "fieldtype": "Data", "label": "Phone"},
+    {"default": "Active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Active\nSuspended\nArchived", "reqd": 1},
+    {"default": "Tier 1", "fieldname": "trust_tier", "fieldtype": "Select", "label": "Trust Tier", "options": "Tier 1\nTier 2\nTier 3"},
+    {"default": "Not Started", "fieldname": "kyc_status", "fieldtype": "Select", "label": "KYC Status", "options": "Not Started\nPending\nVerified\nRejected\nExpired"},
+    {"default": "Not Required", "fieldname": "bond_status", "fieldtype": "Select", "label": "Bond Status", "options": "Not Required\nPending\nActive\nSlashed\nReleased"},
+    {"fieldname": "default_location", "fieldtype": "Link", "label": "Default Location", "options": "FP Location"},
+    {"fieldname": "service_latitude", "fieldtype": "Float", "label": "Service Latitude"},
+    {"fieldname": "service_longitude", "fieldtype": "Float", "label": "Service Longitude"},
+    {"fieldname": "service_radius_km", "fieldtype": "Float", "label": "Service Radius KM"},
+    {"fieldname": "last_sync_at", "fieldtype": "Datetime", "label": "Last Sync At"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Agent",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}
+

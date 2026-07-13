@@ -1,0 +1,45 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:FP-ATT-.####",
+  "creation": "2026-07-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["client_uuid", "task_response", "question_response", "attachment_type", "file_url", "local_filename", "content_hash", "nonce", "mime_type", "file_size_bytes", "captured_at", "latitude", "longitude", "accuracy_m", "capture_source", "liveness_status", "duplicate_check_status", "upload_status", "rejection_reason"],
+  "fields": [
+    {"fieldname": "client_uuid", "fieldtype": "Data", "in_list_view": 1, "label": "Client UUID", "reqd": 1, "unique": 1},
+    {"fieldname": "task_response", "fieldtype": "Link", "in_list_view": 1, "label": "Task Response", "options": "FP Task Response", "reqd": 1},
+    {"fieldname": "question_response", "fieldtype": "Link", "label": "Question Response", "options": "FP Question Response"},
+    {"fieldname": "attachment_type", "fieldtype": "Select", "in_list_view": 1, "label": "Attachment Type", "options": "Photo\nFile\nSignature", "reqd": 1},
+    {"fieldname": "file_url", "fieldtype": "Attach", "label": "File", "reqd": 1},
+    {"fieldname": "local_filename", "fieldtype": "Data", "label": "Local Filename"},
+    {"fieldname": "content_hash", "fieldtype": "Data", "label": "Content Hash"},
+    {"fieldname": "nonce", "fieldtype": "Data", "label": "Nonce"},
+    {"fieldname": "mime_type", "fieldtype": "Data", "label": "MIME Type", "reqd": 1},
+    {"fieldname": "file_size_bytes", "fieldtype": "Int", "label": "File Size Bytes", "reqd": 1},
+    {"fieldname": "captured_at", "fieldtype": "Datetime", "label": "Captured At"},
+    {"fieldname": "latitude", "fieldtype": "Float", "label": "Latitude"},
+    {"fieldname": "longitude", "fieldtype": "Float", "label": "Longitude"},
+    {"fieldname": "accuracy_m", "fieldtype": "Float", "label": "Accuracy M"},
+    {"default": "Camera", "fieldname": "capture_source", "fieldtype": "Select", "label": "Capture Source", "options": "Camera\nFile Picker\nSignature Pad"},
+    {"default": "Not Checked", "fieldname": "liveness_status", "fieldtype": "Select", "label": "Liveness Status", "options": "Not Checked\nPassed\nFailed"},
+    {"default": "Not Checked", "fieldname": "duplicate_check_status", "fieldtype": "Select", "label": "Duplicate Check Status", "options": "Not Checked\nPassed\nFailed"},
+    {"default": "Uploaded", "fieldname": "upload_status", "fieldtype": "Select", "label": "Upload Status", "options": "Uploaded\nRejected"},
+    {"fieldname": "rejection_reason", "fieldtype": "Small Text", "label": "Rejection Reason"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-07-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "FP Attachment",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1},
+    {"create": 1, "read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}
+
