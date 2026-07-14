@@ -37,52 +37,19 @@ def create_new_version(questionnaire_code):
     latest = versions[0]
     source = frappe.get_doc("FP Questionnaire", latest["name"])
 
-    new_doc = frappe.get_doc({
-        "doctype": "FP Questionnaire",
-        "questionnaire_code": questionnaire_code,
-        "title": source.title,
-        "version": (latest["version"] or 1) + 1,
-        "status": "Draft",
-        "description": source.description,
-    })
+    # Use Frappe's copy_doc for a reliable deep copy
+    new_doc = frappe.copy_doc(source, ignore_no_copy=False)
+    new_doc.status = "Draft"
+
+    # Safely increment the version number
+    current_version = source.version or 0
+    new_doc.version = current_version + 1
+
+    # Clear linking fields from the original document
+    new_doc.amended_from = source.name
+    new_doc.name = None  # Let Frappe generate a new name
+
     new_doc.insert(ignore_permissions=True)
-
-    questions = frappe.get_all(
-        "FP Question",
-        filters={"questionnaire": source.name},
-        fields=["*"],
-        order_by="sequence asc",
-    )
-    for q in questions:
-        new_q = frappe.get_doc({
-            "doctype": "FP Question",
-            "questionnaire": new_doc.name,
-            "question_code": q["question_code"],
-            "label": q["label"],
-            "help_text": q["help_text"],
-            "question_type": q["question_type"],
-            "sequence": q["sequence"],
-            "required": q["required"],
-            "validation_json": q["validation_json"],
-            "display_logic_json": q["display_logic_json"],
-            "active": q["active"],
-        })
-        new_q.insert(ignore_permissions=True)
-
-        options = frappe.get_all(
-            "FP Question Option", filters={"question": q["name"]},
-            fields=["*"], order_by="sequence asc",
-        )
-        for opt in options:
-            frappe.get_doc({
-                "doctype": "FP Question Option",
-                "question": new_q.name,
-                "option_code": opt["option_code"],
-                "label": opt["label"],
-                "sequence": opt["sequence"],
-                "score": opt["score"],
-                "active": opt["active"],
-            }).insert(ignore_permissions=True)
 
     frappe.db.commit()
     return {"new_questionnaire": new_doc.name, "version": new_doc.version}
