@@ -1,0 +1,135 @@
+{
+  "info": {
+    "name": "FieldPulse Sync API",
+    "description": "Week 4 sync endpoints. Set collection variables: base_url, api_key, api_secret.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "api_key", "value": "" },
+    { "key": "api_secret", "value": "" }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "value", "value": "token {{api_key}}:{{api_secret}}" },
+      { "key": "key", "value": "Authorization" },
+      { "key": "in", "value": "header" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Pull Assignments",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/method/fieldpulse.api.sync_pull_assignments?since="
+      }
+    },
+    {
+      "name": "Push Responses - valid",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.api.sync_push_responses",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"task_responses\": [\n    {\n      \"client_uuid\": \"11111111-aaaa-bbbb-cccc-000000000001\",\n      \"task\": \"TASK-0001\",\n      \"status\": \"Submitted\",\n      \"latitude\": -1.286389,\n      \"longitude\": 36.817223,\n      \"client_updated_at\": \"2026-07-14 10:00:00\"\n    }\n  ],\n  \"question_responses\": []\n}"
+        }
+      }
+    },
+    {
+      "name": "Push Responses - BAD: missing client_uuid",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.api.sync_push_responses",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"task_responses\": [ { \"task\": \"TASK-0001\", \"status\": \"Submitted\" } ],\n  \"question_responses\": []\n}"
+        },
+        "description": "Expect this item in 'rejected', not a batch-wide failure."
+      }
+    },
+    {
+      "name": "Push Responses - duplicate resend (idempotency check)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.api.sync_push_responses",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"task_responses\": [\n    {\n      \"client_uuid\": \"11111111-aaaa-bbbb-cccc-000000000001\",\n      \"task\": \"TASK-0001\",\n      \"status\": \"Submitted\",\n      \"client_updated_at\": \"2026-07-14 10:00:00\"\n    }\n  ],\n  \"question_responses\": []\n}"
+        },
+        "description": "Same client_uuid as the valid request above. Expect status 'already_exists', no duplicate record."
+      }
+    },
+    {
+      "name": "Upload raw file (Frappe built-in, step 1 of attachment flow)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/method/upload_file",
+        "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": [] }] }
+      }
+    },
+    {
+      "name": "Sync Upload Attachment (step 2, metadata)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.api.sync_upload_attachment",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_uuid\": \"22222222-aaaa-bbbb-cccc-000000000002\",\n  \"task_response\": \"FP-TRS-0001\",\n  \"attachment_type\": \"Photo\",\n  \"file_url\": \"/files/shelf-photo.jpg\",\n  \"mime_type\": \"image/jpeg\",\n  \"file_size_bytes\": 184320\n}"
+        }
+      }
+    },
+    {
+      "name": "Sync Log",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.api.sync_log",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"direction\": \"Mixed\",\n  \"status\": \"Success\",\n  \"pulled_count\": 3,\n  \"pushed_count\": 1,\n  \"accepted_count\": 1,\n  \"rejected_count\": 0\n}"
+        }
+      }
+    },
+    {
+      "name": "Bulk Assign Tasks",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.fieldpulse.doctype.fp_task.fp_task.bulk_assign_tasks",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"questionnaire\": \"FP-QNR-0001\",\n  \"agents\": [\"FP-AGT-0001\"],\n  \"locations\": [\"DEMO-NAIROBI-001\"],\n  \"priority\": \"Normal\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Auto Assign By Proximity",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.fieldpulse.doctype.fp_task.fp_task.auto_assign_by_proximity",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"questionnaire\": \"FP-QNR-0001\",\n  \"agent\": \"FP-AGT-0001\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create New Questionnaire Version",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.fieldpulse.doctype.fp_questionnaire.fp_questionnaire.create_new_version",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"questionnaire_code\": \"STORE-CHECK-V1\"\n}"
+        }
+      }
+    }
+  ]
+}

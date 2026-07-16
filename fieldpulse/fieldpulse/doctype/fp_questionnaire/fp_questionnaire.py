@@ -1,7 +1,6 @@
 import frappe
 from frappe.model.document import Document
 
-
 class FPQuestionnaire(Document):
     def validate(self):
         if not self.is_new():
