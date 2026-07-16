@@ -1,6 +1,6 @@
 import frappe
 
-from fieldpulse.constants import ROLES
+from fieldpulse.fieldpulse.constants import ROLES
 
 
 def after_install():
