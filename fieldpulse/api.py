@@ -68,23 +68,28 @@ def sync_pull_assignments(since=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def sync_push_responses(batch):
+def sync_push_responses(task_responses=None, question_responses=None):
     """Accept a batch of Task Response / Question Response records.
     Each item must include a client_uuid. Idempotent: retried UUIDs
     return the existing record instead of creating a duplicate."""
-    if isinstance(batch, str):
-        batch = frappe.parse_json(batch)
+    if isinstance(task_responses, str):
+        task_responses = frappe.parse_json(task_responses)
+    if isinstance(question_responses, str):
+        question_responses = frappe.parse_json(question_responses)
+
+    task_responses = task_responses or []
+    question_responses = question_responses or []
 
     accepted = []
     rejected = []
 
-    for item in batch.get("task_responses", []):
+    for item in task_responses:
         try:
             accepted.append(_upsert_task_response(item))
         except Exception as e:
             rejected.append({"client_uuid": item.get("client_uuid"), "errors": [str(e)]})
 
-    for item in batch.get("question_responses", []):
+    for item in question_responses:
         try:
             accepted.append(_upsert_question_response(item))
         except Exception as e:
