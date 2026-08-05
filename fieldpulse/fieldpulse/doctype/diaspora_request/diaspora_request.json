@@ -1,0 +1,51 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "autoname": "DD-.YYYY.-.#####",
+  "creation": "2026-08-05 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "full_name", "email", "original_brief", "deadline_preference", "deadline_date",
+    "summary", "category", "category_label", "classification_confidence",
+    "suggested_scouts", "estimated_days", "recommendation_reason", "coverage_note",
+    "needs_human_review", "status",
+    "evidence_checklist", "clarification_history", "clarification_questions", "risk_flags"
+  ],
+  "fields": [
+    {"fieldname": "full_name", "fieldtype": "Data", "in_list_view": 1, "label": "Full Name", "reqd": 1},
+    {"fieldname": "email", "fieldtype": "Data", "in_list_view": 1, "label": "Email", "options": "Email", "reqd": 1},
+    {"fieldname": "original_brief", "fieldtype": "Long Text", "label": "Original Brief", "reqd": 1},
+    {"fieldname": "deadline_preference", "fieldtype": "Select", "label": "Deadline Preference", "options": "flexible\noneWeek\ntwoWeeks\nspecific", "reqd": 1},
+    {"fieldname": "deadline_date", "fieldtype": "Date", "label": "Deadline Date"},
+    {"fieldname": "summary", "fieldtype": "Long Text", "label": "Summary", "reqd": 1},
+    {"fieldname": "category", "fieldtype": "Select", "in_list_view": 1, "label": "Category", "options": "land_property_check\nconstruction_progress\nbusiness_asset_check\ncustom_ground_verification\nneeds_confirmation\nout_of_scope", "reqd": 1},
+    {"fieldname": "category_label", "fieldtype": "Data", "label": "Category Label", "reqd": 1},
+    {"fieldname": "classification_confidence", "fieldtype": "Select", "label": "Classification Confidence", "options": "high\nmedium\nlow", "reqd": 1},
+    {"fieldname": "suggested_scouts", "fieldtype": "Int", "label": "Suggested Scouts", "reqd": 1},
+    {"fieldname": "estimated_days", "fieldtype": "Int", "label": "Estimated Days", "reqd": 1},
+    {"fieldname": "recommendation_reason", "fieldtype": "Long Text", "label": "Recommendation Reason", "reqd": 1},
+    {"fieldname": "coverage_note", "fieldtype": "Long Text", "label": "Coverage Note", "reqd": 1},
+    {"default": "0", "fieldname": "needs_human_review", "fieldtype": "Check", "label": "Needs Human Review", "reqd": 1},
+    {"default": "New", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "New\nIn Review\nAssigned\nIn Progress\nCompleted\nRejected"},
+    {"fieldname": "evidence_checklist", "fieldtype": "Table", "label": "Evidence Checklist", "options": "Diaspora Request Evidence"},
+    {"fieldname": "clarification_history", "fieldtype": "Table", "label": "Clarification History", "options": "Diaspora Request Clarification"},
+    {"fieldname": "clarification_questions", "fieldtype": "Table", "label": "Clarification Questions", "options": "Diaspora Request Outstanding Question"},
+    {"fieldname": "risk_flags", "fieldtype": "Table", "label": "Risk Flags", "options": "Diaspora Request Risk Flag"}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-08-05 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "Diaspora Request",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"create": 1, "read": 1, "role": "Diaspora Website Integration"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}
