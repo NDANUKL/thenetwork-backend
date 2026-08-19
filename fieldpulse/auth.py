@@ -74,7 +74,7 @@ def request_password_reset(email):
     if not user.enabled:
         frappe.throw("This account is disabled. Contact your supervisor.")
 
-    reset_link = user.reset_password(send_email=False)
+    reset_link = user._reset_password(send_email=False)
     full_name = user.full_name or email
     html = frappe.render_template(
         "emails/password_reset.html",
