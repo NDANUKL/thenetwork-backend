@@ -1,7 +1,7 @@
 """Mobile account endpoints for Diaspora Desk field agents."""
 
 import frappe
-from frappe.utils import validate_email_address
+from frappe.utils import get_url, validate_email_address
 
 
 def _login(email, password):
@@ -57,3 +57,36 @@ def register_field_agent(full_name, email, password, phone=None):
     agent.insert(ignore_permissions=True)
     frappe.db.commit()
     return _login(email, password)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def request_password_reset(email):
+    """Send a branded Ground Scouts password-reset email to active field agents."""
+    email = validate_email_address((email or "").strip().lower(), throw=True)
+
+    if not frappe.db.exists("User", email):
+        return {"message": "If this email is registered, reset instructions will be sent."}
+
+    if not frappe.db.exists("FP Agent", {"user": email, "status": "Active"}):
+        frappe.throw("This account is not an active field agent.")
+
+    user = frappe.get_doc("User", email)
+    if not user.enabled:
+        frappe.throw("This account is disabled. Contact your supervisor.")
+
+    reset_link = user.reset_password(send_email=False)
+    full_name = user.full_name or email
+    html = frappe.render_template(
+        "emails/password_reset.html",
+        {"full_name": full_name, "reset_link": reset_link, "site_url": get_url()},
+    )
+
+    frappe.sendmail(
+        recipients=[email],
+        subject="Reset your Ground Scouts passcode",
+        message=html,
+        delayed=False,
+        retry=0,
+    )
+    frappe.db.commit()
+    return {"message": "If this email is registered, reset instructions will be sent."}

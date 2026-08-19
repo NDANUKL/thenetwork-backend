@@ -104,6 +104,9 @@ def _upsert_task_response(item):
     if not client_uuid:
         frappe.throw("Missing client_uuid")
 
+    if not item.get("agent"):
+        item["agent"] = _get_agent_for_user().name
+
     existing = frappe.db.exists("FP Task Response", {"client_uuid": client_uuid})
     if existing:
         doc = frappe.get_doc("FP Task Response", existing)
