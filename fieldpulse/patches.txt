@@ -2,3 +2,4 @@
 
 [post_model_sync]
 fieldpulse.patches.v1_0.create_field_operations_coordinator
+fieldpulse.patches.v1_0.migrate_fp_agents_to_scout_profiles

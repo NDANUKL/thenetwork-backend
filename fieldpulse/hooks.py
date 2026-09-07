@@ -30,3 +30,9 @@ doc_events = {
     },
 }
 
+scheduler_events = {
+    "daily": [
+        "fieldpulse.fieldpulse.doctype.scout_profile.scout_profile.refresh_activity_statuses",
+    ],
+}
+
