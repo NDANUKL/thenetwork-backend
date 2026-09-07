@@ -10,7 +10,7 @@
     {"default": "Manual", "fieldname": "source", "fieldtype": "Select", "in_list_view": 1, "label": "Source", "options": "Diaspora Desk\nManual", "reqd": 1},
     {"fieldname": "source_reference", "fieldtype": "Data", "in_list_view": 1, "label": "Source Reference"},
     {"fieldname": "diaspora_request", "fieldtype": "Link", "label": "Diaspora Request", "options": "Diaspora Request"},
-    {"fieldname": "request_type", "fieldtype": "Select", "in_list_view": 1, "label": "Request Type", "options": "Property Verification\nConstruction Progress\nSchool Attendance / Enrollment Verification\nClinic / Medical Visit Verification\nBusiness / Merchant Verification\nDocument / Receipt Verification\nGeneral Site Visit", "reqd": 1},
+    {"fieldname": "request_type", "fieldtype": "Select", "in_list_view": 1, "label": "Request Type", "options": "Property Verification\nConstruction Progress\nSchool Attendance / Enrollment Verification\nClinic / Medical Visit Verification\nBusiness / Merchant Verification\nDocument / Receipt Verification\nGeneral Site Visit"},
     {"fieldname": "county", "fieldtype": "Data", "in_list_view": 1, "label": "County"},
     {"fieldname": "field_brief", "fieldtype": "Long Text", "label": "Field Brief", "reqd": 1},
     {"fieldname": "deadline", "fieldtype": "Date", "in_list_view": 1, "label": "Deadline"},

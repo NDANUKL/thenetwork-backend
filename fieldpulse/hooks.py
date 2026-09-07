@@ -24,3 +24,9 @@ fixtures = [
 
 after_install = "fieldpulse.install.after_install"
 
+doc_events = {
+    "Diaspora Request": {
+        "after_insert": "fieldpulse.integrations.diaspora_request.create_field_request",
+    },
+}
+
