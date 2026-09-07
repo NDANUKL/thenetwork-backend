@@ -6,7 +6,14 @@ app_email = "admin@example.com"
 app_license = "MIT"
 
 fixtures = [
-    {"dt": "Role", "filters": [["role_name", "in", ["Field Agent", "Supervisor", "Admin"]]]}
+    {
+        "dt": "Role",
+        "filters": [[
+            "role_name",
+            "in",
+            ["Field Agent", "Supervisor", "Admin", "Field Operations Coordinator"],
+        ]],
+    }
 ]
 
 after_install = "fieldpulse.install.after_install"

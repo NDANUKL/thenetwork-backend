@@ -17,6 +17,7 @@ ROLES = [
     "Supervisor",
     "Admin",
     "Diaspora Website Integration",
+    "Field Operations Coordinator",
 ]
 
 # Matches the Select options on FP Question.question_type exactly.
