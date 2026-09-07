@@ -11,7 +11,13 @@ fixtures = [
         "filters": [[
             "role_name",
             "in",
-            ["Field Agent", "Supervisor", "Admin", "Field Operations Coordinator"],
+            [
+                "Field Agent",
+                "Supervisor",
+                "Admin",
+                "Diaspora Website Integration",
+                "Field Operations Coordinator",
+            ],
         ]],
     }
 ]

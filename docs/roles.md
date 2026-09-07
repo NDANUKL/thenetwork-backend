@@ -24,5 +24,8 @@ than creating permissions for nonexistent records now.
 ## Clarissa's user
 
 Clarissa must receive a Frappe **System User** account with the Field
-Operations Coordinator role. Her actual email address is required before that
-record can be created; no placeholder user is created by this app.
+Operations Coordinator role. The post-model-sync patch creates or updates
+`groundscout.recruit@gmail.com`, enables it as a System User, and adds the
+Coordinator role without removing any pre-existing roles. It deliberately does
+not set a password or send an invitation email; an administrator must complete
+that credential setup in Frappe Desk.
