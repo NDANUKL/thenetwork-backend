@@ -17,9 +17,9 @@ app's Role fixture export.
 | Scout Profile | Read; availability override only if the On Leave policy later requires it |
 | Diaspora Request | Read |
 
-The first four operational DocTypes do not exist until Phases 2–5. Their
-DocType-level permissions will be added with the corresponding DocTypes rather
-than creating permissions for nonexistent records now.
+Field Request permissions are now defined on its DocType. The remaining
+operational DocType permissions will be added with their corresponding
+DocTypes, rather than creating permissions for nonexistent records.
 
 ## Clarissa's user
 
