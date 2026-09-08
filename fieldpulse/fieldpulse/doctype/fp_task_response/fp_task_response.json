@@ -8,8 +8,8 @@
   "field_order": ["client_uuid", "task", "agent", "location", "status", "started_at", "submitted_at", "client_updated_at", "device_id", "app_version", "latitude", "longitude", "accuracy_m", "geofence_status", "geofence_distance_m", "qa_status", "rejection_reason"],
   "fields": [
     {"fieldname": "client_uuid", "fieldtype": "Data", "in_list_view": 1, "label": "Client UUID", "reqd": 1, "unique": 1},
-    {"fieldname": "task", "fieldtype": "Link", "in_list_view": 1, "label": "Task", "options": "FP Task", "reqd": 1},
-    {"fieldname": "agent", "fieldtype": "Link", "in_list_view": 1, "label": "Agent", "options": "FP Agent", "reqd": 1},
+    {"fieldname": "task", "fieldtype": "Link", "in_list_view": 1, "label": "Field Task", "options": "Field Task", "reqd": 1},
+    {"fieldname": "agent", "fieldtype": "Link", "in_list_view": 1, "label": "Scout Profile", "options": "Scout Profile", "reqd": 1},
     {"fieldname": "location", "fieldtype": "Link", "label": "Location", "options": "FP Location"},
     {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nSubmitted\nAccepted\nRejected", "reqd": 1},
     {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At"},

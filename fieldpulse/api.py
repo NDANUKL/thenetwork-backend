@@ -13,25 +13,27 @@ from frappe.utils import now_datetime
 from fieldpulse.utils import haversine_distance_m
 
 
-def _get_agent_for_user(user=None):
+def _get_scout_profile_for_user(user=None):
     user = user or frappe.session.user
-    agent_name = frappe.db.exists("FP Agent", {"user": user})
-    if not agent_name:
-        frappe.throw(f"No FP Agent record linked to user {user}")
-    return frappe.get_doc("FP Agent", agent_name)
+    scout_profile = frappe.db.exists("Scout Profile", {"user": user})
+    if not scout_profile:
+        frappe.throw(f"No Scout Profile record linked to user {user}")
+    return frappe.get_doc("Scout Profile", scout_profile)
 
 
 @frappe.whitelist()
 def sync_pull_assignments(since=None):
     """Return tasks (and referenced locations/questionnaires/questions)
-    assigned to the calling agent, changed since the given timestamp."""
-    agent = _get_agent_for_user()
+    assigned to the calling scout, changed since the given timestamp."""
+    scout_profile = _get_scout_profile_for_user()
 
-    filters = {"agent": agent.name}
+    filters = {"scout_profile": scout_profile.name}
     if since:
-        filters["server_updated_at"] = [">", since]
+        filters["modified"] = [">", since]
 
-    tasks = frappe.get_all("FP Task", filters=filters, fields=["*"])
+    tasks = frappe.get_all("Field Task", filters=filters, fields=["*"])
+    for task in tasks:
+        task["server_updated_at"] = task.get("modified")
 
     location_names = list({t["location"] for t in tasks if t.get("location")})
     questionnaire_names = list({t["questionnaire"] for t in tasks if t.get("questionnaire")})
@@ -104,8 +106,16 @@ def _upsert_task_response(item):
     if not client_uuid:
         frappe.throw("Missing client_uuid")
 
-    if not item.get("agent"):
-        item["agent"] = _get_agent_for_user().name
+    scout_profile = item.get("scout_profile") or item.get("agent")
+    current_scout = _get_scout_profile_for_user()
+    if not scout_profile:
+        scout_profile = current_scout.name
+    if scout_profile != current_scout.name:
+        frappe.throw("Task responses can only be submitted by the assigned scout")
+
+    field_task = frappe.get_doc("Field Task", item.get("task"))
+    if field_task.scout_profile != current_scout.name:
+        frappe.throw("This Field Task is not assigned to the current scout")
 
     existing = frappe.db.exists("FP Task Response", {"client_uuid": client_uuid})
     if existing:
@@ -118,12 +128,13 @@ def _upsert_task_response(item):
         doc.client_uuid = client_uuid
 
     for field in (
-        "task", "agent", "location", "status", "started_at", "submitted_at",
+        "task", "location", "status", "started_at", "submitted_at",
         "client_updated_at", "device_id", "app_version",
         "latitude", "longitude", "accuracy_m",
     ):
         if field in item:
             doc.set(field, item[field])
+    doc.agent = scout_profile
 
     _apply_geofence_check(doc)
     doc.save(ignore_permissions=True)
@@ -203,8 +214,10 @@ def sync_log(agent=None, device_id=None, direction="Mixed", status="Success",
              pulled_count=0, pushed_count=0, accepted_count=0, rejected_count=0,
              error_count=0, summary_json=None):
     """Record a sync session summary for debugging/audit."""
-    if not agent:
-        agent = _get_agent_for_user().name
+    current_scout = _get_scout_profile_for_user()
+    if agent and agent != current_scout.name:
+        frappe.throw("Sync logs can only be recorded for the current scout")
+    agent = current_scout.name
 
     doc = frappe.new_doc("FP Sync Log")
     doc.sync_session_id = frappe.generate_hash(length=12)

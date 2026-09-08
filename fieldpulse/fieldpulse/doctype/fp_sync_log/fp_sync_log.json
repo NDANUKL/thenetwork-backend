@@ -8,7 +8,7 @@
   "field_order": ["sync_session_id", "agent", "device_id", "started_at", "completed_at", "direction", "status", "pulled_count", "pushed_count", "accepted_count", "rejected_count", "error_count", "summary_json"],
   "fields": [
     {"fieldname": "sync_session_id", "fieldtype": "Data", "in_list_view": 1, "label": "Sync Session ID", "reqd": 1, "unique": 1},
-    {"fieldname": "agent", "fieldtype": "Link", "in_list_view": 1, "label": "Agent", "options": "FP Agent", "reqd": 1},
+    {"fieldname": "agent", "fieldtype": "Link", "in_list_view": 1, "label": "Scout Profile", "options": "Scout Profile", "reqd": 1},
     {"fieldname": "device_id", "fieldtype": "Data", "label": "Device ID"},
     {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At"},
     {"fieldname": "completed_at", "fieldtype": "Datetime", "label": "Completed At"},

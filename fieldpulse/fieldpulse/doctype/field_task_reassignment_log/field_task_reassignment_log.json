@@ -1,0 +1,23 @@
+{
+  "actions": [],
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": ["from_scout", "to_scout", "reassigned_by", "reassigned_at", "reason"],
+  "fields": [
+    {"fieldname": "from_scout", "fieldtype": "Link", "in_list_view": 1, "label": "From Scout", "options": "Scout Profile", "read_only": 1},
+    {"fieldname": "to_scout", "fieldtype": "Link", "in_list_view": 1, "label": "To Scout", "options": "Scout Profile", "read_only": 1},
+    {"fieldname": "reassigned_by", "fieldtype": "Link", "label": "Reassigned By", "options": "User", "read_only": 1},
+    {"fieldname": "reassigned_at", "fieldtype": "Datetime", "label": "Reassigned At", "read_only": 1},
+    {"fieldname": "reason", "fieldtype": "Small Text", "label": "Reason", "read_only": 1}
+  ],
+  "istable": 1,
+  "modified": "2026-09-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "Field Task Reassignment Log",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

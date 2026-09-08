@@ -1,0 +1,41 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "creation": "2026-09-07 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["field_request", "scout_profile", "location", "questionnaire", "questionnaire_version", "status", "assigned_at", "accepted_at", "started_at", "first_evidence_at", "submitted_at", "completed_at", "due_at", "rework_count", "reassignment_history"],
+  "fields": [
+    {"fieldname": "field_request", "fieldtype": "Link", "in_list_view": 1, "label": "Field Request", "options": "Field Request"},
+    {"fieldname": "scout_profile", "fieldtype": "Link", "in_list_view": 1, "label": "Scout", "options": "Scout Profile", "reqd": 1},
+    {"fieldname": "location", "fieldtype": "Link", "label": "Location", "options": "FP Location"},
+    {"fieldname": "questionnaire", "fieldtype": "Link", "label": "Questionnaire", "options": "FP Questionnaire"},
+    {"fieldname": "questionnaire_version", "fieldtype": "Int", "label": "Questionnaire Version"},
+    {"default": "Assigned", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Assigned\nAccepted\nIn Progress\nSubmitted\nApproved\nRejected\nCancelled", "reqd": 1},
+    {"fieldname": "assigned_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Assigned At", "read_only": 1},
+    {"fieldname": "accepted_at", "fieldtype": "Datetime", "label": "Accepted At", "read_only": 1},
+    {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At", "read_only": 1},
+    {"fieldname": "first_evidence_at", "fieldtype": "Datetime", "label": "First Evidence At", "read_only": 1},
+    {"fieldname": "submitted_at", "fieldtype": "Datetime", "label": "Submitted At", "read_only": 1},
+    {"fieldname": "completed_at", "fieldtype": "Datetime", "label": "Completed At", "read_only": 1},
+    {"fieldname": "due_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Due At"},
+    {"default": "0", "fieldname": "rework_count", "fieldtype": "Int", "label": "Rework Count", "read_only": 1, "reqd": 1},
+    {"fieldname": "reassignment_history", "fieldtype": "Table", "label": "Reassignment History", "options": "Field Task Reassignment Log", "read_only": 1}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-09-07 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "Field Task",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
+    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Field Operations Coordinator", "write": 1},
+    {"read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}
