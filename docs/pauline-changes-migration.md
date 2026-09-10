@@ -6,6 +6,16 @@ The `migrate_fp_agents_to_scout_profiles` post-model-sync patch creates one
 Scout Profile per FP Agent, mapping `full_name` to `scout_name`, `user` to
 `user`, and `phone` to `phone_number`.
 
+Each migrated profile stores the source FP Agent in the read-only,
+unique `legacy_fp_agent` link. The patch checks that link before every insert,
+so a retry safely skips precisely the agents already migrated rather than
+guessing from a potentially duplicated scout name.
+
+Scout Profile uses Frappe's old-style expression naming format
+`format:SCT-{#####}`, producing sequential names such as `SCT-00001`. The
+previous `format:SCT-.#####` string was invalid for that mode and was treated
+as a literal name, causing the staging duplicate-key failure.
+
 FP Agent has GPS/radius coverage but no county field. Every migrated
 `base_county` is intentionally left blank and needs manual backfill before
 county-based allocation is used.
