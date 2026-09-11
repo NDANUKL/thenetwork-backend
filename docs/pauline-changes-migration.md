@@ -26,11 +26,17 @@ are not migrated and remain out of scope for this change.
 ## Field Task migration
 
 The `migrate_fp_tasks_to_field_tasks` post-model-sync patch creates Field
-Tasks using the legacy FP Task document names, maps the assigned FP Agent to
-its Scout Profile, and carries over the existing location, questionnaire,
-assignment, due, and submission data needed by the current questionnaire and
-geofence workflow. Legacy `Draft` tasks become `Assigned`, because Field Task
-does not retain a Draft status; other shared statuses are preserved.
+Tasks with their normal Frappe-generated document names and stores the source
+record in the read-only, unique `legacy_fp_task` link. It maps the assigned FP
+Agent to its Scout Profile, carries over the existing location, questionnaire,
+assignment, due, and submission data, then explicitly repoints every FP Task
+Response to the new Field Task. Legacy `Draft` tasks become `Assigned`,
+because Field Task does not retain a Draft status; other shared statuses are
+preserved.
+
+The `legacy_fp_task` link is the migration's idempotency key. On retry, a
+previously created Field Task is reused and already-repointed response/log
+links are left intact.
 
 The patch repoints FP Task Response and FP Sync Log links from FP Agent to
 Scout Profile. FP Task remains intact and is not deprecated until a production

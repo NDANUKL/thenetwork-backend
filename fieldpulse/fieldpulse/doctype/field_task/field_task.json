@@ -4,10 +4,11 @@
   "creation": "2026-09-07 00:00:00.000000",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["field_request", "scout_profile", "location", "questionnaire", "questionnaire_version", "status", "assigned_at", "accepted_at", "started_at", "first_evidence_at", "submitted_at", "completed_at", "due_at", "rework_count", "reassignment_history"],
+  "field_order": ["field_request", "scout_profile", "legacy_fp_task", "location", "questionnaire", "questionnaire_version", "status", "assigned_at", "accepted_at", "started_at", "first_evidence_at", "submitted_at", "completed_at", "due_at", "rework_count", "reassignment_history"],
   "fields": [
     {"fieldname": "field_request", "fieldtype": "Link", "in_list_view": 1, "label": "Field Request", "options": "Field Request"},
     {"fieldname": "scout_profile", "fieldtype": "Link", "in_list_view": 1, "label": "Scout", "options": "Scout Profile", "reqd": 1},
+    {"fieldname": "legacy_fp_task", "fieldtype": "Link", "label": "Legacy FP Task", "options": "FP Task", "read_only": 1, "unique": 1},
     {"fieldname": "location", "fieldtype": "Link", "label": "Location", "options": "FP Location"},
     {"fieldname": "questionnaire", "fieldtype": "Link", "label": "Questionnaire", "options": "FP Questionnaire"},
     {"fieldname": "questionnaire_version", "fieldtype": "Int", "label": "Questionnaire Version"},
