@@ -1,0 +1,40 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:EVD-{#####}",
+  "creation": "2026-09-11 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": ["client_uuid", "field_task", "scout", "evidence_type", "r2_object_key", "original_filename", "mime_type", "file_size", "captured_at", "gps_lat", "gps_lng", "upload_status", "etag"],
+  "fields": [
+    {"fieldname": "client_uuid", "fieldtype": "Data", "label": "Client Upload ID", "read_only": 1, "unique": 1},
+    {"fieldname": "field_task", "fieldtype": "Link", "in_list_view": 1, "label": "Field Task", "options": "Field Task", "read_only": 1, "reqd": 1},
+    {"fieldname": "scout", "fieldtype": "Link", "in_list_view": 1, "label": "Scout", "options": "Scout Profile", "read_only": 1, "reqd": 1},
+    {"fieldname": "evidence_type", "fieldtype": "Select", "in_list_view": 1, "label": "Evidence Type", "options": "Photo\nVideo\nDocument\nSignature", "read_only": 1, "reqd": 1},
+    {"fieldname": "r2_object_key", "fieldtype": "Data", "label": "R2 Object Key", "read_only": 1, "reqd": 1, "unique": 1},
+    {"fieldname": "original_filename", "fieldtype": "Data", "label": "Original Filename", "read_only": 1, "reqd": 1},
+    {"fieldname": "mime_type", "fieldtype": "Data", "label": "MIME Type", "read_only": 1, "reqd": 1},
+    {"fieldname": "file_size", "fieldtype": "Int", "label": "File Size", "read_only": 1, "reqd": 1},
+    {"fieldname": "captured_at", "fieldtype": "Datetime", "label": "Captured At", "read_only": 1},
+    {"fieldname": "gps_lat", "fieldtype": "Float", "label": "GPS Latitude", "read_only": 1},
+    {"fieldname": "gps_lng", "fieldtype": "Float", "label": "GPS Longitude", "read_only": 1},
+    {"default": "Pending", "fieldname": "upload_status", "fieldtype": "Select", "in_list_view": 1, "label": "Upload Status", "options": "Pending\nUploading\nUploaded\nFailed", "read_only": 1, "reqd": 1},
+    {"fieldname": "etag", "fieldtype": "Data", "label": "ETag", "read_only": 1}
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2026-09-11 00:00:00.000000",
+  "module": "FieldPulse",
+  "name": "Field Evidence",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
+    {"email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor"},
+    {"email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Field Operations Coordinator"},
+    {"read": 1, "role": "Field Agent"}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}
