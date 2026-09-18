@@ -6,13 +6,14 @@
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [
-    "full_name", "email", "original_brief", "deadline_preference", "deadline_date",
+    "submission_id", "full_name", "email", "original_brief", "deadline_preference", "deadline_date",
     "summary", "category", "category_label", "classification_confidence",
     "suggested_scouts", "estimated_days", "recommendation_reason", "coverage_note",
     "needs_human_review", "status",
     "evidence_checklist", "clarification_history", "clarification_questions", "risk_flags"
   ],
   "fields": [
+    {"fieldname": "submission_id", "fieldtype": "Data", "in_list_view": 1, "label": "Submission ID", "no_copy": 1, "reqd": 1, "unique": 1},
     {"fieldname": "full_name", "fieldtype": "Data", "in_list_view": 1, "label": "Full Name", "reqd": 1},
     {"fieldname": "email", "fieldtype": "Data", "in_list_view": 1, "label": "Email", "options": "Email", "reqd": 1},
     {"fieldname": "original_brief", "fieldtype": "Long Text", "label": "Original Brief", "reqd": 1},
