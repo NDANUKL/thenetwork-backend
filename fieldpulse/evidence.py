@@ -168,7 +168,7 @@ def confirm_evidence_upload(evidence_id, etag):
         frappe.db.set_value("Field Evidence", evidence.name, "upload_status", "Failed")
         frappe.db.commit()
         frappe.throw("Evidence integrity check failed")
-    if object_metadata.get("ContentLength") != evidence.file_size:
+    if int(object_metadata.get("ContentLength")) != int(evidence.file_size):
         frappe.db.set_value("Field Evidence", evidence.name, "upload_status", "Failed")
         frappe.db.commit()
         frappe.throw("Evidence file size does not match the requested upload")
