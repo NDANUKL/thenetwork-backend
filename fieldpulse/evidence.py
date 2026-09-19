@@ -10,6 +10,11 @@ from frappe.utils import now_datetime
 
 PRESIGNED_URL_EXPIRY_SECONDS = 15 * 60
 EVIDENCE_VIEW_ROLES = {"Admin", "Supervisor", "Field Operations Coordinator"}
+QUESTION_ATTACHMENT_EVIDENCE_TYPES = {
+    "photo": "Photo",
+    "file_attachment": "Document",
+    "signature": "Signature",
+}
 
 
 def _r2_settings():
@@ -60,6 +65,23 @@ def _assert_scout_owns_task(field_task, scout_profile):
         frappe.throw("This Field Task is not assigned to the current scout", frappe.PermissionError)
 
 
+def _validate_question_response(question_response, field_task, evidence_type):
+    """Return a valid attachment-question response for this task, if supplied."""
+    response = frappe.get_doc("FP Question Response", question_response)
+    expected_evidence_type = QUESTION_ATTACHMENT_EVIDENCE_TYPES.get(response.question_type)
+    if not expected_evidence_type:
+        frappe.throw("Question Response is not for a photo, file, or signature question")
+    if evidence_type != expected_evidence_type:
+        frappe.throw(
+            f"Evidence type must be {expected_evidence_type} for this {response.question_type} question"
+        )
+
+    response_task = frappe.db.get_value("FP Task Response", response.task_response, "task")
+    if response_task != field_task:
+        frappe.throw("Question Response does not belong to this Field Task", frappe.PermissionError)
+    return response
+
+
 def _object_key(field_task, client_uuid, filename):
     return f"field-evidence/{field_task}/{client_uuid}/{os.path.basename(filename)}"
 
@@ -76,6 +98,7 @@ def request_evidence_upload(
     mime_type,
     file_size,
     evidence_type,
+    question_response=None,
     captured_at=None,
     gps_lat=None,
     gps_lng=None,
@@ -94,6 +117,8 @@ def request_evidence_upload(
 
     scout_profile = _current_scout()
     _assert_scout_owns_task(field_task, scout_profile)
+    if question_response:
+        _validate_question_response(question_response, field_task, evidence_type)
     settings = _r2_settings()
     evidence_name = frappe.db.exists("Field Evidence", {"client_uuid": client_uuid})
 
@@ -101,6 +126,8 @@ def request_evidence_upload(
         evidence = frappe.get_doc("Field Evidence", evidence_name)
         if evidence.scout != scout_profile or evidence.field_task != field_task:
             frappe.throw("The client upload ID belongs to another evidence record", frappe.PermissionError)
+        if (evidence.question_response or "") != (question_response or ""):
+            frappe.throw("The client upload ID belongs to another question response", frappe.PermissionError)
         if evidence.upload_status == "Uploaded":
             return {"evidence_id": evidence.name, "upload_status": evidence.upload_status}
     else:
@@ -110,6 +137,7 @@ def request_evidence_upload(
                 "client_uuid": client_uuid,
                 "field_task": field_task,
                 "scout": scout_profile,
+                "question_response": question_response,
                 "evidence_type": evidence_type,
                 "r2_object_key": _object_key(field_task, client_uuid, filename),
                 "original_filename": os.path.basename(filename),

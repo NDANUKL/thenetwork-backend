@@ -5,11 +5,12 @@
   "creation": "2026-09-11 00:00:00.000000",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["client_uuid", "field_task", "scout", "evidence_type", "r2_object_key", "original_filename", "mime_type", "file_size", "captured_at", "gps_lat", "gps_lng", "upload_status", "etag"],
+  "field_order": ["client_uuid", "field_task", "scout", "question_response", "evidence_type", "r2_object_key", "original_filename", "mime_type", "file_size", "captured_at", "gps_lat", "gps_lng", "upload_status", "etag"],
   "fields": [
     {"fieldname": "client_uuid", "fieldtype": "Data", "label": "Client Upload ID", "read_only": 1, "unique": 1},
     {"fieldname": "field_task", "fieldtype": "Link", "in_list_view": 1, "label": "Field Task", "options": "Field Task", "read_only": 1, "reqd": 1},
     {"fieldname": "scout", "fieldtype": "Link", "in_list_view": 1, "label": "Scout", "options": "Scout Profile", "read_only": 1, "reqd": 1},
+    {"fieldname": "question_response", "fieldtype": "Link", "label": "Question Response", "options": "FP Question Response", "read_only": 1},
     {"fieldname": "evidence_type", "fieldtype": "Select", "in_list_view": 1, "label": "Evidence Type", "options": "Photo\nVideo\nDocument\nSignature", "read_only": 1, "reqd": 1},
     {"fieldname": "r2_object_key", "fieldtype": "Data", "label": "R2 Object Key", "read_only": 1, "reqd": 1, "unique": 1},
     {"fieldname": "original_filename", "fieldtype": "Data", "label": "Original Filename", "read_only": 1, "reqd": 1},

@@ -64,23 +64,47 @@
       }
     },
     {
-      "name": "Upload raw file (Frappe built-in, step 1 of attachment flow)",
-      "request": {
-        "method": "POST",
-        "url": "{{base_url}}/api/method/upload_file",
-        "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": [] }] }
-      }
-    },
-    {
-      "name": "Sync Upload Attachment (step 2, metadata)",
+      "name": "Request Evidence Upload (step 1 of 3, R2 presigned URL)",
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{base_url}}/api/method/fieldpulse.api.sync_upload_attachment",
+        "url": "{{base_url}}/api/method/fieldpulse.evidence.request_evidence_upload",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"client_uuid\": \"22222222-aaaa-bbbb-cccc-000000000002\",\n  \"task_response\": \"FP-TRS-0001\",\n  \"attachment_type\": \"Photo\",\n  \"file_url\": \"/files/shelf-photo.jpg\",\n  \"mime_type\": \"image/jpeg\",\n  \"file_size_bytes\": 184320\n}"
-        }
+          "raw": "{\n  \"client_uuid\": \"22222222-aaaa-bbbb-cccc-000000000002\",\n  \"field_task\": \"FT-0001\",\n  \"filename\": \"shelf-photo.jpg\",\n  \"mime_type\": \"image/jpeg\",\n  \"file_size\": 184320,\n  \"evidence_type\": \"Photo\",\n  \"question_response\": \"FP-QRS-0001\"\n}"
+        },
+        "description": "question_response is optional — required only when this evidence answers a photo/file/signature questionnaire question. Returns a presigned PUT URL + evidence_id."
+      }
+    },
+    {
+      "name": "Upload file to R2 (step 2 of 3, direct PUT)",
+      "request": {
+        "method": "PUT",
+        "url": "<upload_url from step 1 response, used verbatim>",
+        "header": [{ "key": "Content-Type", "value": "image/jpeg" }],
+        "body": { "mode": "file", "file": {} },
+        "description": "No Authorization header here — the presigned URL itself carries auth. Content-Type must match what was requested in step 1."
+      }
+    },
+    {
+      "name": "Confirm Evidence Upload (step 3 of 3)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/api/method/fieldpulse.evidence.confirm_evidence_upload",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"evidence_id\": \"<evidence_id from step 1 response>\",\n  \"etag\": \"<ETag from step 2 response headers, quotes included>\"\n}"
+        },
+        "description": "Server re-verifies ETag and byte size directly against R2 via HEAD before marking Uploaded."
+      }
+    },
+    {
+      "name": "Get Evidence View URL (Coordinator/Supervisor only)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/method/fieldpulse.evidence.get_evidence_view_url?evidence_id=<evidence_id>",
+        "description": "Requires Coordinator/Supervisor credentials, not the scout's. Returns a short-lived signed URL; the R2 bucket itself stays private."
       }
     },
     {

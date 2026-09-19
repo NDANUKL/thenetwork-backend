@@ -3,8 +3,9 @@ Whitelisted sync API endpoints for the FieldPulse mobile client.
 
 Follows the pull-then-push batch sync contract from the Week 2 build
 spec: mobile pulls assignments by delta timestamp, then pushes
-structured responses and attachments separately, each keyed by a
-client-generated UUID for idempotency.
+structured responses, each keyed by a client-generated UUID for idempotency.
+Evidence is uploaded through the separate R2 presigned-URL flow in
+``fieldpulse.evidence``.
 """
 
 import frappe
@@ -175,37 +176,6 @@ def _upsert_question_response(item):
             doc.set(field, item[field])
 
     doc.save(ignore_permissions=True)
-    return {"client_uuid": client_uuid, "server_id": doc.name, "status": "accepted"}
-
-
-@frappe.whitelist(methods=["POST"])
-def sync_upload_attachment(
-    client_uuid, task_response, attachment_type, file_url,
-    mime_type=None, file_size_bytes=None, question_response=None,
-    captured_at=None, latitude=None, longitude=None, accuracy_m=None,
-):
-    """Idempotent, append-only attachment upload. Existing client_uuid
-    returns success without overwriting the stored file."""
-    existing = frappe.db.exists("FP Attachment", {"client_uuid": client_uuid})
-    if existing:
-        return {"client_uuid": client_uuid, "server_id": existing, "status": "already_exists"}
-
-    doc = frappe.new_doc("FP Attachment")
-    doc.client_uuid = client_uuid
-    doc.task_response = task_response
-    doc.question_response = question_response
-    doc.attachment_type = attachment_type
-    doc.file_url = file_url
-    doc.mime_type = mime_type
-    doc.file_size_bytes = file_size_bytes
-    doc.captured_at = captured_at
-    doc.latitude = latitude
-    doc.longitude = longitude
-    doc.accuracy_m = accuracy_m
-    doc.upload_status = "Uploaded"
-    doc.insert(ignore_permissions=True)
-    frappe.db.commit()
-
     return {"client_uuid": client_uuid, "server_id": doc.name, "status": "accepted"}
 
 

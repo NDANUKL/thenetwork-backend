@@ -29,7 +29,7 @@ class FPTaskResponse(Document):
 
         if not self.task:
             return
-        questionnaire = frappe.db.get_value("FP Task", self.task, "questionnaire")
+        questionnaire = frappe.db.get_value("Field Task", self.task, "questionnaire")
         if not questionnaire:
             return
 
@@ -58,10 +58,12 @@ class FPTaskResponse(Document):
 
         if q["question_type"] in ("photo", "file_attachment", "signature"):
             has_attachment = frappe.db.exists(
-                "FP Attachment", {"question_response": answer["name"]}
-            ) or frappe.db.exists(
-                "FP Attachment",
-                {"task_response": self.name, "attachment_type": q["question_type"].split("_")[0].capitalize()},
+                "Field Evidence",
+                {
+                    "field_task": self.task,
+                    "question_response": answer["name"],
+                    "upload_status": "Uploaded",
+                },
             )
             if not has_attachment:
                 frappe.throw(f"Missing required attachment for: {q['label']}")
@@ -87,8 +89,8 @@ class FPTaskResponse(Document):
     def _sync_task_status(self):
         if not self.task:
             return
-        task_status = frappe.db.get_value("FP Task", self.task, "status")
+        task_status = frappe.db.get_value("Field Task", self.task, "status")
         if self.status == "Submitted" and task_status not in ("Submitted", "Approved", "Rejected"):
-            frappe.db.set_value("FP Task", self.task, "status", "Submitted")
+            frappe.db.set_value("Field Task", self.task, "status", "Submitted")
         elif self.status == "Draft" and task_status == "Assigned":
-            frappe.db.set_value("FP Task", self.task, "status", "In Progress")
+            frappe.db.set_value("Field Task", self.task, "status", "In Progress")

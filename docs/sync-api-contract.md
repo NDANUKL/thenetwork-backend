@@ -47,19 +47,36 @@ Body:
 Up to ~50 items per batch. Each item validates and saves independently —
 one bad item does not fail the rest of the batch.
 
-### `POST /api/method/fieldpulse.api.sync_upload_attachment`
+### Evidence upload (`fieldpulse.evidence`)
 
-Attachments are a two-step flow, reusing Frappe's own file upload
-machinery instead of a custom multipart handler:
+**Superseded `fieldpulse.api.sync_upload_attachment` — removed.** All
+evidence (photos, files, signatures) now uploads directly to Cloudflare
+R2 via short-lived presigned URLs, never through Frappe's own
+`upload_file`. Bytes never transit the Frappe server. Three-step flow:
 
-1. Client uploads the raw file to Frappe's built-in
-   `POST /api/method/upload_file` → gets back a `file_url`.
-2. Client calls `sync_upload_attachment` with that `file_url` plus
-   metadata (`client_uuid`, `task_response`, `attachment_type`, GPS,
-   timestamp). This links the file to the response record and is
-   idempotent — resending the same `client_uuid` returns success
-   without creating a duplicate or overwriting the stored file
-   (append-only, per the locked architecture decision).
+1. `POST /api/method/fieldpulse.evidence.request_evidence_upload` —
+   client sends `client_uuid`, `field_task`, `filename`, `mime_type`,
+   `file_size`, `evidence_type`, and optionally `question_response`
+   (required for photo/file/signature questionnaire questions — see
+   below). Server validates the scout owns the task, validates the
+   question_response belongs to that task and matches the expected
+   evidence type if supplied, then returns a presigned PUT URL. Same
+   `client_uuid` returns the existing record idempotently.
+2. Client `PUT`s the file directly to the presigned URL, with a
+   matching `Content-Type` header.
+3. `POST /api/method/fieldpulse.evidence.confirm_evidence_upload` —
+   client sends `evidence_id` and the R2 `ETag`. Server re-verifies
+   directly against R2 (`HEAD` request: ETag and byte size must both
+   match) before marking the `Field Evidence` record `Uploaded`.
+
+`GET /api/method/fieldpulse.evidence.get_evidence_view_url?evidence_id=`
+returns a short-lived signed view URL, for Coordinator/Supervisor
+roles only — the R2 bucket itself stays private at all times.
+
+**Questionnaire attachment validation:** `FP Task Response` requires a
+matching `Field Evidence` record (`field_task` + `question_response`,
+`upload_status = Uploaded`) for any required photo/file/signature
+question before submission is accepted.
 
 ### `POST /api/method/fieldpulse.api.sync_log`
 
