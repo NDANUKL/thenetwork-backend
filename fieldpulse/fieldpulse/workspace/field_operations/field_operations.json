@@ -1,0 +1,131 @@
+{
+  "content": "[{\"id\":\"field-operations-requests\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Field Requests</b></span>\",\"col\":12}},{\"id\":\"awaiting-assignment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Awaiting Assignment\",\"col\":3}},{\"id\":\"all-field-requests\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"All Field Requests\",\"col\":3}},{\"id\":\"create-manual-request\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Create Manual Request\",\"col\":3}},{\"id\":\"field-operations-scouts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Scout Availability</b></span>\",\"col\":12}},{\"id\":\"available-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Available Scouts\",\"col\":3}},{\"id\":\"busy-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Busy Scouts\",\"col\":3}},{\"id\":\"on-leave-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"On Leave Scouts\",\"col\":3}},{\"id\":\"inactive-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Inactive Scouts\",\"col\":3}},{\"id\":\"field-operations-tasks\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Field Tasks</b></span>\",\"col\":12}},{\"id\":\"active-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Active Tasks\",\"col\":3}},{\"id\":\"submitted-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Submitted Tasks\",\"col\":3}},{\"id\":\"completed-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Completed Tasks\",\"col\":3}},{\"id\":\"overdue-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Overdue Tasks\",\"col\":3}}]",
+  "creation": "2026-09-18 00:00:00.000000",
+  "custom_blocks": [],
+  "docstatus": 0,
+  "doctype": "Workspace",
+  "for_user": "",
+  "hide_custom": 0,
+  "icon": "clipboard-list",
+  "idx": 0,
+  "is_hidden": 0,
+  "label": "Field Operations",
+  "links": [],
+  "modified": "2026-09-18 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "FieldPulse",
+  "name": "Field Operations",
+  "number_cards": [],
+  "owner": "Administrator",
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "restrict_to_domain": "",
+  "roles": [
+    {
+      "role": "Field Operations Coordinator"
+    },
+    {
+      "role": "System Manager"
+    }
+  ],
+  "sequence_id": 0.0,
+  "shortcuts": [
+    {
+      "color": "Orange",
+      "doc_view": "List",
+      "format": "{} awaiting assignment",
+      "label": "Awaiting Assignment",
+      "link_to": "Field Request",
+      "stats_filter": "{\n  \"status\": \"Awaiting Assignment\"\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Blue",
+      "doc_view": "List",
+      "label": "All Field Requests",
+      "link_to": "Field Request",
+      "type": "DocType"
+    },
+    {
+      "color": "Green",
+      "doc_view": "List",
+      "label": "Create Manual Request",
+      "type": "URL",
+      "url": "/app/field-request/new-field-request-1?source=Manual"
+    },
+    {
+      "color": "Green",
+      "doc_view": "List",
+      "format": "{} available",
+      "label": "Available Scouts",
+      "link_to": "Scout Profile",
+      "stats_filter": "{\n  \"availability_status\": \"Available\"\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Orange",
+      "doc_view": "List",
+      "format": "{} busy",
+      "label": "Busy Scouts",
+      "link_to": "Scout Profile",
+      "stats_filter": "{\n  \"availability_status\": \"Busy\"\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Red",
+      "doc_view": "List",
+      "format": "{} on leave",
+      "label": "On Leave Scouts",
+      "link_to": "Scout Profile",
+      "stats_filter": "{\n  \"availability_status\": \"On Leave\"\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Grey",
+      "doc_view": "List",
+      "format": "{} inactive",
+      "label": "Inactive Scouts",
+      "link_to": "Scout Profile",
+      "stats_filter": "{\n  \"activity_status\": \"Inactive\"\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Blue",
+      "doc_view": "List",
+      "format": "{} active",
+      "label": "Active Tasks",
+      "link_to": "Field Task",
+      "stats_filter": "{\n  \"status\": [\"in\", [\"Assigned\", \"Accepted\", \"In Progress\"]]\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Orange",
+      "doc_view": "List",
+      "format": "{} submitted",
+      "label": "Submitted Tasks",
+      "link_to": "Field Task",
+      "stats_filter": "{\n  \"status\": \"Submitted\"\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Green",
+      "doc_view": "List",
+      "format": "{} completed",
+      "label": "Completed Tasks",
+      "link_to": "Field Task",
+      "stats_filter": "{\n  \"status\": \"Approved\"\n}",
+      "type": "DocType"
+    },
+    {
+      "color": "Red",
+      "doc_view": "List",
+      "format": "{} overdue",
+      "label": "Overdue Tasks",
+      "link_to": "Field Task",
+      "stats_filter": "{\n  \"due_at\": [\"<\", frappe.datetime.now_datetime()],\n  \"status\": [\"not in\", [\"Approved\", \"Cancelled\"]]\n}",
+      "type": "DocType"
+    }
+  ],
+  "title": "Field Operations"
+}
