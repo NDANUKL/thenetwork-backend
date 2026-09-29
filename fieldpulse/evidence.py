@@ -68,12 +68,19 @@ def _assert_scout_owns_task(field_task, scout_profile):
 def _validate_question_response(question_response, field_task, evidence_type):
     """Return a valid attachment-question response for this task, if supplied."""
     response = frappe.get_doc("FP Question Response", question_response)
-    expected_evidence_type = QUESTION_ATTACHMENT_EVIDENCE_TYPES.get(response.question_type)
+    question = frappe.get_doc("FP Question", response.question)
+    task_questionnaire = frappe.db.get_value("Field Task", field_task, "questionnaire")
+    if not task_questionnaire or question.questionnaire != task_questionnaire:
+        frappe.throw("Question Response does not belong to this Field Task", frappe.PermissionError)
+
+    expected_evidence_type = QUESTION_ATTACHMENT_EVIDENCE_TYPES.get(question.question_type)
     if not expected_evidence_type:
         frappe.throw("Question Response is not for a photo, file, or signature question")
+    if response.question_type != question.question_type:
+        frappe.throw("Question Response type does not match its questionnaire question")
     if evidence_type != expected_evidence_type:
         frappe.throw(
-            f"Evidence type must be {expected_evidence_type} for this {response.question_type} question"
+            f"Evidence type must be {expected_evidence_type} for this {question.question_type} question"
         )
 
     response_task = frappe.db.get_value("FP Task Response", response.task_response, "task")

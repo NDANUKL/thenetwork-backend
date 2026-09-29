@@ -89,8 +89,30 @@ class FPTaskResponse(Document):
     def _sync_task_status(self):
         if not self.task:
             return
-        task_status = frappe.db.get_value("Field Task", self.task, "status")
-        if self.status == "Submitted" and task_status not in ("Submitted", "Approved", "Rejected"):
-            frappe.db.set_value("Field Task", self.task, "status", "Submitted")
-        elif self.status == "Draft" and task_status == "Assigned":
-            frappe.db.set_value("Field Task", self.task, "status", "In Progress")
+        task = frappe.get_doc("Field Task", self.task)
+
+        # A first saved response is an implicit acceptance/start for legacy
+        # clients that save a draft before calling the explicit accept action.
+        if self.status == "Draft":
+            if task.status == "Assigned":
+                task = self._transition_field_task(task, "Accepted")
+            if task.status == "Accepted":
+                self._transition_field_task(task, "In Progress")
+            return
+
+        if self.status != "Submitted" or task.status in ("Submitted", "Approved", "Rejected"):
+            return
+        if task.status == "Assigned":
+            task = self._transition_field_task(task, "Accepted")
+        if task.status == "Accepted":
+            task = self._transition_field_task(task, "In Progress")
+        if task.status != "In Progress":
+            frappe.throw(f"Cannot submit Field Task while it is {task.status}")
+        self._transition_field_task(task, "Submitted")
+
+    @staticmethod
+    def _transition_field_task(task, status):
+        """Persist through Field Task hooks so derived state remains current."""
+        task.status = status
+        task.save(ignore_permissions=True)
+        return frappe.get_doc("Field Task", task.name)
