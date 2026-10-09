@@ -71,18 +71,9 @@ class FieldTask(Document):
             self.set(timestamp_field, now_datetime())
 
     def _sync_field_request_status(self):
-        if not self.field_request:
-            return
-        request_status = {
-            "Assigned": "Assigned",
-            "Accepted": "Assigned",
-            "In Progress": "In Progress",
-            "Submitted": "In Progress",
-            "Approved": "Completed",
-            "Cancelled": "Cancelled",
-        }.get(self.status)
-        if request_status:
-            frappe.db.set_value("Field Request", self.field_request, "status", request_status)
+        from fieldpulse.project_alignment import rollup_tasks
+
+        rollup_tasks(self)
 
 
 def _require_allocation_permission(field_request):
@@ -95,35 +86,16 @@ def _require_allocation_permission(field_request):
 @frappe.whitelist(methods=["POST"])
 def assign_field_request(field_request, scout_profile, questionnaire=None, location=None, due_at=None):
     """Allocate a Field Request to an available scout."""
-    _require_allocation_permission(field_request)
-    if not questionnaire or not location:
-        frappe.throw("A questionnaire and location are required to allocate a Field Task")
-    if frappe.db.get_value("Scout Profile", scout_profile, "availability_status") == "On Leave":
-        frappe.throw("A task cannot be assigned to a scout who is On Leave")
-    if frappe.db.exists(
-        "Field Task",
-        {"field_request": field_request, "status": ["not in", ["Cancelled"]]},
-    ):
-        frappe.throw("This Field Request already has an active Field Task")
+    from fieldpulse.project_alignment import assign_project_scouts
 
-    questionnaire_version = (
-        frappe.db.get_value("FP Questionnaire", questionnaire, "version") if questionnaire else None
-    )
-    due_at = due_at or frappe.db.get_value("Field Request", field_request, "deadline")
-    task = frappe.get_doc(
-        {
-            "doctype": "Field Task",
-            "field_request": field_request,
-            "scout_profile": scout_profile,
-            "questionnaire": questionnaire,
-            "questionnaire_version": questionnaire_version,
-            "location": location,
-            "due_at": due_at,
-            "status": "Assigned",
-        }
-    )
-    task.insert()
-    return {"field_task": task.name}
+    result = assign_project_scouts(field_request, [{
+        "scout": scout_profile, "questionnaire": questionnaire, "location": location,
+    }])
+    if due_at:
+        task = frappe.get_doc("Field Task", result["tasks"][0])
+        task.due_at = due_at
+        task.save()
+    return {"field_task": result["tasks"][0]}
 
 
 @frappe.whitelist(methods=["POST"])

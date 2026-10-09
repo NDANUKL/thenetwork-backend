@@ -4,24 +4,187 @@
   "creation": "2026-09-07 00:00:00.000000",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["field_request", "scout_profile", "legacy_fp_task", "location", "questionnaire", "questionnaire_version", "status", "assigned_at", "accepted_at", "started_at", "first_evidence_at", "submitted_at", "completed_at", "due_at", "rework_count", "reassignment_history"],
+  "field_order": [
+    "field_request",
+    "scout_profile",
+    "legacy_fp_task",
+    "location",
+    "questionnaire",
+    "questionnaire_version",
+    "status",
+    "assigned_at",
+    "accepted_at",
+    "started_at",
+    "first_evidence_at",
+    "submitted_at",
+    "completed_at",
+    "due_at",
+    "rework_count",
+    "reassignment_history",
+    "project_number",
+    "project_title",
+    "county",
+    "request_type",
+    "priority",
+    "task_brief",
+    "evidence_requirements",
+    "responsibility"
+  ],
   "fields": [
-    {"fieldname": "field_request", "fieldtype": "Link", "in_list_view": 1, "label": "Field Request", "options": "Field Request"},
-    {"fieldname": "scout_profile", "fieldtype": "Link", "in_list_view": 1, "label": "Scout", "options": "Scout Profile", "reqd": 1},
-    {"fieldname": "legacy_fp_task", "fieldtype": "Link", "label": "Legacy FP Task", "options": "FP Task", "read_only": 1, "unique": 1},
-    {"fieldname": "location", "fieldtype": "Link", "label": "Location", "options": "FP Location"},
-    {"fieldname": "questionnaire", "fieldtype": "Link", "label": "Questionnaire", "options": "FP Questionnaire"},
-    {"fieldname": "questionnaire_version", "fieldtype": "Int", "label": "Questionnaire Version"},
-    {"default": "Assigned", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Assigned\nAccepted\nIn Progress\nSubmitted\nApproved\nRejected\nCancelled", "reqd": 1},
-    {"fieldname": "assigned_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Assigned At", "read_only": 1},
-    {"fieldname": "accepted_at", "fieldtype": "Datetime", "label": "Accepted At", "read_only": 1},
-    {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At", "read_only": 1},
-    {"fieldname": "first_evidence_at", "fieldtype": "Datetime", "label": "First Evidence At", "read_only": 1},
-    {"fieldname": "submitted_at", "fieldtype": "Datetime", "label": "Submitted At", "read_only": 1},
-    {"fieldname": "completed_at", "fieldtype": "Datetime", "label": "Completed At", "read_only": 1},
-    {"fieldname": "due_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Due At"},
-    {"default": "0", "fieldname": "rework_count", "fieldtype": "Int", "label": "Rework Count", "read_only": 1, "reqd": 1},
-    {"fieldname": "reassignment_history", "fieldtype": "Table", "label": "Reassignment History", "options": "Field Task Reassignment Log", "read_only": 1}
+    {
+      "fieldname": "field_request",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Field Request",
+      "options": "Field Request"
+    },
+    {
+      "fieldname": "scout_profile",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Scout",
+      "options": "Scout Profile",
+      "reqd": 1
+    },
+    {
+      "fieldname": "legacy_fp_task",
+      "fieldtype": "Link",
+      "label": "Legacy FP Task",
+      "options": "FP Task",
+      "read_only": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "location",
+      "fieldtype": "Link",
+      "label": "Location",
+      "options": "FP Location"
+    },
+    {
+      "fieldname": "questionnaire",
+      "fieldtype": "Link",
+      "label": "Questionnaire",
+      "options": "FP Questionnaire"
+    },
+    {
+      "fieldname": "questionnaire_version",
+      "fieldtype": "Int",
+      "label": "Questionnaire Version"
+    },
+    {
+      "default": "Assigned",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Status",
+      "options": "Assigned\nAccepted\nIn Progress\nSubmitted\nApproved\nRejected\nCancelled",
+      "reqd": 1
+    },
+    {
+      "fieldname": "assigned_at",
+      "fieldtype": "Datetime",
+      "in_list_view": 1,
+      "label": "Assigned At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "accepted_at",
+      "fieldtype": "Datetime",
+      "label": "Accepted At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "started_at",
+      "fieldtype": "Datetime",
+      "label": "Started At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "first_evidence_at",
+      "fieldtype": "Datetime",
+      "label": "First Evidence At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "submitted_at",
+      "fieldtype": "Datetime",
+      "label": "Submitted At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "completed_at",
+      "fieldtype": "Datetime",
+      "label": "Completed At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "due_at",
+      "fieldtype": "Datetime",
+      "in_list_view": 1,
+      "label": "Due At"
+    },
+    {
+      "default": "0",
+      "fieldname": "rework_count",
+      "fieldtype": "Int",
+      "label": "Rework Count",
+      "read_only": 1,
+      "reqd": 1
+    },
+    {
+      "fieldname": "reassignment_history",
+      "fieldtype": "Table",
+      "label": "Reassignment History",
+      "options": "Field Task Reassignment Log",
+      "read_only": 1
+    },
+    {
+      "fieldname": "project_number",
+      "label": "Project Number",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "project_title",
+      "label": "Project",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "county",
+      "label": "County",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "request_type",
+      "label": "Request Type",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "priority",
+      "label": "Priority",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "task_brief",
+      "label": "Project Brief",
+      "fieldtype": "Long Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "evidence_requirements",
+      "label": "Evidence Requirements",
+      "fieldtype": "Long Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "responsibility",
+      "label": "Scout Responsibility",
+      "fieldtype": "Small Text"
+    }
   ],
   "index_web_pages_for_search": 1,
   "links": [],
@@ -30,10 +193,43 @@
   "name": "Field Task",
   "owner": "Administrator",
   "permissions": [
-    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
-    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
-    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Field Operations Coordinator", "write": 1},
-    {"read": 1, "role": "Field Agent"}
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Admin",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Supervisor",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Field Operations Coordinator",
+      "write": 1
+    },
+    {
+      "read": 1,
+      "role": "Field Agent"
+    }
   ],
   "sort_field": "modified",
   "sort_order": "DESC",

@@ -4,9 +4,31 @@
   "doctype": "DocType",
   "editable_grid": 1,
   "engine": "InnoDB",
-  "field_order": ["evidence_item"],
+  "field_order": [
+    "evidence_item",
+    "county",
+    "project_number"
+  ],
   "fields": [
-    {"fieldname": "evidence_item", "fieldtype": "Long Text", "label": "Evidence Item"}
+    {
+      "fieldname": "evidence_item",
+      "fieldtype": "Long Text",
+      "label": "Evidence Item"
+    },
+    {
+      "fieldname": "county",
+      "label": "County",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "project_number",
+      "label": "Project Number",
+      "fieldtype": "Int",
+      "read_only": 1,
+      "in_list_view": 1
+    }
   ],
   "istable": 1,
   "links": [],

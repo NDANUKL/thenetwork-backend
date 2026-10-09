@@ -1,7 +1,12 @@
 {
-  "content": "[{\"id\":\"field-operations-requests\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Field Requests</b></span>\",\"col\":12}},{\"id\":\"awaiting-assignment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Awaiting Assignment\",\"col\":3}},{\"id\":\"all-field-requests\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"All Field Requests\",\"col\":3}},{\"id\":\"create-manual-request\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Create Manual Request\",\"col\":3}},{\"id\":\"field-operations-scouts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Scout Availability</b></span>\",\"col\":12}},{\"id\":\"available-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Available Scouts\",\"col\":3}},{\"id\":\"busy-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Busy Scouts\",\"col\":3}},{\"id\":\"on-leave-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"On Leave Scouts\",\"col\":3}},{\"id\":\"inactive-scouts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Inactive Scouts\",\"col\":3}},{\"id\":\"field-operations-tasks\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Field Tasks</b></span>\",\"col\":12}},{\"id\":\"active-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Active Tasks\",\"col\":3}},{\"id\":\"submitted-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Submitted Tasks\",\"col\":3}},{\"id\":\"completed-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Completed Tasks\",\"col\":3}},{\"id\":\"overdue-tasks\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Overdue Tasks\",\"col\":3}}]",
+  "content": "[{\"id\": \"dd-field-operations-dashboard\", \"type\": \"custom_block\", \"data\": {\"custom_block_name\": \"DD Field Operations Dashboard\", \"col\": 12}}]",
   "creation": "2026-09-18 00:00:00.000000",
-  "custom_blocks": [],
+  "custom_blocks": [
+    {
+      "custom_block_name": "DD Field Operations Dashboard",
+      "label": "DD Field Operations Dashboard"
+    }
+  ],
   "docstatus": 0,
   "doctype": "Workspace",
   "for_user": "",

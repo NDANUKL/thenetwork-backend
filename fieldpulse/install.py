@@ -6,6 +6,8 @@ from fieldpulse.constants import ROLES
 def after_install():
     """Runs once when the app is installed onto a site."""
     create_roles()
+    from fieldpulse.alignment_install import sync_dashboard
+    sync_dashboard()
 
 
 def create_roles():

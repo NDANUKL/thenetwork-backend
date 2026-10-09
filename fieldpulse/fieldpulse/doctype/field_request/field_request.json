@@ -5,17 +5,136 @@
   "creation": "2026-09-07 00:00:00.000000",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["source", "source_reference", "diaspora_request", "request_type", "county", "field_brief", "deadline", "priority", "status"],
+  "field_order": [
+    "source",
+    "source_reference",
+    "diaspora_request",
+    "request_type",
+    "county",
+    "field_brief",
+    "deadline",
+    "priority",
+    "status",
+    "customer_target_date",
+    "alignment_review",
+    "project_number",
+    "project_title",
+    "project_key",
+    "deadline_preference",
+    "evidence_requirements"
+  ],
   "fields": [
-    {"default": "Manual", "fieldname": "source", "fieldtype": "Select", "in_list_view": 1, "label": "Source", "options": "Diaspora Desk\nManual", "reqd": 1},
-    {"fieldname": "source_reference", "fieldtype": "Data", "in_list_view": 1, "label": "Source Reference"},
-    {"fieldname": "diaspora_request", "fieldtype": "Link", "label": "Diaspora Request", "options": "Diaspora Request"},
-    {"fieldname": "request_type", "fieldtype": "Select", "in_list_view": 1, "label": "Request Type", "options": "Property Verification\nConstruction Progress\nSchool Attendance / Enrollment Verification\nClinic / Medical Visit Verification\nBusiness / Merchant Verification\nDocument / Receipt Verification\nGeneral Site Visit"},
-    {"fieldname": "county", "fieldtype": "Data", "in_list_view": 1, "label": "County"},
-    {"fieldname": "field_brief", "fieldtype": "Long Text", "label": "Field Brief", "reqd": 1},
-    {"fieldname": "deadline", "fieldtype": "Date", "in_list_view": 1, "label": "Deadline"},
-    {"default": "Normal", "fieldname": "priority", "fieldtype": "Select", "in_list_view": 1, "label": "Priority", "options": "Normal\nHigh\nUrgent\nLow", "reqd": 1},
-    {"default": "Awaiting Assignment", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Awaiting Assignment\nAssigned\nIn Progress\nCompleted\nCancelled", "reqd": 1}
+    {
+      "default": "Manual",
+      "fieldname": "source",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Source",
+      "options": "Diaspora Desk\nManual",
+      "reqd": 1
+    },
+    {
+      "fieldname": "source_reference",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Source Reference"
+    },
+    {
+      "fieldname": "diaspora_request",
+      "fieldtype": "Link",
+      "label": "Diaspora Request",
+      "options": "Diaspora Request"
+    },
+    {
+      "fieldname": "request_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Request Type",
+      "options": "Property Verification\nConstruction Progress\nSchool Attendance / Enrollment Verification\nClinic / Medical Visit Verification\nBusiness / Merchant Verification\nDocument / Receipt Verification\nGeneral Site Visit"
+    },
+    {
+      "fieldname": "county",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "County"
+    },
+    {
+      "fieldname": "field_brief",
+      "fieldtype": "Long Text",
+      "label": "Field Brief",
+      "reqd": 1
+    },
+    {
+      "fieldname": "deadline",
+      "fieldtype": "Date",
+      "in_list_view": 1,
+      "label": "Deadline"
+    },
+    {
+      "default": "Normal",
+      "fieldname": "priority",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Priority",
+      "options": "Normal\nHigh\nUrgent\nLow",
+      "reqd": 1
+    },
+    {
+      "default": "Awaiting Assignment",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Status",
+      "options": "Awaiting Assignment\nAssigned\nIn Progress\nCompleted\nCancelled",
+      "reqd": 1
+    },
+    {
+      "fieldname": "customer_target_date",
+      "label": "Customer Target Date",
+      "fieldtype": "Date",
+      "read_only": 1
+    },
+    {
+      "fieldname": "alignment_review",
+      "label": "Project Scope Needs Review",
+      "fieldtype": "Check",
+      "read_only": 1
+    },
+    {
+      "fieldname": "project_number",
+      "label": "Project Number",
+      "fieldtype": "Int",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "project_title",
+      "label": "Project",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "project_key",
+      "label": "Project Key",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "deadline_preference",
+      "label": "Customer Timing Preference",
+      "fieldtype": "Select",
+      "read_only": 1,
+      "options": "flexible\noneWeek\ntwoWeeks\nspecific"
+    },
+    {
+      "fieldname": "evidence_requirements",
+      "label": "Project Evidence Requirements",
+      "fieldtype": "Long Text",
+      "read_only": 1
+    }
   ],
   "index_web_pages_for_search": 1,
   "links": [],
@@ -24,9 +143,39 @@
   "name": "Field Request",
   "owner": "Administrator",
   "permissions": [
-    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
-    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
-    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Field Operations Coordinator", "write": 1}
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Admin",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Supervisor",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Field Operations Coordinator",
+      "write": 1
+    }
   ],
   "sort_field": "modified",
   "sort_order": "DESC",

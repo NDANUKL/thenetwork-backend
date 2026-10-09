@@ -9,6 +9,7 @@ def create_field_request(doc, method=None):
     This handler is deliberately fail-safe: an operational-request failure must
     not interrupt the Diaspora Request transaction.
     """
+    frappe.db.savepoint("diaspora_project_conversion")
     try:
         if frappe.db.exists("Field Request", {"source_reference": doc.name}):
             return
@@ -25,6 +26,7 @@ def create_field_request(doc, method=None):
             }
         ).insert(ignore_permissions=True)
     except Exception:
+        frappe.db.rollback(save_point="diaspora_project_conversion")
         frappe.log_error(
             title=f"Field Request creation failed for Diaspora Request {doc.name}",
             message=frappe.get_traceback(),

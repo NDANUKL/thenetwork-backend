@@ -1,0 +1,32 @@
+<main class="ops" aria-label="Field operations dashboard">
+  <header class="hero">
+    <div><div class="eyebrow"><span class="live-dot"></span> COORDINATOR WORKSPACE</div><h1>Every visit. In view.</h1><p>Assign the next project. Keep fieldwork moving.</p></div>
+    <button class="primary" data-action="create">＋ New field request</button>
+  </header>
+  <div class="toolbar"><div class="scope"><label for="ops-county">Coverage</label><select id="ops-county" aria-label="Filter coverage by county"><option value="">All counties</option></select></div><div class="refresh-area"><span class="updated" role="status">Loading live data…</span><button class="refresh" data-action="refresh" aria-label="Refresh dashboard">↻ Refresh</button></div></div>
+  <div class="error" role="alert" hidden></div>
+  <section class="metrics" aria-label="Operations summary">
+    <button class="metric amber" data-list="waiting"><span class="metric-label">Awaiting assignment <span>↗</span></span><strong data-count="waiting">—</strong><span class="metric-note">Projects waiting for scout allocation</span></button>
+    <button class="metric blue" data-list="active"><span class="metric-label">Active fieldwork <span>↗</span></span><strong data-count="active">—</strong><span class="metric-note">Assigned, accepted or in progress</span></button>
+    <button class="metric red" data-list="overdue"><span class="metric-label">Overdue tasks <span>↗</span></span><strong data-count="overdue">—</strong><span class="metric-note">Follow up with the assigned scout</span></button>
+    <button class="metric green" data-list="submitted"><span class="metric-label">Evidence to review <span>↗</span></span><strong data-count="submitted">—</strong><span class="metric-note">Submitted and awaiting approval</span></button>
+  </section>
+  <div class="dashboard-grid">
+    <section class="panel queue"><div class="panel-head"><div><div class="eyebrow">DISPATCH</div><h2>Assignment queue <span class="count-pill" data-count="waiting">—</span></h2><p>Urgent requests first. Open a project to assign scouts.</p></div><button class="text-button" data-list="waiting">View all ↗</button></div>
+      <div class="table-scroll"><table><thead><tr><th>Project / request</th><th>County</th><th>Target date</th><th>Next step</th></tr></thead><tbody data-rows="queue"><tr><td colspan="4" class="empty">Loading projects…</td></tr></tbody></table></div>
+      <footer class="panel-footer"><button class="text-button" data-list="requests">All field requests ↗</button><span>Showing up to 6 waiting projects</span></footer>
+    </section>
+    <section class="panel capacity"><div class="panel-head"><div><div class="eyebrow">YOUR FIELD TEAM</div><h2>Scout availability</h2><p>Availability and recent activity are tracked separately.</p></div></div>
+      <div class="capacity-summary"><strong data-count="available">—</strong><div><b>scouts available</b><span>Based on declared availability</span></div><button class="round-link" data-list="available" aria-label="View available scouts">↗</button></div>
+      <div class="capacity-bar" role="img" aria-label="Scout availability distribution"></div>
+      <div class="capacity-legend"><button data-list="available"><i class="dot available"></i>Available <b data-count="available">—</b></button><button data-list="busy"><i class="dot busy"></i>Busy <b data-count="busy">—</b></button><button data-list="leave"><i class="dot leave"></i>On leave <b data-count="leave">—</b></button></div>
+      <div class="scout-list" data-rows="scouts"><p class="empty">Loading scouts…</p></div>
+      <footer class="panel-footer"><button class="text-button" data-list="scouts">Scout directory ↗</button><button class="muted-button" data-list="inactive"><span data-count="inactive">—</span> inactive</button></footer>
+    </section>
+    <section class="panel attention"><div class="panel-head"><div><div class="eyebrow">FOLLOW THROUGH</div><h2>Needs your attention</h2></div><button class="text-button attention-all">View all ↗</button></div>
+      <div class="tabs" role="tablist" aria-label="Task attention"><button role="tab" aria-selected="true" data-tab="overdue">Overdue <span data-count="overdue">—</span></button><button role="tab" aria-selected="false" data-tab="submitted">Evidence to review <span data-count="submitted">—</span></button></div>
+      <div class="attention-list" role="tabpanel" data-rows="attention"><p class="empty">Loading tasks…</p></div>
+    </section>
+    <section class="panel ops-pipeline-panel"><div class="panel-head"><div><div class="eyebrow">WORK IN MOTION</div><h2>Task pipeline</h2><p>Current task status across your selected coverage.</p></div></div><div class="pipeline" data-rows="pipeline"></div><footer class="panel-footer"><button class="text-button" data-list="tasks">All field tasks ↗</button><span><b data-count="approved">—</b> approved</span></footer></section>
+  </div>
+</main>

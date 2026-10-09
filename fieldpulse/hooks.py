@@ -26,9 +26,17 @@ after_install = "fieldpulse.install.after_install"
 
 doc_events = {
     "Diaspora Request": {
+        "before_save": "fieldpulse.project_alignment.map_diaspora",
         "after_insert": "fieldpulse.integrations.diaspora_request.create_field_request",
     },
+    "Field Request": {
+        "before_save": "fieldpulse.project_alignment.map_field_request",
+        "on_update": "fieldpulse.project_alignment.expand_projects",
+    },
+    "Field Task": {"before_save": "fieldpulse.project_alignment.map_task"},
 }
+
+after_migrate = "fieldpulse.alignment_install.sync_dashboard"
 
 scheduler_events = {
     "daily": [
@@ -36,3 +44,8 @@ scheduler_events = {
     ],
 }
 
+
+# Preserve callers of the former site Server Script API.
+override_whitelisted_methods = {
+    "dd_assign_project_scouts": "fieldpulse.project_alignment.assign_project_scouts",
+}
