@@ -34,6 +34,17 @@ def fake_frappe():
 
 
 class NativeSourceTests(unittest.TestCase):
+    def test_registry_hashes_match_utf8_audited_script_content(self):
+        # Windows locale decoding previously corrupted the hash for non-ASCII punctuation.
+        for record in SNAPSHOT['records']:
+            if record['doctype'] not in ('Server Script', 'Client Script'):
+                continue
+            group = 'server_scripts' if record['doctype'] == 'Server Script' else 'client_scripts'
+            canonical = record['script'].replace('\r\n', '\n').strip()
+            expected = hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+            self.assertEqual(PLAN[group][record['name']]['sha256'], expected, record['name'])
+
+
     def test_project_adoption_does_not_recreate_standard_fields(self):
         source = (ROOT / 'fieldpulse/patches/v1_0/permanent_project_contract.py').read_text(encoding='utf-8')
         self.assertNotIn('create_custom_fields', source)

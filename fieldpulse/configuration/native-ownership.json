@@ -263,7 +263,7 @@
       "reference_doctype": "Diaspora Request",
       "doctype_event": "Before Save",
       "disabled": 1,
-      "sha256": "da623e497cb63081e1f2989b859c3e51a65055625022f96cdfbe4c5c3b802b41",
+      "sha256": "7ee5b7a7483dc69f8814f7dad7d330dbf96bbf81eec2a8b6322c7953608ed72c",
       "allow_guest": 0,
       "enable_rate_limit": 0,
       "rate_limit_count": 5,
