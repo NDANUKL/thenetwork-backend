@@ -38,8 +38,17 @@ def preflight():
         if not frappe.db.exists("Server Script", name):
             continue
         doc = frappe.get_doc("Server Script", name)
-        if doc.script_type != spec["script_type"] or _digest(doc.script) != spec["sha256"]:
-            frappe.throw("Production script changed since the parity audit: " + name + ". Re-audit before handover.")
+        if doc.script_type != spec["script_type"]:
+            frappe.throw("Production script type changed since the parity audit: " + name
+                + ". Expected " + str(spec["script_type"]) + "; found " + str(doc.script_type) + ".")
+        actual_digest = _digest(doc.script)
+        if actual_digest != spec["sha256"]:
+            frappe.throw("Production script changed since the parity audit: " + name
+                + ". Expected SHA256=" + spec["sha256"] + "; actual SHA256=" + actual_digest
+                + "; characters=" + str(len(doc.script))
+                + "; CR=" + str(doc.script.count(chr(13)))
+                + "; LF=" + str(doc.script.count(chr(10)))
+                + ". Re-audit before handover. No script content is included in this diagnostic.")
         for key in ("api_method",) if spec["script_type"] == "API" else ("reference_doctype", "doctype_event") if spec["script_type"] == "DocType Event" else ():
             if doc.get(key) != spec.get(key):
                 frappe.throw("Unexpected script target: " + name)

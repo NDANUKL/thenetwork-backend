@@ -247,6 +247,26 @@ class HandoverTests(unittest.TestCase):
         api.db.set_value.assert_not_called()
         api.db.delete.assert_not_called()
 
+    def test_mismatch_error_reports_hashes_without_exposing_script_content(self):
+        api = fake_frappe()
+        api.conf.get.return_value = True
+        api.db.exists.return_value = True
+        script = "private_script_body = 123\r\n"
+        api.get_doc.return_value = types.SimpleNamespace(script_type='API', script=script)
+        module = self.module(api)
+        expected = dict(PLAN['server_scripts']['DD Customer Registration Bridge'])
+        expected['target'] = None
+        module.registry = lambda: {'server_scripts': {'DD Customer Registration Bridge': expected}, 'client_scripts': {}}
+        with self.assertRaises(ValueError) as error:
+            module.retire_scripts()
+        message = str(error.exception)
+        self.assertIn('Expected SHA256=' + expected['sha256'], message)
+        self.assertIn('actual SHA256=' + module._digest(script), message)
+        self.assertIn('CR=1; LF=1', message)
+        self.assertNotIn('private_script_body', message)
+        api.db.set_value.assert_not_called()
+        api.db.delete.assert_not_called()
+
     def test_all_definitions_validated_and_backed_up_before_active_states_change(self):
         api = fake_frappe()
         module = self.module(api)
