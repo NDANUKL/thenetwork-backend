@@ -1,6 +1,8 @@
 """Native versions of the Diaspora Desk project alignment scripts."""
 import json
 import frappe
+from fieldpulse.project_locations import sync_locations, validate_locations, map_task_navigation
+from fieldpulse.project_contract import ProjectContractError, structured_projects, assert_project_coverage, validate_site_membership
 
 # Ported from frappe/alignment/common.py; assignment remains permission checked.
 def check_project_access(source):
@@ -17,7 +19,7 @@ def check_project_access(source):
         frappe.throw("You cannot map projects from this customer request.", frappe.PermissionError)
 
 
-def project_plan(source):
+def legacy_project_plan(source):
     counties = "Mombasa|Kwale|Kilifi|Tana River|Lamu|Taita Taveta|Garissa|Wajir|Mandera|Marsabit|Isiolo|Meru|Tharaka Nithi|Embu|Kitui|Machakos|Makueni|Nyandarua|Nyeri|Kirinyaga|Murang'a|Kiambu|Turkana|West Pokot|Samburu|Trans Nzoia|Uasin Gishu|Elgeyo Marakwet|Nandi|Baringo|Laikipia|Nakuru|Narok|Kajiado|Kericho|Bomet|Kakamega|Vihiga|Bungoma|Busia|Siaya|Kisumu|Homa Bay|Migori|Kisii|Nyamira|Nairobi".split("|")
     county_keys = {}
     for county in counties:
@@ -103,14 +105,92 @@ def project_plan(source):
     return {"projects": [projects[number] for number in sorted(projects)], "issues": issues, "deadline": str(deadline)[:10] if deadline else None}
 
 
+def project_plan(source):
+    if not source.get("project_details"):
+        if source.get("project_contract_version"):
+            frappe.throw("Missing structured projects. Please review the assessment.")
+        plan = legacy_project_plan(source)
+        for project in plan["projects"]:
+            project["id"] = "legacy-project-" + str(project["number"])
+        return plan
+    strict = source.get("project_contract_version") == 1
+    try:
+        raw_details = json.loads(source.project_details)
+    except (TypeError, ValueError):
+        frappe.throw("Project details must be a JSON array.")
+    if not strict and isinstance(raw_details, list) and raw_details and all(isinstance(row, dict) and not row.get("id") for row in raw_details):
+        plan = legacy_project_plan(source)
+        for project in plan["projects"]:
+            project["id"] = "legacy-project-" + str(project["number"])
+        return plan
+    try:
+        projects = structured_projects(source.project_details, strict=strict)
+        if strict and source.get("dd_customer_account"):
+            validate_site_membership(projects, source.get("customer_sites") or [])
+    except ProjectContractError as error:
+        frappe.throw(str(error))
+    if not strict:
+        for row in source.get("evidence_checklist") or []:
+            number = row.get("project_number")
+            if not number:
+                prefix = (row.evidence_item or "").split("[", 1)[0].split(":", 1)[0].strip().split()
+                number = int(prefix[1]) if len(prefix) == 2 and prefix[0].lower() == "project" and prefix[1].isdigit() else 0
+            for project in projects:
+                if project["number"] == number and row.evidence_item not in project["evidence"]:
+                    project["evidence"].append(row.evidence_item)
+    for project in projects:
+        if not strict and not project["request_type"]:
+            # Explicit compatibility for older records without service_category.
+            # New contracts require a category; identity never comes from this text.
+            text = project["description"].lower()
+            if any(word in text for word in ["shop", "business", "salon", "merchant"]):
+                project["request_type"] = "Business / Merchant Verification"
+            elif "construction" in text:
+                project["request_type"] = "Construction Progress"
+            elif any(word in text for word in ["land", "property", "plot"]):
+                project["request_type"] = "Property Verification"
+        supplied_counties = []
+        for site in source.get("customer_sites") or []:
+            try:
+                members = json.loads(site.get("project_ids") or "[]")
+            except (TypeError, ValueError):
+                frappe.throw("Invalid location project IDs.")
+            if project["id"] in members and site.county and site.county not in supplied_counties:
+                supplied_counties.append(site.county)
+        if supplied_counties:
+            project["county"] = ", ".join(supplied_counties)
+        project["request_type"] = project["request_type"] or {
+            "land_property_check": "Property Verification", "construction_progress": "Construction Progress",
+            "business_asset_check": "Business / Merchant Verification",
+        }.get(source.category, "General Site Visit")
+        project["review"] = int(not project["county"] or not project["evidence"] or project["scope_status"] == "scope_confirmation")
+    preference = source.get("deadline_preference")
+    deadline = source.get("deadline_date") if preference == "specific" else None
+    if preference in ["oneWeek", "twoWeeks"]:
+        deadline = frappe.utils.add_days(str(source.creation)[:10], 7 if preference == "oneWeek" else 14)
+    return {"projects": projects, "issues": [], "deadline": str(deadline)[:10] if deadline else None}
+
+
 def fill_field_request(target, source, plan):
-    if plan["issues"] or not plan["projects"]:
-        target.alignment_review = 1
-        return
-    number = target.get("project_number") or plan["projects"][0]["number"]
+    if plan["issues"]:
+        frappe.throw("Project mapping failed: " + "; ".join(plan["issues"]))
+    if not plan["projects"]:
+        frappe.throw("This request has no eligible field projects.")
+    number = target.get("project_number")
+    if target.get("project_id"):
+        matched = next((project for project in plan["projects"] if project["id"] == target.project_id), None)
+        if not matched:
+            frappe.throw("Unknown source project ID.")
+        number = matched["number"]
+    if not number and len(plan["projects"]) > 1:
+        frappe.throw("Select one project ID; a multi-project request cannot become a combined Field Request.")
+    number = number or plan["projects"][0]["number"]
     selected = None
     for project in plan["projects"]:
-        if project["number"] == number:
+        if target.get("project_id"):
+            if project["id"] == target.project_id:
+                selected = project
+        elif project["number"] == number:
             selected = project
     if not selected:
         frappe.throw("This project is no longer in the customer request. Coordinator review is required.")
@@ -119,7 +199,8 @@ def fill_field_request(target, source, plan):
         frappe.throw("An existing assignment cannot be split automatically. Review its project scope first.")
     target.project_number = selected["number"]
     target.project_title = selected["title"]
-    target.project_key = source.name + ":" + str(number)
+    target.project_id = selected["id"]
+    target.project_key = source.name + ":" + selected["id"]
     target.county = selected["county"]
     target.deadline_preference = source.deadline_preference
     target.customer_target_date = plan["deadline"]
@@ -138,6 +219,16 @@ def fill_field_request(target, source, plan):
         if len(plan["projects"]) == 1 and not brief:
             brief = source.summary or ""
         target.field_brief = "Project " + str(number) + ": " + selected["title"] + " — " + selected["county"] + "\n\n" + brief + "\n\nEvidence required:\n" + target.evidence_requirements + "\n\nCustomer timing: " + timing + (" (" + plan["deadline"] + ")" if plan["deadline"] else "")
+    # The operational brief is the structured scope, not the combined summary.
+    target.field_brief = selected.get("description") or selected["title"]
+    target.requires_verified_location = int(bool(source.get("dd_customer_account")))
+    sync_locations(target, source, selected)
+    if target.get("scope_confirmed"):
+        if not target.get("scope_review_note"):
+            frappe.throw("Record the scope review before confirming it.")
+        target.alignment_review = int(not target.county or not target.evidence_requirements)
+    validate_locations(target)
+
 
 def map_diaspora(doc, method=None):
     plan = project_plan(doc)
@@ -159,23 +250,50 @@ def map_field_request(doc, method=None):
         source = frappe.get_doc("Diaspora Request", doc.diaspora_request)
         if not doc.is_new() and frappe.db.get_value("Field Request", doc.name, "diaspora_request") != doc.diaspora_request:
             frappe.throw("The customer request link cannot be changed on an existing project.")
+        previous_id = frappe.db.get_value("Field Request", doc.name, "project_id") if not doc.is_new() else None
+        if previous_id and previous_id != doc.get("project_id"):
+            frappe.throw("The source project ID cannot be changed on an existing Field Request.")
         check_project_access(source)
         plan = project_plan(source)
         fill_field_request(doc, source, plan)
 
+def ensure_field_requests(source, method=None):
+    """The source transaction and a row lock cover conversion and retries."""
+    plan = project_plan(source)
+    if plan["issues"]:
+        frappe.throw("Project conversion failed: " + "; ".join(plan["issues"]))
+    frappe.db.sql("SELECT name FROM " + chr(96) + "tabDiaspora Request" + chr(96) + " WHERE name=%s FOR UPDATE", source.name)
+    rows = frappe.get_all("Field Request", filters={"diaspora_request": source.name},
+                          fields=["name", "project_id", "project_number", "status"])
+    for project in plan["projects"]:
+        matches = [row for row in rows if row.project_id == project["id"] or
+                   (not row.project_id and row.project_number == project["number"])]
+        if len(matches) > 1:
+            frappe.throw("Duplicate Field Requests for project " + project["id"] + "; review is required.")
+        if matches:
+            target = frappe.get_doc("Field Request", matches[0].name)
+            target.project_id = project["id"]
+            target.project_key = source.name + ":" + project["id"]
+            target.save(ignore_permissions=True)
+            continue
+        target = frappe.get_doc({"doctype": "Field Request", "source": "Diaspora Desk",
+                                 "source_reference": source.name, "diaspora_request": source.name,
+                                 "project_id": project["id"], "project_number": project["number"],
+                                 "field_brief": project["description"], "status": "Awaiting Assignment",
+                                 "priority": "Normal"})
+        target.insert(ignore_permissions=True)
+    actual = frappe.get_all("Field Request", filters={"diaspora_request": source.name},
+                            fields=["name", "project_id", "project_number"])
+    try:
+        assert_project_coverage(plan["projects"], actual)
+    except ProjectContractError as error:
+        frappe.throw(str(error))
+
+
 def expand_projects(doc, method=None):
-    if doc.diaspora_request and doc.project_number:
-        source = frappe.get_doc("Diaspora Request", doc.diaspora_request)
-        check_project_access(source)
-        plan = project_plan(source)
-        if not plan["issues"]:
-            for project in plan["projects"]:
-                key = source.name + ":" + str(project["number"])
-                if not frappe.db.exists("Field Request", {"project_key": key}):
-                    target = frappe.get_doc({"doctype": "Field Request", "source": "Diaspora Desk", "source_reference": source.name, "diaspora_request": source.name, "project_number": project["number"], "project_title": project["title"], "project_key": key, "request_type": project["request_type"], "county": project["county"], "field_brief": "Project " + str(project["number"]) + ": " + project["title"] + " — " + project["county"] + "\n\n" + (source.summary or "") + "\n\nThis assignment covers only this project.\n\nEvidence required:\n" + "\n".join(project["evidence"]), "deadline": plan["deadline"], "priority": "Normal", "status": "Awaiting Assignment"})
-                    # Trusted conversion hook; website integration has no general
-                    # Field Request creation rights. Only source-derived projects are created.
-                    target.insert(ignore_permissions=True)
+    # Kept for API compatibility; only the source owns project expansion.
+    return
+
 
 def map_task(doc, method=None):
     if doc.field_request:
@@ -196,6 +314,7 @@ def map_task(doc, method=None):
         doc.task_brief = request.field_brief
         if not doc.due_at and request.deadline:
             doc.due_at = str(request.deadline)[:10] + " 23:59:59"
+        map_task_navigation(doc, request)
     elif doc.is_new() and not doc.legacy_fp_task:
         frappe.throw("New Field Tasks must link to a Field Request.")
     elif not doc.is_new() and frappe.db.get_value("Field Task", doc.name, "field_request"):
@@ -209,7 +328,7 @@ def rollup_tasks(doc, method=None):
             status = "Assigned"
             if all(task.status == "Approved" for task in tasks):
                 status = "Completed"
-            elif any(task.status in ["Accepted", "In Progress", "Submitted", "Rejected", "Approved"] for task in tasks):
+            elif any(task.status in ["In Progress", "Submitted", "Rejected", "Approved"] for task in tasks):
                 status = "In Progress"
             if request.status != status:
                 # Derived status only: a scout task update must not require
@@ -218,9 +337,9 @@ def rollup_tasks(doc, method=None):
             if request.diaspora_request:
                 source = frappe.get_doc("Diaspora Request", request.diaspora_request)
                 plan = project_plan(source)
-                requests = frappe.get_all("Field Request", filters={"diaspora_request": source.name, "status": ["!=", "Cancelled"]}, fields=["project_number", "status"])
-                expected = [project["number"] for project in plan["projects"]]
-                covered = [row.project_number for row in requests]
+                requests = frappe.get_all("Field Request", filters={"diaspora_request": source.name, "status": ["!=", "Cancelled"]}, fields=["project_id", "project_number", "status"])
+                expected = [project["id"] if source.get("project_contract_version") else project["number"] for project in plan["projects"]]
+                covered = [row.project_id if source.get("project_contract_version") else row.project_number for row in requests]
                 status = "Assigned"
                 all_projects_present = True
                 for number in expected:
@@ -253,9 +372,6 @@ def assign_project_scouts(field_request, assignments):
         frappe.throw("Scout assignments must be a JSON array of objects.")
     if not assignments or len(assignments) > 20:
         frappe.throw("Choose between one and twenty scout assignments.")
-    responsibilities = [(row.get("responsibility") or "").strip().casefold() for row in assignments]
-    if len(assignments) > 1 and (not all(responsibilities) or len(set(responsibilities)) != len(responsibilities)):
-        frappe.throw("Give each scout a distinct responsibility.")
     seen = []
     created = []
     for assignment in assignments:
@@ -266,8 +382,6 @@ def assign_project_scouts(field_request, assignments):
         profile = frappe.get_doc("Scout Profile", scout)
         profile.check_permission("read")
         responsibility = (assignment.get("responsibility") or "").strip()
-        if len(assignments) > 1 and not responsibility:
-            frappe.throw("Give each scout a responsibility when assigning multiple scouts.")
         existing = frappe.db.get_value("Field Task", {"field_request": name, "scout_profile": scout, "status": ["not in", ["Cancelled", "Approved"]]}, "name")
         if existing:
             created.append(existing)

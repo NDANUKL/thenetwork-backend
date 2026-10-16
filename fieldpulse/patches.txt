@@ -1,7 +1,14 @@
 [pre_model_sync]
+fieldpulse.patches.v1_0.production_script_handover
+fieldpulse.patches.v1_0.adopt_native_dd_schema
+fieldpulse.patches.v1_0.adopt_project_identity_fields
 fieldpulse.patches.v1_0.adopt_desk_alignment
 
 [post_model_sync]
+fieldpulse.patches.v1_0.complete_native_dd_handover
+fieldpulse.patches.v1_0.adopt_production_configuration
+fieldpulse.patches.v1_0.permanent_project_contract
 fieldpulse.patches.v1_0.create_field_operations_coordinator
 fieldpulse.patches.v1_0.migrate_fp_agents_to_scout_profiles
 fieldpulse.patches.v1_0.migrate_fp_tasks_to_field_tasks
+fieldpulse.patches.v1_0.quotation_payments

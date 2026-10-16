@@ -30,6 +30,8 @@ FIELDS = {
 
 
 def execute():
+    if not frappe.conf.get("dd_native_handover_approved"):
+        frappe.throw("Production scripts are retained until the owner explicitly approves native handover. Do not run retirement migrations yet.")
     originals = {"custom_fields": [], "server_scripts": [], "client_scripts": []}
     for name, (dt, event) in SERVER_SCRIPTS.items():
         if not frappe.db.exists("Server Script", name):

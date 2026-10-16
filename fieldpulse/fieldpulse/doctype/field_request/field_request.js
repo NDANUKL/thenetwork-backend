@@ -1,5 +1,22 @@
+if (frappe.boot.dd_native_handover_active) {
+// DD Alignment Project Form
 frappe.ui.form.on("Field Request", {
   refresh(frm) {
+    if (!frm.doc.diaspora_request) return;
+    ["source", "source_reference", "diaspora_request", "request_type", "county", "field_brief", "project_number", "project_title", "project_key", "evidence_requirements", "customer_target_date", "deadline_preference", "status"].forEach(field => frm.set_df_property(field, "read_only", 1));
+    frm.set_df_property("source_reference", "hidden", 1);
+    frm.set_df_property("dd_site_locations", "hidden", 1);
+    frm.set_df_property("deadline", "label", "Agreed work deadline");
+    frm.set_df_property("deadline", "description", "Copied to the scout task's Due date. Confirm this date when arranging the work.");
+    frm.set_intro(frm.doc.alignment_review ? "This project's scope needs review. Ask the customer for details from the linked Diaspora Request." : "Verify the locations below before assigning scouts. Customer scope and county are taken from the submission.", frm.doc.alignment_review ? "orange" : "blue");
+  },
+});
+
+
+// DD Project Scout Assignment
+frappe.ui.form.on("Field Request", {
+  refresh(frm) {
+    frm.remove_custom_button(__("Assign scouts"));
     frm.set_df_property("priority", "description", "");
     frm.set_df_property("deadline", "description", "");
     frm.set_df_property("status", "description", __("Use Assign scouts to select a Scout Profile and create their Field Task. Changing status alone does not assign a scout."));
@@ -10,25 +27,23 @@ frappe.ui.form.on("Field Request", {
         frappe.msgprint(__("Save this project before assigning scouts."));
         return;
       }
-      if ((frm.doc.diaspora_request && !frm.doc.project_number) || frm.doc.alignment_review || !frm.doc.county) {
+      if (!frm.doc.project_number || frm.doc.alignment_review || !frm.doc.county) {
         frappe.msgprint(__("Confirm this project's scope, project number and county before assigning scouts."));
         return;
       }
       const dialog = new frappe.ui.Dialog({
         title: __("Assign scouts to this project"),
-        fields: [{ fieldname: "assignment_help", fieldtype: "HTML", options: `<p>${__("Choose a scout in the row below. Use Add Row for more scouts and give each scout a responsibility.")}</p>` },
+        fields: [{ fieldname: "assignment_help", fieldtype: "HTML", options: `<p>${__("Choose a scout in the row below. Use Add Row for more scouts.")}</p>` },
           { fieldname: "assignments", label: __("Scout assignments"), fieldtype: "Table", reqd: 1, in_place_edit: true, data: [{}],
           fields: [
             { fieldname: "scout", label: __("Scout"), fieldtype: "Link", options: "Scout Profile", reqd: 1, in_list_view: 1 },
-            { fieldname: "responsibility", label: __("Responsibility"), fieldtype: "Small Text", in_list_view: 1 },
-            { fieldname: "location", label: __("Location"), fieldtype: "Link", options: "FP Location", in_list_view: 1 },
             { fieldname: "questionnaire", label: __("Questionnaire"), fieldtype: "Link", options: "FP Questionnaire" },
           ] }],
         primary_action_label: __("Assign"),
         async primary_action(values) {
           dialog.disable_primary_action();
           try {
-            const result = await frappe.call({ method: "fieldpulse.project_alignment.assign_project_scouts", args: { field_request: frm.doc.name, assignments: JSON.stringify(values.assignments) }, freeze: true });
+            const result = await frappe.call({ method: "dd_assign_scouts_without_extra_columns", args: { field_request: frm.doc.name, assignments: JSON.stringify(values.assignments) }, freeze: true });
             dialog.hide();
             frappe.msgprint(__("Scout tasks: {0}", [result.message.tasks.join(", ")]));
             await frm.reload_doc();
@@ -39,3 +54,6 @@ frappe.ui.form.on("Field Request", {
     });
   },
 });
+
+
+}

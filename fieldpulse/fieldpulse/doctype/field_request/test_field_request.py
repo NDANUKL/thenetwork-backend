@@ -57,3 +57,28 @@ class TestFieldRequest(FrappeTestCase):
         self.assertEqual(len(rows),4); self.assertEqual([r.county or '' for r in rows],['Turkana','Kitui','Kilifi',''])
         self.assertTrue(all(r.alignment_review for r in rows))
         with self.assertRaises(frappe.ValidationError): assign_project_scouts(rows[0].name,[dict(scout='unconfirmed')])
+
+    def test_structured_ids_three_projects_and_retries(self):
+        details = [dict(id='stable-'+str(i), number=i, description='Display text ? '+str(i),
+                        scope='Inspect only site '+str(i), county=county, eligibility='supported',
+                        service_category='land_property_check', evidence_tasks=['Evidence '+str(i)])
+                   for i, county in [(1,'Vihiga'),(2,'Kajiado'),(3,'Nairobi')]]
+        source = self.source(project_details=json.dumps(details), project_contract_version=1,
+                             evidence_checklist=[dict(evidence_item='Unrelated display formatting')])
+        rows = frappe.get_all('Field Request',filters={'diaspora_request':source.name},
+                              fields=['name','project_id','county','field_brief','evidence_requirements'],order_by='project_number asc')
+        self.assertEqual(len(rows),3)
+        self.assertEqual([row.project_id for row in rows],['stable-1','stable-2','stable-3'])
+        self.assertEqual([row.county for row in rows],['Vihiga','Kajiado','Nairobi'])
+        self.assertEqual(rows[1].field_brief,'Inspect only site 2')
+        self.assertEqual(rows[1].evidence_requirements,'Evidence 2')
+        source.save()
+        again = frappe.get_all('Field Request',filters={'diaspora_request':source.name},pluck='name')
+        self.assertEqual(set(again),{row.name for row in rows})
+
+    def test_conversion_failure_reaches_transaction_owner(self):
+        from unittest.mock import patch
+        from fieldpulse.integrations.diaspora_request import create_field_request
+        with patch('fieldpulse.integrations.diaspora_request.ensure_field_requests',side_effect=RuntimeError('Conversion failed')):
+            with self.assertRaisesRegex(RuntimeError,'Conversion failed'):
+                create_field_request(frappe._dict(name='synthetic-source'))

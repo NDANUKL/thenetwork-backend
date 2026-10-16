@@ -71,9 +71,11 @@ class FieldTask(Document):
             self.set(timestamp_field, now_datetime())
 
     def _sync_field_request_status(self):
+        from fieldpulse.native_ownership import native_enabled
         from fieldpulse.project_alignment import rollup_tasks
 
-        rollup_tasks(self)
+        if native_enabled("DD Task Completion Rollup"):
+            rollup_tasks(self)
 
 
 def _require_allocation_permission(field_request):

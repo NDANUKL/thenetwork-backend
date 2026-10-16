@@ -72,17 +72,19 @@ class AlignmentTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.m.map_task(Doc(name='T1'))
     def test_assignment_input_permissions_and_retries(self):
         self.api.get_doc.return_value=self.request
-        for rows in ['broken',{},[],[{'scout':'S1'},{'scout':'S2'}],[{'scout':'S1','responsibility':'same'},{'scout':'S2','responsibility':'SAME'}]]:
+        for rows in ['broken',{},[],[None]]:
             with self.assertRaises(ValueError): self.m.assign_project_scouts('FR1',rows)
         self.api.has_permission.return_value=False
         with self.assertRaises(PermissionError): self.m.assign_project_scouts('FR1',[{'scout':'S1'}])
         self.api.has_permission.return_value=True; self.request.status='Assigned'; self.api.db.get_value.return_value='EXISTING'
         self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'}]),{'tasks':['EXISTING']})
+        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'},{'scout':'S2'}]),{'tasks':['EXISTING','EXISTING']})
     def test_manual_request_needs_no_customer_project_number(self):
         self.request.diaspora_request=None; self.request.project_number=None
         self.request.status='Assigned'; self.api.get_doc.return_value=self.request
         self.api.db.get_value.return_value='EXISTING'
         self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'}]),{'tasks':['EXISTING']})
+        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'},{'scout':'S2'}]),{'tasks':['EXISTING','EXISTING']})
 
     def test_partial_and_full_rollup(self):
         self.api.get_doc.side_effect=lambda dt,n:self.request if dt=='Field Request' else self.source
