@@ -49,3 +49,5 @@ override_whitelisted_methods = {'dd_assign_project_scouts': 'fieldpulse.scout_as
  'dd_assign_scouts_without_extra_columns': 'fieldpulse.scout_assignment.assign'}
 
 extend_bootinfo = "fieldpulse.native_ownership.extend_bootinfo"
+
+has_permission = {"Scout Profile": "fieldpulse.scout_self_service.profile_permission"}

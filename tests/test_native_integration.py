@@ -89,7 +89,14 @@ class NativeSourceTests(unittest.TestCase):
             suffix = '_list.js' if record.get('view') == 'List' else '.js'
             path = ROOT / 'fieldpulse/fieldpulse/doctype' / folder / (folder + suffix)
             content = path.read_text(encoding='utf-8') if path.exists() else ''
-            if record.get('enabled'):
+            if record.get('enabled') and record['name'] == 'DD Project Scout Assignment':
+                # The native picker now shows identity/county; retain the original
+                # assignment route and deposit enforcement without freezing its UI.
+                self.assertIn('dd_assign_scouts_without_extra_columns', content)
+                self.assertIn('fieldname: "scout_name"', content)
+                self.assertIn('fieldname: "base_county"', content)
+                self.assertIn('frappe.db.get_value("Scout Profile"', content)
+            elif record.get('enabled'):
                 self.assertIn('\n'.join(line.strip() for line in record['script'].splitlines() if line.strip()), '\n'.join(line.strip() for line in content.splitlines() if line.strip()))
             else:
                 self.assertNotIn('// ' + record['name'] + '\n', content)
@@ -202,7 +209,7 @@ class ApiTransitionTests(unittest.TestCase):
         ownership.owned_api = lambda *names: lambda function: function
         payments = types.ModuleType('fieldpulse.payments')
         commerce = types.ModuleType('fieldpulse.commerce')
-        for name in ('roles','csrf','mutation_proof','billing','accept_quote','checkout','refresh','register_ipn','withdraw_quote','ipn'):
+        for name in ('roles','csrf','mutation_proof','billing','accept_quote','checkout','refresh','register_ipn','withdraw_quote','ipn','download_quote'):
             setattr(payments, name, MagicMock())
         for name in ('disputes','create_dispute','report','download_report','update_settings','deletion_request'):
             setattr(commerce, name, MagicMock())

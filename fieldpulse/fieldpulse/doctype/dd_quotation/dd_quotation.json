@@ -455,7 +455,72 @@
       "sort_options": 0,
       "show_on_timeline": 0,
       "make_attachment_public": 0,
-      "doctype": "DocField"
+      "doctype": "DocField",
+      "description": "Add one row per project from this request. The quotation discount applies to the combined subtotal."
+    },
+    {
+      "fieldname": "pricing_section",
+      "label": "Discount and VAT",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "discount_type",
+      "label": "Discount type",
+      "fieldtype": "Select",
+      "options": "None\nPercentage\nFixed amount",
+      "default": "None"
+    },
+    {
+      "fieldname": "discount_value",
+      "label": "Discount value",
+      "fieldtype": "Float",
+      "default": "0",
+      "description": "Percentage or amount in quotation currency. Applied before VAT."
+    },
+    {
+      "fieldname": "discount_reason",
+      "label": "Discount reason",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "vat_rate",
+      "label": "VAT rate (%)",
+      "fieldtype": "Percent",
+      "default": "16"
+    },
+    {
+      "fieldname": "tax_inclusive",
+      "label": "Entered prices include VAT",
+      "fieldtype": "Check",
+      "default": "0"
+    },
+    {
+      "fieldname": "subtotal",
+      "label": "Subtotal",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
+      "fieldname": "discount_amount",
+      "label": "Discount amount",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
+      "fieldname": "taxable_amount",
+      "label": "Net amount before VAT",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
+      "fieldname": "vat_amount",
+      "label": "VAT amount",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "read_only": 1
     },
     {
       "fieldname": "total",

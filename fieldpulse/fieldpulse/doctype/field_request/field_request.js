@@ -36,7 +36,24 @@ frappe.ui.form.on("Field Request", {
         fields: [{ fieldname: "assignment_help", fieldtype: "HTML", options: `<p>${__("Choose a scout in the row below. Use Add Row for more scouts.")}</p>` },
           { fieldname: "assignments", label: __("Scout assignments"), fieldtype: "Table", reqd: 1, in_place_edit: true, data: [{}],
           fields: [
-            { fieldname: "scout", label: __("Scout"), fieldtype: "Link", options: "Scout Profile", reqd: 1, in_list_view: 1 },
+            { fieldname: "scout", label: __("Scout"), fieldtype: "Link", options: "Scout Profile", reqd: 1, in_list_view: 1,
+              async onchange() {
+                const row = this.doc;
+                if (!row) return;
+                const selected = row.scout;
+                row.scout_name = "";
+                row.base_county = "";
+                dialog.fields_dict.assignments.grid.refresh();
+                if (!selected) return;
+                const result = await frappe.db.get_value("Scout Profile", selected, ["scout_name", "base_county"]);
+                if (row.scout !== selected) return;
+                row.scout_name = result.message?.scout_name || "";
+                row.base_county = result.message?.base_county || __("County unconfirmed");
+                dialog.fields_dict.assignments.grid.refresh();
+              },
+            },
+            { fieldname: "scout_name", label: __("Full name"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
+            { fieldname: "base_county", label: __("County"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
             { fieldname: "questionnaire", label: __("Questionnaire"), fieldtype: "Link", options: "FP Questionnaire" },
           ] }],
         primary_action_label: __("Assign"),

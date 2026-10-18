@@ -28,6 +28,10 @@ def sync_pull_assignments(since=None):
     assigned to the calling scout, changed since the given timestamp."""
     scout_profile = _get_scout_profile_for_user()
 
+    frappe.db.set_value("Scout Profile", scout_profile.name, {
+        "last_app_activity": now_datetime(), "activity_status": "Active",
+    }, update_modified=False)
+
     filters = {"scout_profile": scout_profile.name}
     if since:
         filters["modified"] = [">", since]
@@ -59,6 +63,9 @@ def sync_pull_assignments(since=None):
             options = frappe.get_all(
                 "FP Question Option", filters={"question": ["in", question_names]}, fields=["*"]
             )
+
+    # Older mobile builds pull with GET, so explicitly persist the activity stamp.
+    frappe.db.commit()
 
     return {
         "tasks": tasks,

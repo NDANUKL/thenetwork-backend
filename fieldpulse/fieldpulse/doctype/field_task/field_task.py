@@ -36,6 +36,7 @@ class FieldTask(Document):
         is_assignment = self.is_new() or (previous and previous.scout_profile != self.scout_profile)
         if not is_assignment:
             return
+        frappe.db.sql("SELECT name FROM `tabScout Profile` WHERE name=%s FOR UPDATE", (self.scout_profile,))
         if frappe.db.get_value("Scout Profile", self.scout_profile, "availability_status") == "On Leave":
             frappe.throw("A task cannot be assigned to a scout who is On Leave")
 

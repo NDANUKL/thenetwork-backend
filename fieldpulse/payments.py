@@ -2,11 +2,11 @@
 import json
 import hashlib
 import secrets
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote as urlquote
 import frappe
 import requests
 from frappe.utils import getdate, now_datetime
-from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status
+from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals
 
 def roles(user=None):
     return frappe.get_roles(user or frappe.session.user)
@@ -140,6 +140,14 @@ def validate_quote(doc, method=None):
         total += money(item.amount)
     if doc.status == 'Issued' and (not doc.terms):
         frappe.throw('Add the terms before issuing this quotation')
+    try:
+        totals = quotation_totals(total, doc.get('discount_type') or 'None', doc.get('discount_value') or 0,
+            doc.get('vat_rate'), bool(doc.get('tax_inclusive')))
+    except ValueError as exc:
+        frappe.throw(str(exc))
+    for key, value in totals.items():
+        setattr(doc, key, float(value))
+    total = totals['total']
     sequence_value_3 = instalments(total)
     deposit = sequence_value_3[0]
     balance = sequence_value_3[1]
@@ -170,7 +178,7 @@ def _billing(request):
     for payment in payments:
         payment.amount = float(payment.amount)
         payment.can_pay = quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed'))
-    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': quote.terms, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': []}
+    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_reason': quote.get('discount_reason'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': quote.terms, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': []}
 
 def billing(reference=None):
     if reference:
@@ -352,3 +360,22 @@ def withdraw_quote(quote):
         frappe.throw('Only an unaccepted quotation can be withdrawn; accepted work needs a reviewed amendment')
     frappe.db.set_value('DD Quotation', document.name, 'status', 'Withdrawn')
     return {'success': True}
+
+
+@frappe.whitelist()
+def download_quote(reference):
+    request = _owned(reference)
+    quote = _quote(request.name)
+    if not quote:
+        frappe.throw('Quotation is not available', frappe.DoesNotExistError)
+    # Ownership is established above; customers need no general Desk print permission.
+    from frappe.utils.pdf import get_pdf
+    template = frappe.get_doc('Print Format', 'Diaspora Desk Quotation')
+    html = frappe.render_template(template.html, {'doc': quote})
+    content = get_pdf('<html><head><meta charset="utf-8"></head><body><div class="print-format">'
+        + html + '</div></body></html>', options={'page-size': 'A4', 'margin-top': '15mm',
+        'margin-bottom': '15mm', 'margin-left': '15mm', 'margin-right': '15mm'})
+    frappe.response['type'] = 'download'
+    frappe.response['filename'] = quote.name + '.pdf'
+    frappe.response['filecontent'] = content
+    frappe.response['display_content_as'] = 'attachment'

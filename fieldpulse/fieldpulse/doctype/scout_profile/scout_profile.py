@@ -9,7 +9,11 @@ ACTIVE_TASK_STATUSES = ("Assigned", "Accepted", "In Progress")
 class ScoutProfile(Document):
     """Operational profile for a field scout."""
 
-    pass
+    def validate(self):
+        if (frappe.session.user != "Administrator"
+                and "Field Operations Coordinator" in frappe.get_roles()
+                and not self.flags.scout_self_service):
+            frappe.throw("Scout profiles are maintained by scouts in the mobile app.", frappe.PermissionError)
 
 
 def refresh_activity_statuses():

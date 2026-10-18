@@ -2,7 +2,7 @@
 from fieldpulse.native_ownership import owned_api
 import frappe
 from fieldpulse.payments import (roles, csrf, mutation_proof, billing, accept_quote, checkout,
-    refresh, register_ipn, withdraw_quote, ipn)
+    refresh, register_ipn, withdraw_quote, ipn, download_quote)
 from fieldpulse.commerce import (disputes, create_dispute, report, download_report,
     update_settings, deletion_request)
 
@@ -14,6 +14,8 @@ def dispatch(**kwargs):
         result = csrf()
     elif action == "billing":
         result = billing(frappe.form_dict.get("reference"))
+    elif action == "download_quote":
+        result = download_quote(frappe.form_dict.get("reference"))
     elif action == "disputes":
         result = disputes(frappe.form_dict.get("reference"))
     elif action == "report":

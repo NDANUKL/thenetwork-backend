@@ -23,6 +23,25 @@ class RulesTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rules.instalments(total)
 
+    def test_discount_then_vat_and_payment_split(self):
+        totals = rules.quotation_totals(200, "Percentage", 10)
+        self.assertEqual(totals, dict(subtotal=Decimal("200"), discount_amount=Decimal("20"), taxable_amount=Decimal("180"), vat_amount=Decimal("28.80"), total=Decimal("208.80")))
+        self.assertEqual(rules.instalments(totals['total']), (Decimal("104.40"), Decimal("104.40")))
+        self.assertEqual(rules.quotation_totals(200, "Fixed amount", 20), totals)
+        self.assertEqual(rules.quotation_totals(100)['total'], Decimal("116"))
+
+    def test_inclusive_prices_extract_vat_after_discount(self):
+        totals = rules.quotation_totals(232, "Fixed amount", 116, 16, True)
+        self.assertEqual(totals['taxable_amount'], Decimal("100"))
+        self.assertEqual(totals['vat_amount'], Decimal("16"))
+        self.assertEqual(totals['total'], Decimal("116"))
+        self.assertEqual(rules.quotation_totals("100.01", vat_rate=0)['total'], Decimal("100.01"))
+
+    def test_invalid_discounts_and_tax_rejected(self):
+        for kwargs in [dict(discount_type="Percentage", discount_value=101), dict(discount_type="Fixed amount", discount_value=101), dict(discount_value=5), dict(discount_type="other"), dict(vat_rate=101), dict(vat_rate="NaN"), dict(discount_value=-1), dict(discount_type="Percentage", discount_value=100)]:
+            with self.assertRaises(ValueError):
+                rules.quotation_totals(100, **kwargs)
+
     def test_only_exact_provider_host(self):
         for url in ("http://pay.pesapal.com/a", "https://pay.pesapal.com.evil/a", "https://user@pay.pesapal.com/a", "https://pay.pesapal.com:444/a"):
             with self.assertRaises(ValueError):
@@ -60,6 +79,63 @@ class FlowTests(unittest.TestCase):
 
     def tearDown(self):
         self.modules.stop()
+
+    def test_quotation_download_requires_request_ownership(self):
+        self.payments._owned = MagicMock(side_effect=PermissionError("Not yours"))
+        self.frappe.get_print = MagicMock()
+        with self.assertRaises(PermissionError):
+            self.payments.download_quote("someone-elses-request")
+        self.frappe.get_print.assert_not_called()
+
+    def test_quotation_download_prints_only_current_owned_quote(self):
+        self.payments._owned = MagicMock(return_value=Record(name="request"))
+        current = Record(name="quote", status="Accepted")
+        self.payments._quote = MagicMock(return_value=current)
+        pdf = types.ModuleType('frappe.utils.pdf')
+        pdf.get_pdf = MagicMock(return_value=b'%PDF-test')
+        self.frappe.get_doc.return_value = Record(html='<p>Quotation</p>')
+        self.frappe.render_template.return_value = '<p>Rendered</p>'
+        self.frappe.response = {}
+        with patch.dict(sys.modules, {'frappe.utils.pdf': pdf}):
+            self.payments.download_quote("request")
+        self.frappe.render_template.assert_called_once_with('<p>Quotation</p>', {'doc': current})
+        self.assertIn('<p>Rendered</p>', pdf.get_pdf.call_args.args[0])
+        self.assertEqual(self.frappe.response['filecontent'], b"%PDF-test")
+
+    def quote_document(self):
+        doc = Record(name='draft', request='request', status='Draft', currency='USD', quotation_date='2026-10-14', valid_until='2026-11-14', discount_type='Percentage', discount_value=10, vat_rate=16)
+        doc.get_doc_before_save = lambda: None
+        doc.items = [Record(field_request='project-1', quantity=1, rate=100, description='Scope one', planned_scouts=1), Record(field_request='project-2', quantity=1, rate=100, description='Scope two', planned_scouts=1)]
+        request = Record(name='request', full_name='Client', email='client@example.com')
+        request.check_permission = MagicMock()
+        self.frappe.get_doc.side_effect = lambda dt, name: request if dt == 'Diaspora Request' else Record(name=name, diaspora_request='request', project_title=name)
+        self.frappe.db.exists.return_value = False
+        return doc
+
+    def test_multi_project_quote_uses_combined_discounted_total(self):
+        doc = self.quote_document()
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.subtotal, 200)
+        self.assertEqual(doc.discount_amount, 20)
+        self.assertEqual(doc.vat_amount, 28.8)
+        self.assertEqual(doc.total, 208.8)
+        self.assertEqual(doc.deposit_amount + doc.balance_amount, doc.total)
+
+    def test_quotation_rejects_duplicate_or_unrelated_projects(self):
+        doc = self.quote_document()
+        doc.items[1]['field_request'] = 'project-1'
+        with self.assertRaisesRegex(ValueError, 'each quoted project once'):
+            self.payments.validate_quote(doc)
+        doc = self.quote_document()
+        self.frappe.get_doc.side_effect = [Record(name='request', check_permission=MagicMock()), Record(name='foreign-project', diaspora_request='another-request')]
+        with self.assertRaisesRegex(ValueError, 'each quoted project once'):
+            self.payments.validate_quote(doc)
+
+    def test_existing_issued_quotation_is_not_repriced(self):
+        doc = self.quote_document()
+        doc.get_doc_before_save = lambda: Record(status='Accepted')
+        with self.assertRaisesRegex(ValueError, 'locked'):
+            self.payments.validate_quote(doc)
 
     def test_unpaid_and_unaccepted_assignment_blocked(self):
         doc = Record(field_request="project", status="Assigned", scout_profile="scout", name="new")

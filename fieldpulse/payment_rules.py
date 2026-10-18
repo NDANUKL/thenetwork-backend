@@ -44,3 +44,24 @@ def verified_status(payload, reference, amount, currency):
     if state == "Paid" and not payload.get("confirmation_code"):
         raise ValueError("Missing payment confirmation")
     return state
+
+
+def quotation_totals(subtotal, discount_type="None", discount_value=0, vat_rate=16, tax_inclusive=False):
+    subtotal = money(subtotal)
+    value = money(discount_value or 0)
+    rate = money(vat_rate if vat_rate is not None else 16)
+    if discount_type not in ("None", "Percentage", "Fixed amount"):
+        raise ValueError("Choose a valid discount type")
+    if rate > 100 or (discount_type == "Percentage" and value > 100):
+        raise ValueError("Percentages must be between 0 and 100")
+    if discount_type == "None" and value:
+        raise ValueError("Select a discount type before entering a discount")
+    discount = money(subtotal * value / 100) if discount_type == "Percentage" else value
+    if discount > subtotal:
+        raise ValueError("Discount cannot exceed the subtotal")
+    discounted = subtotal - discount
+    taxable = money(discounted / (1 + rate / 100)) if tax_inclusive else discounted
+    vat = discounted - taxable if tax_inclusive else money(taxable * rate / 100)
+    total = discounted if tax_inclusive else taxable + vat
+    instalments(total)
+    return dict(subtotal=subtotal, discount_amount=discount, taxable_amount=taxable, vat_amount=vat, total=total)
