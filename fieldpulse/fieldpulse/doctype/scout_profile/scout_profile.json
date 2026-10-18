@@ -11,7 +11,7 @@
     {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "unique": 1},
     {"fieldname": "phone_number", "fieldtype": "Data", "label": "Phone Number"},
     {"fieldname": "base_county", "fieldtype": "Data", "in_list_view": 1, "label": "County"},
-    {"fieldname": "legacy_fp_agent", "fieldtype": "Link", "label": "Legacy FP Agent", "options": "FP Agent", "read_only": 1, "unique": 1},
+    {"fieldname": "legacy_fp_agent", "fieldtype": "Link", "label": "Legacy FP Agent", "options": "FP Agent", "read_only": 1, "hidden": 1, "unique": 1},
     {"default": "Available", "fieldname": "availability_status", "fieldtype": "Select", "in_list_view": 1, "label": "Availability", "options": "Available\nBusy\nOn Leave", "reqd": 1},
     {"fieldname": "last_app_activity", "fieldtype": "Datetime", "in_list_view": 1, "label": "Last Active"},
     {"default": "Inactive", "fieldname": "activity_status", "fieldtype": "Select", "in_list_view": 1, "label": "Activity", "options": "Active\nInactive", "read_only": 1, "reqd": 1},
