@@ -12,7 +12,7 @@ class FPTaskResponse(Document):
         self._sync_task_status()
 
     def _apply_geofence_check(self):
-        if not (self.location and self.latitude and self.longitude):
+        if not self.location or self.latitude is None or self.longitude is None:
             self.geofence_status = "Invalid GPS"
             return
         location = frappe.get_doc("FP Location", self.location)

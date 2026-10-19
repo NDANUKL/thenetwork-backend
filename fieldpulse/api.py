@@ -94,15 +94,19 @@ def sync_push_responses(task_responses=None, question_responses=None):
     rejected = []
 
     for item in task_responses:
+        frappe.db.savepoint("sync_item")
         try:
             accepted.append(_upsert_task_response(item))
         except Exception as e:
+            frappe.db.rollback(save_point="sync_item")
             rejected.append({"client_uuid": item.get("client_uuid"), "errors": [str(e)]})
 
     for item in question_responses:
+        frappe.db.savepoint("sync_item")
         try:
             accepted.append(_upsert_question_response(item))
         except Exception as e:
+            frappe.db.rollback(save_point="sync_item")
             rejected.append({"client_uuid": item.get("client_uuid"), "errors": [str(e)]})
 
     frappe.db.commit()
@@ -125,9 +129,22 @@ def _upsert_task_response(item):
     if field_task.scout_profile != current_scout.name:
         frappe.throw("This Field Task is not assigned to the current scout")
 
+    if field_task.status in ("Cancelled", "Approved"):
+        frappe.throw("This Field Task is no longer open for responses", frappe.PermissionError)
+    if item.get("location") != field_task.location:
+        frappe.throw("Response location must match the assigned task", frappe.PermissionError)
+    if item.get("status", "Draft") not in ("Draft", "Submitted"):
+        frappe.throw("Scouts may only save drafts or submit responses", frappe.PermissionError)
+
     existing = frappe.db.exists("FP Task Response", {"client_uuid": client_uuid})
     if existing:
         doc = frappe.get_doc("FP Task Response", existing)
+        if doc.task != field_task.name or doc.agent != current_scout.name:
+            frappe.throw("Response ID belongs to another task or scout", frappe.PermissionError)
+        if doc.status == "Submitted":
+            if item.get("status") == "Submitted":
+                return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
+            frappe.throw("Submitted responses cannot be changed", frappe.PermissionError)
         incoming_ts = item.get("client_updated_at")
         if incoming_ts and doc.client_updated_at and incoming_ts <= str(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
@@ -150,7 +167,7 @@ def _upsert_task_response(item):
 
 
 def _apply_geofence_check(doc):
-    if not (doc.location and doc.latitude and doc.longitude):
+    if not doc.location or doc.latitude is None or doc.longitude is None:
         doc.geofence_status = "Invalid GPS"
         return
 
@@ -165,9 +182,22 @@ def _upsert_question_response(item):
     if not client_uuid:
         frappe.throw("Missing client_uuid")
 
+    parent = frappe.get_doc("FP Task Response", item.get("task_response"))
+    current_scout = _get_scout_profile_for_user()
+    task = frappe.get_doc("Field Task", parent.task)
+    if parent.agent != current_scout.name or task.scout_profile != current_scout.name:
+        frappe.throw("This response does not belong to the current scout", frappe.PermissionError)
+    if parent.status != "Draft" or task.status in ("Cancelled", "Approved", "Submitted"):
+        frappe.throw("Only open draft responses can be edited", frappe.PermissionError)
+    question = frappe.get_doc("FP Question", item.get("question"))
+    if question.questionnaire != task.questionnaire or item.get("question_type") != question.question_type:
+        frappe.throw("Question must belong to the assigned questionnaire and match its type", frappe.PermissionError)
+
     existing = frappe.db.exists("FP Question Response", {"client_uuid": client_uuid})
     if existing:
         doc = frappe.get_doc("FP Question Response", existing)
+        if doc.task_response != parent.name or doc.question != question.name:
+            frappe.throw("Answer ID belongs to another response or question", frappe.PermissionError)
         incoming_ts = item.get("client_updated_at")
         if incoming_ts and doc.client_updated_at and incoming_ts <= str(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
