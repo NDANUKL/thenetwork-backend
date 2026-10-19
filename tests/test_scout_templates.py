@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 from pathlib import Path
 import sys
 import types
@@ -68,6 +69,17 @@ class TemplateInstallTests(unittest.TestCase):
             questions = self.site.get_all('FP Question', {'questionnaire': row.name})
             self.assertTrue({'S1','S2','S3','S4','S_EXTRA'} <= {q.question_code for q in questions})
             self.assertEqual(sum(json.loads(q.validation_json)['mandatory_evidence'] for q in questions), 1)
+
+    def test_format_naming_rules_have_no_literal_sequence_placeholders(self):
+        # Frappe's format: parser only expands sequences inside braces.
+        # Bare hashes become a constant primary key and break bulk installs.
+        for path in (ROOT / 'fieldpulse/fieldpulse/doctype').glob('*/*.json'):
+            schema = json.loads(path.read_text(encoding='utf-8'))
+            rule = schema.get('autoname', '')
+            if rule.startswith('format:'):
+                literal = re.sub(r'\{[^{}]*\}', '', rule)
+                with self.subTest(doctype=schema['name']):
+                    self.assertNotIn('#', literal, rule)
 
     def project(self):
         project = Record(doctype='Field Request', name='request', project_title='Plot check', field_brief='Check the blue gate on my plot.', request_type='Property Verification')
