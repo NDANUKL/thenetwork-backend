@@ -1,0 +1,30 @@
+{
+  "doctype": "DocType",
+  "name": "DD Scout Check",
+  "module": "FieldPulse",
+  "istable": 1,
+  "editable_grid": 1,
+  "fields": [
+    {
+      "fieldname": "question",
+      "label": "Service question",
+      "fieldtype": "Link",
+      "options": "FP Question",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "label",
+      "label": "Question",
+      "fieldtype": "Small Text",
+      "fetch_from": "question.label",
+      "read_only": 1,
+      "in_list_view": 1
+    }
+  ],
+  "field_order": [
+    "question",
+    "label"
+  ],
+  "permissions": []
+}

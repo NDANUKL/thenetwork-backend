@@ -22,7 +22,12 @@
     "project_key",
     "deadline_preference",
     "evidence_requirements",
-    "project_id"
+    "project_id",
+    "scout_checks_section",
+    "scout_service",
+    "scout_questionnaire",
+    "scout_checks",
+    "scout_checks_confirmed"
   ],
   "fields": [
     {
@@ -338,6 +343,38 @@
       "fieldtype": "Check",
       "read_only": 1,
       "hidden": 1
+    },
+    {
+      "fieldname": "scout_checks_section",
+      "label": "Scout questionnaire",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "scout_service",
+      "label": "Scout service",
+      "fieldtype": "Select",
+      "options": "\nLand or plot check\nProperty or building check\nConstruction progress check\nBusiness or shop check\nVehicle check\nEquipment or funded asset check\nAdult student enrolment check\nUniversity fee payment confirmation\nAdult student attendance check\nAdult clinic visit verification\nDocument comparison and issuer confirmation\nReceipt confirmation\nPurchase or delivery confirmation\nGeneral site visit\nMerchant survey and field interviews"
+    },
+    {
+      "fieldname": "scout_questionnaire",
+      "label": "Service template",
+      "fieldtype": "Link",
+      "options": "FP Questionnaire",
+      "read_only": 1
+    },
+    {
+      "fieldname": "scout_checks",
+      "label": "Selected service checks",
+      "fieldtype": "Table",
+      "options": "DD Scout Check",
+      "description": "Every selected check is required. Keep the service evidence check. Shared questions are included automatically."
+    },
+    {
+      "fieldname": "scout_checks_confirmed",
+      "label": "Selected checks match the agreed client request",
+      "fieldtype": "Check",
+      "default": "0",
+      "description": "Review the service, retain its mandatory evidence question, hide out-of-scope checks, then confirm before dispatch."
     }
   ],
   "index_web_pages_for_search": 1,

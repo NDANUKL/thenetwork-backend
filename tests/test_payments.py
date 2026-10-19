@@ -209,6 +209,15 @@ class FlowTests(unittest.TestCase):
             self.payments.checkout("request", "payment", "retry")
         self.frappe.db.commit.assert_not_called()
 
+    def test_balance_requires_a_published_report_even_after_completed_fieldwork(self):
+        self.payments._owned = MagicMock(return_value=Record(name="request", status="Completed"))
+        self.payments._quote = MagicMock(return_value=Record(name="quote", status="Accepted"))
+        self.frappe.get_doc.return_value = Record(name="payment", request="request", quotation="quote", kind="balance", status="Unpaid")
+        self.frappe.db.exists.side_effect = lambda dt, filters: dt == "DD Payment"
+        with self.assertRaisesRegex(ValueError, "approved report"):
+            self.payments.checkout("request", "payment", "retry")
+        self.frappe.db.commit.assert_not_called()
+
     def test_pending_checkout_is_reused_without_another_provider_order(self):
         self.payments._owned = MagicMock(return_value=Record(name="request"))
         self.payments._quote = MagicMock(return_value=Record(name="quote", status="Accepted"))

@@ -28,7 +28,11 @@
     "priority",
     "task_brief",
     "evidence_requirements",
-    "responsibility"
+    "responsibility",
+    "questionnaire_scope",
+    "client_request_snapshot",
+    "submission_review_status",
+    "submission_review_reasons"
   ],
   "fields": [
     {
@@ -221,6 +225,33 @@
       "fieldname": "responsibility",
       "label": "Scout Responsibility",
       "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "questionnaire_scope",
+      "label": "Assigned question codes",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "client_request_snapshot",
+      "label": "Client request and agreed clarifications",
+      "fieldtype": "Long Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "submission_review_status",
+      "label": "Submission review",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "submission_review_reasons",
+      "label": "Review reasons",
+      "fieldtype": "Small Text",
+      "read_only": 1,
+      "in_list_view": 1
     }
   ],
   "index_web_pages_for_search": 1,

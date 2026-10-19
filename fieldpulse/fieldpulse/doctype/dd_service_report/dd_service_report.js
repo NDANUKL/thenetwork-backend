@@ -1,0 +1,19 @@
+frappe.ui.form.on("DD Service Report", {
+  refresh(frm) {
+    if (frm.is_new() || frm.doc.status === "Approved") return;
+    frm.set_intro(__("Review the draft against every client request and approved scout submission. Select the permitted client photos and videos, review their captions, explain limitations, then generate the PDF before approval. Approval publishes the report in the client portal."));
+    frm.add_custom_button(__("Generate report PDF"), async () => {
+      if (frm.is_dirty()) await frm.save();
+      await frappe.call("fieldpulse.scout_reports.generate_pdf", {report: frm.doc.name});
+      await frm.reload_doc();
+    });
+  }
+});
+
+frappe.ui.form.on("DD Report Evidence", {
+  async preview(frm, cdt, cdn) {
+    const row = locals[cdt][cdn];
+    const {message} = await frappe.call("fieldpulse.evidence.get_evidence_view_url", {evidence_id: row.evidence});
+    frappe.msgprint({title: __("Reviewed evidence"), message: `<p>${frappe.utils.escape_html(row.caption || "")}</p><a href="${frappe.utils.escape_html(message.view_url)}" target="_blank" rel="noopener noreferrer">${__("Open photo or video")}</a>`});
+  }
+});

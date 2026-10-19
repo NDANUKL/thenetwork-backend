@@ -9,7 +9,7 @@ from frappe.utils import now_datetime
 
 
 PRESIGNED_URL_EXPIRY_SECONDS = 15 * 60
-EVIDENCE_VIEW_ROLES = {"Admin", "Supervisor", "Field Operations Coordinator"}
+EVIDENCE_VIEW_ROLES = {"Admin", "Supervisor", "System Manager", "Field Operations Coordinator"}
 QUESTION_ATTACHMENT_EVIDENCE_TYPES = {
     "photo": "Photo",
     "file_attachment": "Document",
@@ -73,7 +73,12 @@ def _validate_question_response(question_response, field_task, evidence_type):
     if not task_questionnaire or question.questionnaire != task_questionnaire:
         frappe.throw("Question Response does not belong to this Field Task", frappe.PermissionError)
 
-    expected_evidence_type = QUESTION_ATTACHMENT_EVIDENCE_TYPES.get(question.question_type)
+    if question.question_type == "service_check":
+        if evidence_type not in {"Photo", "Video"}:
+            frappe.throw("Service checks accept photos and videos only")
+        expected_evidence_type = evidence_type
+    else:
+        expected_evidence_type = QUESTION_ATTACHMENT_EVIDENCE_TYPES.get(question.question_type)
     if not expected_evidence_type:
         frappe.throw("Question Response is not for a photo, file, or signature question")
     if response.question_type != question.question_type:
@@ -109,6 +114,8 @@ def request_evidence_upload(
     captured_at=None,
     gps_lat=None,
     gps_lng=None,
+    caption=None,
+    accuracy_m=None,
 ):
     """Create/reuse evidence metadata and return a short-lived R2 PUT URL."""
     if not client_uuid:
@@ -126,6 +133,10 @@ def request_evidence_upload(
     _assert_scout_owns_task(field_task, scout_profile)
     if question_response:
         _validate_question_response(question_response, field_task, evidence_type)
+    if evidence_type in {"Photo", "Video"} and not mime_type.startswith("image/" if evidence_type == "Photo" else "video/"):
+        frappe.throw("Evidence media type does not match its content type")
+    if question_response and frappe.db.get_value("FP Question Response", question_response, "question_type") == "service_check" and not (caption and str(caption).strip()):
+        frappe.throw("Caption the evidence before uploading")
     settings = _r2_settings()
     evidence_name = frappe.db.exists("Field Evidence", {"client_uuid": client_uuid})
 
@@ -153,10 +164,15 @@ def request_evidence_upload(
                 "captured_at": captured_at,
                 "gps_lat": gps_lat,
                 "gps_lng": gps_lng,
+                "caption": str(caption or "")[:2000],
+                "accuracy_m": accuracy_m,
                 "upload_status": "Pending",
             }
         )
         evidence.insert(ignore_permissions=True)
+
+    if frappe.db.get_value("Field Task", field_task, "status") in ("Submitted", "Approved", "Cancelled"):
+        frappe.throw("Evidence is frozen after submission; request rework", frappe.PermissionError)
 
     upload_url = _r2_client(settings).generate_presigned_url(
         "put_object",
@@ -188,6 +204,11 @@ def confirm_evidence_upload(evidence_id, etag):
     if evidence.scout != scout_profile:
         frappe.throw("This evidence does not belong to the current scout", frappe.PermissionError)
 
+    _assert_scout_owns_task(evidence.field_task, scout_profile)
+    if evidence.upload_status == "Uploaded":
+        return {"evidence_id": evidence.name, "upload_status": "Uploaded", "etag": evidence.etag}
+    if frappe.db.get_value("Field Task", evidence.field_task, "status") in ("Submitted", "Approved", "Cancelled"):
+        frappe.throw("Evidence is frozen after submission; request rework", frappe.PermissionError)
     settings = _r2_settings()
     try:
         object_metadata = _r2_client(settings).head_object(

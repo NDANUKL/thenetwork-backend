@@ -25,3 +25,17 @@ frappe.ui.form.on("Diaspora Request", {
 });
 
 }
+
+frappe.ui.form.on("Diaspora Request", {
+  refresh(frm) {
+    if (frm.is_new()) return;
+    frm.add_custom_button(__("Scout submissions"), () => {
+      frappe.route_options = {status: "Submitted"};
+      frappe.set_route("List", "FP Task Response");
+    });
+    if (frm.doc.status === "Completed") frm.add_custom_button(__("Prepare client report"), async () => {
+      const {message} = await frappe.call("fieldpulse.scout_reports.prepare_report", {reference: frm.doc.name});
+      frappe.set_route("Form", "DD Service Report", message.report);
+    });
+  }
+});

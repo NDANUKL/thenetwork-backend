@@ -27,10 +27,10 @@ doc_events = {'Diaspora Request': {'before_save': ['fieldpulse.customer_requests
                       'after_insert': 'fieldpulse.native_events.ensure_field_requests',
                       'on_update': 'fieldpulse.native_events.ensure_field_requests'},
  'Field Request': {'before_save': ['fieldpulse.customer_requests.copy_ownership',
-                                   'fieldpulse.native_events.map_field_request'],
+                                   'fieldpulse.native_events.map_field_request', 'fieldpulse.scout_templates.prepare_project'],
                    'on_update': 'fieldpulse.native_events.sync_task_navigation'},
  'Field Task': {'before_save': ['fieldpulse.native_events.map_task',
-                                'fieldpulse.native_events.require_deposit']},
+                                'fieldpulse.native_events.require_deposit', 'fieldpulse.scout_templates.apply_to_task']},
  'User': {'on_update': 'fieldpulse.scout_registration.sync_user'},
  'FP Agent': {'on_update': 'fieldpulse.scout_registration.sync_agent'}}
 
@@ -51,3 +51,13 @@ override_whitelisted_methods = {'dd_assign_project_scouts': 'fieldpulse.scout_as
 extend_bootinfo = "fieldpulse.native_ownership.extend_bootinfo"
 
 has_permission = {"Scout Profile": "fieldpulse.scout_self_service.profile_permission"}
+
+
+for _doctype in ("Field Task", "FP Task Response", "FP Question Response", "Field Evidence"):
+    has_permission[_doctype] = "fieldpulse.scout_permissions.record_permission"
+permission_query_conditions = {
+    "Field Task": "fieldpulse.scout_permissions.task_query",
+    "FP Task Response": "fieldpulse.scout_permissions.response_query",
+    "FP Question Response": "fieldpulse.scout_permissions.answer_query",
+    "Field Evidence": "fieldpulse.scout_permissions.evidence_query",
+}

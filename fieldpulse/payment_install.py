@@ -9,4 +9,5 @@ def after_migrate():
 def install():
     # All payment fields, permissions and print format are versioned Frappe documents.
     # Retirement belongs exclusively to the explicitly approved native handover.
-    pass
+    from fieldpulse.scout_templates import install_templates
+    install_templates()

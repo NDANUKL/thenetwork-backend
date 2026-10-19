@@ -6,8 +6,28 @@ from fieldpulse.utils import haversine_distance_m
 
 class FPTaskResponse(Document):
     def validate(self):
+        previous = self.get_doc_before_save() if not self.is_new() else None
+        if previous and previous.status == "Submitted":
+            for key in ("task", "agent", "location", "status", "arrival_check_json", "final_review_json", "latitude", "longitude", "accuracy_m", "submitted_at", "started_at"):
+                if self.get(key) != previous.get(key):
+                    frappe.throw("Submitted scout findings are immutable; request rework for a new response")
+            for key in ("qa_status", "review_status", "review_reasons", "reviewed_by", "reviewed_at", "review_notes"):
+                if self.get(key) != previous.get(key):
+                    frappe.throw("Use the coordinator review actions to record a review")
+            return
+        if "Field Agent" in frappe.get_roles() and not {"System Manager", "Field Operations Coordinator", "Supervisor", "Admin"}.intersection(frappe.get_roles()):
+            task = frappe.get_doc("Field Task", self.task)
+            scout = frappe.db.exists("Scout Profile", {"user": frappe.session.user})
+            if not scout or self.agent != scout or task.scout_profile != scout:
+                frappe.throw("Not your assigned task", frappe.PermissionError)
+            if self.get("qa_status") not in (None, "", "Pending", previous.get("qa_status") if previous else "Pending") or self.get("reviewed_by") or self.get("review_notes"):
+                frappe.throw("Only coordinators can review submissions", frappe.PermissionError)
+        if self.is_new() and frappe.db.get_value("Field Task", self.task, "status") in ("Submitted", "Approved", "Cancelled"):
+            frappe.throw("This task is no longer open for new responses")
         self._apply_geofence_check()
-        if self.status == "Submitted":
+        from fieldpulse.scout_submissions import validate_submission
+        managed = validate_submission(self)
+        if self.status == "Submitted" and not managed:
             self._validate_submission_complete()
         self._sync_task_status()
 

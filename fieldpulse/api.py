@@ -36,6 +36,7 @@ def sync_pull_assignments(since=None):
     if since:
         filters["modified"] = [">", since]
 
+    server_time = now_datetime().isoformat()
     tasks = frappe.get_all("Field Task", filters=filters, fields=["*"])
     for task in tasks:
         task["server_updated_at"] = task.get("modified")
@@ -73,7 +74,7 @@ def sync_pull_assignments(since=None):
         "questionnaires": questionnaires,
         "questions": questions,
         "question_options": options,
-        "server_time": now_datetime().isoformat(),
+        "server_time": server_time,
     }
 
 
@@ -129,8 +130,6 @@ def _upsert_task_response(item):
     if field_task.scout_profile != current_scout.name:
         frappe.throw("This Field Task is not assigned to the current scout")
 
-    if field_task.status in ("Cancelled", "Approved"):
-        frappe.throw("This Field Task is no longer open for responses", frappe.PermissionError)
     if item.get("location") != field_task.location:
         frappe.throw("Response location must match the assigned task", frappe.PermissionError)
     if item.get("status", "Draft") not in ("Draft", "Submitted"):
@@ -146,16 +145,19 @@ def _upsert_task_response(item):
                 return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
             frappe.throw("Submitted responses cannot be changed", frappe.PermissionError)
         incoming_ts = item.get("client_updated_at")
-        if incoming_ts and doc.client_updated_at and incoming_ts <= str(doc.client_updated_at):
+        if item.get("status") != "Submitted" and incoming_ts and doc.client_updated_at and incoming_ts <= str(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
     else:
         doc = frappe.new_doc("FP Task Response")
         doc.client_uuid = client_uuid
 
+    if field_task.status in ("Cancelled", "Approved", "Submitted"):
+        frappe.throw("This Field Task is no longer open for responses", frappe.PermissionError)
+
     for field in (
         "task", "location", "status", "started_at", "submitted_at",
         "client_updated_at", "device_id", "app_version",
-        "latitude", "longitude", "accuracy_m",
+        "latitude", "longitude", "accuracy_m", "arrival_check_json", "final_review_json",
     ):
         if field in item:
             doc.set(field, item[field])
@@ -193,6 +195,10 @@ def _upsert_question_response(item):
     if question.questionnaire != task.questionnaire or item.get("question_type") != question.question_type:
         frappe.throw("Question must belong to the assigned questionnaire and match its type", frappe.PermissionError)
 
+    if field_scope := task.get("questionnaire_scope"):
+        if question.question_code not in frappe.parse_json(field_scope):
+            frappe.throw("This check was not selected before dispatch", frappe.PermissionError)
+    frappe.db.sql("SELECT name FROM `tabFP Task Response` WHERE name=%s FOR UPDATE", [parent.name])
     existing = frappe.db.exists("FP Question Response", {"client_uuid": client_uuid})
     if existing:
         doc = frappe.get_doc("FP Question Response", existing)
@@ -202,6 +208,8 @@ def _upsert_question_response(item):
         if incoming_ts and doc.client_updated_at and incoming_ts <= str(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
     else:
+        if frappe.db.exists("FP Question Response", {"task_response": parent.name, "question": question.name}):
+            frappe.throw("This question already has an answer in this response")
         doc = frappe.new_doc("FP Question Response")
         doc.client_uuid = client_uuid
 
@@ -212,6 +220,7 @@ def _upsert_question_response(item):
         if field in item:
             doc.set(field, item[field])
 
+    doc.question_code = question.question_code
     doc.save(ignore_permissions=True)
     return {"client_uuid": client_uuid, "server_id": doc.name, "status": "accepted"}
 

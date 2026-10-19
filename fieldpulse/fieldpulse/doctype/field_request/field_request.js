@@ -74,3 +74,17 @@ frappe.ui.form.on("Field Request", {
 
 
 }
+
+frappe.ui.form.on("Field Request", {
+  setup(frm) {
+    frm.set_query("question", "scout_checks", () => ({filters: {questionnaire: frm.doc.scout_questionnaire, active: 1, question_group: "Service"}}));
+  },
+  scout_service(frm) {
+    if (!frm.doc.scout_service) return;
+    frm.set_value("scout_questionnaire", null);
+    frm.clear_table("scout_checks");
+    frm.set_value("scout_checks_confirmed", 0);
+    frm.refresh_field("scout_checks");
+    frm.set_intro(__("Save to load this service template, then review its selected checks before confirming dispatch."));
+  }
+});

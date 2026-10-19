@@ -5,25 +5,191 @@
   "creation": "2026-07-07 00:00:00.000000",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["client_uuid", "task", "agent", "location", "status", "started_at", "submitted_at", "client_updated_at", "device_id", "app_version", "latitude", "longitude", "accuracy_m", "geofence_status", "geofence_distance_m", "qa_status", "rejection_reason"],
+  "field_order": [
+    "client_uuid",
+    "task",
+    "agent",
+    "location",
+    "status",
+    "started_at",
+    "submitted_at",
+    "client_updated_at",
+    "device_id",
+    "app_version",
+    "latitude",
+    "longitude",
+    "accuracy_m",
+    "geofence_status",
+    "geofence_distance_m",
+    "qa_status",
+    "rejection_reason",
+    "arrival_check_json",
+    "final_review_json",
+    "review_status",
+    "review_reasons",
+    "reviewed_by",
+    "reviewed_at",
+    "review_notes",
+    "submission_review"
+  ],
   "fields": [
-    {"fieldname": "client_uuid", "fieldtype": "Data", "in_list_view": 1, "label": "Client UUID", "reqd": 1, "unique": 1},
-    {"fieldname": "task", "fieldtype": "Link", "in_list_view": 1, "label": "Field Task", "options": "Field Task", "reqd": 1},
-    {"fieldname": "agent", "fieldtype": "Link", "in_list_view": 1, "label": "Scout Profile", "options": "Scout Profile", "reqd": 1},
-    {"fieldname": "location", "fieldtype": "Link", "label": "Location", "options": "FP Location"},
-    {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nSubmitted\nAccepted\nRejected", "reqd": 1},
-    {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At"},
-    {"fieldname": "submitted_at", "fieldtype": "Datetime", "label": "Submitted At"},
-    {"fieldname": "client_updated_at", "fieldtype": "Datetime", "label": "Client Updated At", "reqd": 1},
-    {"fieldname": "device_id", "fieldtype": "Data", "label": "Device ID"},
-    {"fieldname": "app_version", "fieldtype": "Data", "label": "App Version"},
-    {"fieldname": "latitude", "fieldtype": "Float", "label": "Latitude"},
-    {"fieldname": "longitude", "fieldtype": "Float", "label": "Longitude"},
-    {"fieldname": "accuracy_m", "fieldtype": "Float", "label": "Accuracy M"},
-    {"default": "Unknown", "fieldname": "geofence_status", "fieldtype": "Select", "label": "Geofence Status", "options": "Unknown\nInside\nOutside\nInvalid GPS"},
-    {"fieldname": "geofence_distance_m", "fieldtype": "Float", "label": "Geofence Distance M", "read_only": 1},
-    {"default": "Pending", "fieldname": "qa_status", "fieldtype": "Select", "label": "QA Status", "options": "Pending\nPassed\nFailed\nNeeds Review"},
-    {"fieldname": "rejection_reason", "fieldtype": "Small Text", "label": "Rejection Reason"}
+    {
+      "fieldname": "client_uuid",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Client UUID",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "task",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Field Task",
+      "options": "Field Task",
+      "reqd": 1
+    },
+    {
+      "fieldname": "agent",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Scout Profile",
+      "options": "Scout Profile",
+      "reqd": 1
+    },
+    {
+      "fieldname": "location",
+      "fieldtype": "Link",
+      "label": "Location",
+      "options": "FP Location"
+    },
+    {
+      "default": "Draft",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Status",
+      "options": "Draft\nSubmitted\nAccepted\nRejected",
+      "reqd": 1
+    },
+    {
+      "fieldname": "started_at",
+      "fieldtype": "Datetime",
+      "label": "Started At"
+    },
+    {
+      "fieldname": "submitted_at",
+      "fieldtype": "Datetime",
+      "label": "Submitted At"
+    },
+    {
+      "fieldname": "client_updated_at",
+      "fieldtype": "Datetime",
+      "label": "Client Updated At",
+      "reqd": 1
+    },
+    {
+      "fieldname": "device_id",
+      "fieldtype": "Data",
+      "label": "Device ID"
+    },
+    {
+      "fieldname": "app_version",
+      "fieldtype": "Data",
+      "label": "App Version"
+    },
+    {
+      "fieldname": "latitude",
+      "fieldtype": "Float",
+      "label": "Latitude"
+    },
+    {
+      "fieldname": "longitude",
+      "fieldtype": "Float",
+      "label": "Longitude"
+    },
+    {
+      "fieldname": "accuracy_m",
+      "fieldtype": "Float",
+      "label": "Accuracy M"
+    },
+    {
+      "default": "Unknown",
+      "fieldname": "geofence_status",
+      "fieldtype": "Select",
+      "label": "Geofence Status",
+      "options": "Unknown\nInside\nOutside\nInvalid GPS"
+    },
+    {
+      "fieldname": "geofence_distance_m",
+      "fieldtype": "Float",
+      "label": "Geofence Distance M",
+      "read_only": 1
+    },
+    {
+      "default": "Pending",
+      "fieldname": "qa_status",
+      "fieldtype": "Select",
+      "label": "QA Status",
+      "options": "Pending\nPassed\nFailed\nNeeds Review"
+    },
+    {
+      "fieldname": "rejection_reason",
+      "fieldtype": "Small Text",
+      "label": "Rejection Reason"
+    },
+    {
+      "fieldname": "arrival_check_json",
+      "label": "Arrival check",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "final_review_json",
+      "label": "Final request review",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "review_status",
+      "label": "Review outcome",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "review_reasons",
+      "label": "Review reasons",
+      "fieldtype": "Small Text",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "reviewed_by",
+      "label": "Reviewed by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reviewed_at",
+      "label": "Reviewed at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "review_notes",
+      "label": "Coordinator review notes",
+      "fieldtype": "Long Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "submission_review",
+      "label": "Submission and evidence",
+      "fieldtype": "HTML"
+    }
   ],
   "index_web_pages_for_search": 1,
   "links": [],
@@ -32,12 +198,43 @@
   "name": "FP Task Response",
   "owner": "Administrator",
   "permissions": [
-    {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Admin", "share": 1, "write": 1},
-    {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
-    {"create": 1, "read": 1, "role": "Field Agent", "write": 1}
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Admin",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Supervisor",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "read": 1,
+      "role": "Field Agent",
+      "write": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1,
+      "export": 1
+    }
   ],
   "sort_field": "modified",
   "sort_order": "DESC",
   "states": []
 }
-

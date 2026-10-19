@@ -1,0 +1,17 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><style>
+@page { size:A4; margin:20mm 18mm; }
+body { font-family:Arial,Helvetica,sans-serif; color:#00264e; font-size:10.5pt; line-height:1.5; }
+header { text-align:center; border-bottom:2px solid #07786f; padding-bottom:16px; margin-bottom:20px; }
+ .brand { font-size:18pt; font-weight:bold; color:#07786f; } h1 { font-size:22pt; line-height:1.2; margin:14px 0 8px; }
+h2 { font-size:14pt; color:#07786f; margin:20px 0 8px; page-break-after:avoid; }
+.meta { color:#526778; font-size:9pt; } .text { white-space:pre-wrap; overflow-wrap:break-word; }
+.summary { padding:14px; background:#eaf5f4; border-left:3px solid #07786f; }
+footer { margin-top:20px; border-top:1px solid #dce5e6; padding-top:12px; font-size:9pt; color:#526778; }
+</style></head><body><header><div class="brand">Diaspora Desk</div><h1>{{ doc.title | e }}</h1><div class="meta">Request {{ doc.request | e }} &middot; Version {{ doc.report_version or 1 }}<br>Prepared {{ frappe.utils.formatdate(doc.modified) | e }}</div></header>
+<h2>Summary</h2><div class="text summary">{{ doc.executive_summary | e }}</div>
+<h2>Your agreed request</h2><div class="text">{{ (request.customer_agreed_scope or request.original_brief) | e }}</div>
+<h2>Findings</h2><div class="text">{{ doc.findings | e }}</div>
+<h2>Limitations and outstanding checks</h2><div class="text">{{ (doc.limitations or 'No additional limitations recorded by the coordinator.') | e }}</div>
+{% if doc.next_steps %}<h2>Next steps</h2><div class="text">{{ doc.next_steps | e }}</div>{% endif %}
+{% if evidence|default([]) %}<h2>Supporting files in your download</h2>{% for item in evidence %}<p><strong>{{ item.filename | e }}</strong><br>{{ item.caption | e }}</p>{% endfor %}{% endif %}
+<footer>Findings describe the agreed checks and evidence available at the visit. Unchecked items remain unverified. This report does not certify ownership, legal authenticity, structural safety or future conditions.<br>Diaspora Desk &middot; Follow Your Pesa</footer></body></html>

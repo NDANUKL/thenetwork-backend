@@ -179,7 +179,7 @@ def _billing(request):
     deposit_paid = any((p.kind == 'deposit' and p.status == 'Paid' for p in payments))
     for payment in payments:
         payment.amount = float(payment.amount)
-        payment.can_pay = quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed'))
+        payment.can_pay = quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed' and bool(frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}))))
     return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_reason': quote.get('discount_reason'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': quote.terms, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': []}
 
 def billing(reference=None):
@@ -217,8 +217,8 @@ def checkout(reference, payment, submission_id, return_origin=None):
         frappe.throw('Payment does not belong to the accepted quotation', frappe.PermissionError)
     if obligation.status == 'Paid':
         frappe.throw('This payment is already complete')
-    if obligation.kind == 'balance' and (request.status != 'Completed' or not frappe.db.exists('DD Payment', {'quotation': quote.name, 'kind': 'deposit', 'status': 'Paid'})):
-        frappe.throw('The balance is payable after completion and verified deposit')
+    if obligation.kind == 'balance' and (request.status != 'Completed' or not frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}) or not frappe.db.exists('DD Payment', {'quotation': quote.name, 'kind': 'deposit', 'status': 'Paid'})):
+        frappe.throw('The balance is payable after completion, approved report publication and verified deposit')
     sequence_value_1 = _config()
     environment = sequence_value_1[0]
     origin = sequence_value_1[1]

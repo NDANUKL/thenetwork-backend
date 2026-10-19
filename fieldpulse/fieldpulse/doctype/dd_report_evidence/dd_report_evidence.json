@@ -1,0 +1,52 @@
+{
+  "doctype": "DocType",
+  "name": "DD Report Evidence",
+  "module": "FieldPulse",
+  "istable": 1,
+  "editable_grid": 1,
+  "fields": [
+    {
+      "fieldname": "include_client",
+      "label": "Include for client",
+      "fieldtype": "Check",
+      "default": "0",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "evidence",
+      "label": "Reviewed evidence",
+      "fieldtype": "Link",
+      "options": "Field Evidence",
+      "read_only": 1,
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "evidence_type",
+      "label": "Type",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "caption",
+      "label": "Client-facing caption",
+      "fieldtype": "Small Text",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "preview",
+      "label": "Preview media",
+      "fieldtype": "Button",
+      "in_list_view": 1
+    }
+  ],
+  "field_order": [
+    "include_client",
+    "evidence",
+    "evidence_type",
+    "caption",
+    "preview"
+  ],
+  "permissions": []
+}

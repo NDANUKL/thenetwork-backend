@@ -1,0 +1,652 @@
+{
+  "source": "Diaspora_Desk_Revised_Scout_Questionnaires.pdf",
+  "source_sha256": "214d28614a423d5376b2c790b0e9b5eacec3d8674bafdc524133e0944c50d5c8",
+  "version": 1,
+  "services": [
+    {
+      "number": 1,
+      "title": "Land or plot check",
+      "description": "Core service. Record visible conditions only; GPS and photographs do not establish ownership or surveyed boundaries.",
+      "questions": [
+        {
+          "code": "1.1",
+          "label": "Does the visited plot match the supplied location and description?",
+          "detail": "GPS, landmarks and overview photos; explain location uncertainty.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "1.2",
+          "label": "What visible boundary features can you identify?",
+          "detail": "Label fencing, markers or edges by viewpoint. Attribute features pointed out by a contact; record sides not identifiable.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "1.3",
+          "label": "How is the plot accessed?",
+          "detail": "Approach route, entrance, visible route condition and obstructions.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "1.4",
+          "label": "What is on the plot and how is it being used?",
+          "detail": "Structures, vegetation, cultivation, visible signs of occupation and activity; avoid identifying occupants.",
+          "evidence_prompt": "Attach overview photos and a short video showing the plot's current use, structures, vegetation and visible activity. If the request concerns an empty plot, show its visible condition.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "1.5",
+          "label": "What other visible conditions affect the client's question?",
+          "detail": "Standing water, dumping, slope or activity near indicated edges. Locate each concern; describe possible encroachment signs without a legal conclusion.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "land"
+    },
+    {
+      "number": 2,
+      "title": "Property or building check",
+      "description": "Core service. No ownership determination or building safety certification. Presence of a fitting does not establish that it works.",
+      "questions": [
+        {
+          "code": "2.1",
+          "label": "Does the property match the reference information?",
+          "detail": "Exterior, entrance, address and identifying features.",
+          "evidence_prompt": "Attach exterior and entrance photos and a short overview video showing the property and its identifying features.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "2.2",
+          "label": "What is the visible exterior and compound condition?",
+          "detail": "Wide views and close-ups of damage or unfinished work.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "2.3",
+          "label": "What interior areas were inspected and what was observed?",
+          "detail": "Room-by-room permitted photos; mark inaccessible rooms.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "2.4",
+          "label": "What visible signs of occupation or use are present?",
+          "detail": "Observed use and separately attributed contact explanations; no monitoring individuals.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "2.5",
+          "label": "Are the requested rooms fittings utilities and features present?",
+          "detail": "Repeat for each feature. Record present / absent / not seen, and whether operation was demonstrated or only reported.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "property"
+    },
+    {
+      "number": 3,
+      "title": "Construction progress check",
+      "description": "Core service. Compare defined work items; do not estimate unsupported completion percentages or certify workmanship or structural safety.",
+      "questions": [
+        {
+          "code": "3.1",
+          "label": "What is the status of each agreed milestone?",
+          "detail": "Repeat per item: complete / partial / not started / unable to assess, with labelled photos.",
+          "evidence_prompt": "Attach labelled photos and a short video showing the agreed work items and their visible stage of completion.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "3.2",
+          "label": "What changed since the reference report?",
+          "detail": "Reference date and comparable views; if none, describe current condition.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "3.3",
+          "label": "What unfinished work damage or apparent defects are visible?",
+          "detail": "Location, overview and close-up photos; no technical diagnosis.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "3.4",
+          "label": "What activity materials and equipment were visible?",
+          "detail": "Record the visit time and observed work. Counts only where feasible and agreed.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "3.5",
+          "label": "What did the site representative say about delays and next steps?",
+          "detail": "Role, attributed explanation, dates stated, and which claims were independently observed.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "construction"
+    },
+    {
+      "number": 4,
+      "title": "Business or shop check",
+      "description": "Core service. One visit does not establish regular trading, profitability or overall performance.",
+      "questions": [
+        {
+          "code": "4.1",
+          "label": "Is the business present at the stated location?",
+          "detail": "Frontage, name, signage, address and matching features.",
+          "evidence_prompt": "Attach frontage and signage photos and a short video showing the business premises and visible operating status at the visit time.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "4.2",
+          "label": "Was it open and operating at the visit time?",
+          "detail": "Time, observed activity and permitted photos. If closed, record posted hours or attributed explanation.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "4.3",
+          "label": "Were the requested goods stock or services available?",
+          "detail": "Item list, photos and count only where agreed and feasible; distinguish observed stock from reported availability.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "4.4",
+          "label": "What is the visible condition of premises stock and equipment?",
+          "detail": "Wide views and close-ups relevant to the brief.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "4.5",
+          "label": "What additional brief details could a representative confirm?",
+          "detail": "Role, specific answers and permitted records. Identify unverified claims.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "business"
+    },
+    {
+      "number": 5,
+      "title": "Vehicle check",
+      "description": "Core service. Visual check only; no ownership, mechanical soundness or roadworthiness conclusion. No test drive unless separately authorised and arranged.",
+      "questions": [
+        {
+          "code": "5.1",
+          "label": "Does the vehicle match the supplied description?",
+          "detail": "Make, model, colour and registration; front, rear, side and plate photos where permitted.",
+          "evidence_prompt": "Attach front, rear and side photos and a short overview video showing the vehicle and relevant identifying features.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "5.2",
+          "label": "Do accessible identification markings match?",
+          "detail": "VIN or chassis reference and permitted photo; explain inaccessible or unclear markings.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "5.3",
+          "label": "What is the visible exterior condition?",
+          "detail": "Bodywork, glass, lights, tyres, damage and missing parts; label locations.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "5.4",
+          "label": "What is the visible interior and dashboard condition?",
+          "detail": "Interior, displayed mileage and units, warning indicators, ignition or engine state. Displayed mileage is not verified history.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "5.5",
+          "label": "Which agreed functions were demonstrated?",
+          "detail": "Function-by-function observed result and permitted video; separate contact claims and checks not performed.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "vehicle"
+    },
+    {
+      "number": 6,
+      "title": "Equipment or funded asset check",
+      "description": "Core service. Presence does not prove ownership, payment, value, performance or suitability. No specialist testing.",
+      "questions": [
+        {
+          "code": "6.1",
+          "label": "Which requested assets are physically present?",
+          "detail": "Repeat by item: description, expected and observed quantity, location and overview photo.",
+          "evidence_prompt": "Attach photos and a short video showing the requested assets, quantities where feasible, and visible identifying features.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "6.2",
+          "label": "Do identifiers match the supplied references?",
+          "detail": "Make, model, serial or asset tag; permitted identifier photo and any mismatch.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "6.3",
+          "label": "What is each asset's visible condition?",
+          "detail": "Damage, missing parts, packaging and signs of use; close-ups.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "6.4",
+          "label": "Which agreed functions were demonstrated?",
+          "detail": "Observed operation, demonstration provider and permitted video. Mark not tested where applicable.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "6.5",
+          "label": "How do findings compare with the funded purchase list?",
+          "detail": "Match each line to evidence; record absent, substituted or inaccessible items without inferring misuse.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "equipment"
+    },
+    {
+      "number": 7,
+      "title": "Adult student enrolment check",
+      "description": "Custom service subject to scope review. Adult only; student authorisation and institutional cooperation required. Enrolment does not establish attendance.",
+      "questions": [
+        {
+          "code": "7.1",
+          "label": "Are the required consent and institutional access in place?",
+          "detail": "Consent reference, scope, date and cooperating office; if absent stop the personal check and record the limit.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "7.2",
+          "label": "What enrolment claim is being checked?",
+          "detail": "Minimum necessary student reference, programme and semester supplied by the client.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "7.3",
+          "label": "What could the authorised office confirm?",
+          "detail": "Confirmed / contradicted / declined / no record located, exact period and office role; do not infer non-enrolment from non-response.",
+          "evidence_prompt": "Attach permitted photos and a short video documenting the institutional location or confirmation process, without recording private student records or people without permission. State what the media actually supports; location evidence alone does not confirm enrolment.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "7.4",
+          "label": "Does the permitted confirmation match the reference?",
+          "detail": "Programme, semester and status differences; written record only if permitted.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "7.5",
+          "label": "What remains unresolved?",
+          "detail": "Missing period, restricted detail or follow-up channel. No class attendance conclusion.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "adult_enrolment"
+    },
+    {
+      "number": 8,
+      "title": "University fee payment confirmation",
+      "description": "Custom service subject to scope review. Obtain student authorisation where required. Check whether remote confirmation can answer the request before arranging a visit.",
+      "questions": [
+        {
+          "code": "8.1",
+          "label": "What payment is in scope and is access authorised?",
+          "detail": "Consent reference, university office, receipt or transaction reference and agreed period.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "8.2",
+          "label": "What details appear on the supplied payment reference?",
+          "detail": "Date, amount, currency, payee and minimum necessary student reference.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "8.3",
+          "label": "What did the authorised office confirm about that payment?",
+          "detail": "Record match, amount, date and account allocation if permitted; office role and response date.",
+          "evidence_prompt": "Attach permitted photos and a short video documenting the payment confirmation visit or process. Show a redacted confirmation only where permitted. Location footage alone does not confirm payment.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "8.4",
+          "label": "Are there discrepancies or limits?",
+          "detail": "Unmatched reference, different amount or allocation, pending processing, refusal or insufficient information.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "8.5",
+          "label": "What permitted confirmation can support the report?",
+          "detail": "Evidence ID or attributed confirmation. No conclusion on full fee clearance unless specifically confirmed within scope.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "university_fees"
+    },
+    {
+      "number": 9,
+      "title": "Adult student attendance check",
+      "description": "Custom service subject to scope review. Adult consent and institution-permitted confirmation required. A sighting on campus does not establish attendance.",
+      "questions": [
+        {
+          "code": "9.1",
+          "label": "Is consent and institutional cooperation documented?",
+          "detail": "Consent reference, permitted office and disclosure scope; stop if required authorisation is absent.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "9.2",
+          "label": "What attendance period and activity are being checked?",
+          "detail": "Exact dates, programme, classes or institutional attendance definition.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "9.3",
+          "label": "What attendance information could the institution confirm?",
+          "detail": "Permitted summary, period covered, source office and date. Distinguish a record from a verbal statement.",
+          "evidence_prompt": "Attach permitted photos and a short video documenting the institution or authorised confirmation process. Do not film students to establish attendance. Context footage alone does not confirm attendance records.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "9.4",
+          "label": "How does that information compare with the client's question?",
+          "detail": "Only report the period and activities actually covered; explain gaps.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "9.5",
+          "label": "What could not be established?",
+          "detail": "Unavailable records, disclosure limits or non-response and permitted follow-up. No surveillance or student tracking.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "adult_attendance"
+    },
+    {
+      "number": 10,
+      "title": "Adult clinic visit verification",
+      "description": "Custom service subject to scope review. Adult authorisation and facility agreement required. Confirm only the agreed visit or receipt; do not seek diagnosis, treatment details or confidential clinical records.",
+      "questions": [
+        {
+          "code": "10.1",
+          "label": "Are authorisation and facility agreement in place?",
+          "detail": "Consent reference, permitted disclosure and authorised office. Stop the personal check if requirements are unmet.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "10.2",
+          "label": "Which specific visit or receipt is being checked?",
+          "detail": "Agreed facility, date or date range and minimum necessary reference; exclude medical history.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "10.3",
+          "label": "What could the authorised facility confirm?",
+          "detail": "Visit or receipt match, source role and response date. Refusal or no record located is not proof that no visit occurred.",
+          "evidence_prompt": "Attach permitted exterior or administrative-area photos and a short video documenting the facility visit. Do not record patients or confidential records. This media supports visit context; the agreed visit claim requires the facility confirmation recorded in your answer.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "10.4",
+          "label": "Does the confirmation match the supplied details?",
+          "detail": "Only agreed administrative fields; identify differences without medical interpretation.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "10.5",
+          "label": "What evidence and limitations can be reported?",
+          "detail": "Permitted confirmation ID or attributed statement. Explain missing access; exclude incidental health information.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "adult_clinic"
+    },
+    {
+      "number": 11,
+      "title": "Document comparison and issuer confirmation",
+      "description": "Custom service subject to scope review. Voluntarily supplied or shown documents only. Comparison does not establish authenticity, legal validity or absence of fraud.",
+      "questions": [
+        {
+          "code": "11.1",
+          "label": "What document and claim are in scope?",
+          "detail": "Document type, issuer, reference and fields to compare; consent and access basis.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "11.2",
+          "label": "What agreed fields are visible on the document?",
+          "detail": "Record only necessary fields; redacted image if permitted. Identify whether original, copy or screen image was shown.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "11.3",
+          "label": "Do the visible fields match the supplied reference?",
+          "detail": "Field-by-field match or discrepancy; unreadable fields marked unable to compare.",
+          "evidence_prompt": "Attach permitted photos and a short video showing the agreed document fields or comparison process, with unrelated personal details concealed. If recording the document is not permitted, explain the limitation; context footage alone does not establish a field match.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "11.4",
+          "label": "What could a cooperating issuer confirm?",
+          "detail": "Authorised channel, role, date and exact scope of confirmation; refusal or no response recorded separately.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "11.5",
+          "label": "What conclusion is supported and what remains uncertain?",
+          "detail": "Separate visual comparison from issuer confirmation. Do not label the document authentic or fraudulent.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "document"
+    },
+    {
+      "number": 12,
+      "title": "Receipt confirmation",
+      "description": "Custom service subject to scope review. Issuer cooperation required. A matching receipt does not establish delivery, item condition or every aspect of a transaction.",
+      "questions": [
+        {
+          "code": "12.1",
+          "label": "Which receipt and transaction details are being checked?",
+          "detail": "Issuer, reference, date, amount, currency and agreed items; permissions as needed.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "12.2",
+          "label": "What details are visible on the supplied receipt?",
+          "detail": "Readable fields, copy type and permitted redacted image.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "12.3",
+          "label": "Does a cooperating issuer find a matching record?",
+          "detail": "Source role and channel; record match / discrepancy / no record located / declined / no response.",
+          "evidence_prompt": "Attach permitted photos and a short video showing the relevant redacted receipt or issuer confirmation process. If only location footage is permitted, describe its limited purpose; record confirmation separately in your answer.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "12.4",
+          "label": "Which transaction fields match or differ?",
+          "detail": "Compare each agreed field; report refunds or cancellation only if specifically checked and confirmed.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "12.5",
+          "label": "What evidence supports the result and what is unresolved?",
+          "detail": "Permitted record or attributed confirmation and follow-up. No authenticity guarantee.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "receipt"
+    },
+    {
+      "number": 13,
+      "title": "Purchase or delivery confirmation",
+      "description": "Custom service subject to scope review. Presence does not establish ownership, payment or working condition. Do not sign for or accept goods unless separately authorised.",
+      "questions": [
+        {
+          "code": "13.1",
+          "label": "Is this the agreed delivery location and reference order?",
+          "detail": "Location evidence, order reference and agreed delivery date.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "13.2",
+          "label": "Which ordered items are physically present?",
+          "detail": "Repeat each line: description, expected and observed quantities, make or identifier where relevant.",
+          "evidence_prompt": "Attach photos and a short video showing the delivered items, quantities and relevant identifiers against the supplied order.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "13.3",
+          "label": "What is the visible condition of items and packaging?",
+          "detail": "Overview and close-ups of damage, missing parts or seals; state whether unpacking was permitted.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "13.4",
+          "label": "What matches or differs from the order?",
+          "detail": "Missing, substituted or inaccessible items. Separate counted quantities from contact-reported quantities.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "13.5",
+          "label": "What delivery details or demonstrations were confirmed?",
+          "detail": "Contact role, permitted delivery note, delivery date as reported, and any agreed function observed; mark untested.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "delivery"
+    },
+    {
+      "number": 14,
+      "title": "General site visit",
+      "description": "Custom service subject to scope review. Define observable questions and access before assignment. No tracing, personal monitoring or unrestricted investigation.",
+      "questions": [
+        {
+          "code": "14.1",
+          "label": "Does the site match the agreed location and description?",
+          "detail": "Address, landmarks and permitted overview.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "14.2",
+          "label": "What access and facilities relevant to the brief were observed?",
+          "detail": "Entrance, parking, rooms or available space; dimensions only if measured within scope.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "14.3",
+          "label": "What is the visible condition of the requested areas?",
+          "detail": "Labelled wide views and close-ups.",
+          "evidence_prompt": "Attach photos and a short video showing the requested site areas and the conditions relevant to the client's questions.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "14.4",
+          "label": "What did the authorised contact confirm?",
+          "detail": "Role, exact statement and supporting permitted record; separate observation from claims.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "14.5",
+          "label": "What is the answer to each custom client question?",
+          "detail": "Repeat per question with evidence ID, discrepancy and limitation. Reject additions outside the agreed scope.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "general_visit"
+    },
+    {
+      "number": 15,
+      "title": "Merchant survey and field interviews",
+      "description": "Custom service subject to scope review. Use an approved sample and interview script. Participation is voluntary; no claim of market representativeness without a suitable sampling design.",
+      "questions": [
+        {
+          "code": "15.1",
+          "label": "Is this an eligible merchant and did they agree to participate?",
+          "detail": "Merchant code, location, eligibility, respondent role and consent. Record declined or ineligible without pressure; recording consent separately.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "15.2",
+          "label": "What is the business profile?",
+          "detail": "Agreed category, approximate operating history, opening pattern and customer type; distinguish observed from reported.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "15.3",
+          "label": "What products services and payment methods are offered?",
+          "detail": "Approved categories and current availability; mark observed / respondent-reported. Allow do not know and prefer not to answer.",
+          "evidence_prompt": "Attach permitted photos and a short video showing the relevant storefront, products or payment facilities. Do not record the interview or respondent without separate permission. Label which findings were observed and which were reported.",
+          "mandatory_evidence": true
+        },
+        {
+          "code": "15.4",
+          "label": "What are the merchant's experiences needs and challenges?",
+          "detail": "Ask neutrally: What works well? What difficulties arise? What would help? Record answers in their own words; no sensitive financial detail unless explicitly in scope and voluntary.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        },
+        {
+          "code": "15.5",
+          "label": "What additional approved survey items and observations apply?",
+          "detail": "Insert the exact client-approved wording and response choices before dispatch. Record interview date, completion status, skipped items and reasons; no invented responses.",
+          "evidence_prompt": "",
+          "mandatory_evidence": false
+        }
+      ],
+      "service_code": "merchant_survey"
+    }
+  ]
+}

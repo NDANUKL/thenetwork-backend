@@ -18,6 +18,13 @@ class FieldTask(Document):
 
     def validate(self):
         previous = self.get_doc_before_save() if not self.is_new() else None
+        if previous and previous.get("questionnaire_scope"):
+            for key in ("questionnaire", "questionnaire_scope", "client_request_snapshot"):
+                if self.get(key) != previous.get(key):
+                    frappe.throw("An assigned questionnaire and request snapshot cannot be changed")
+            if self.status == "Approved" and previous.status != "Approved":
+                if not frappe.db.exists("FP Task Response", {"task": self.name, "status": "Submitted", "qa_status": "Passed", "reviewed_by": ["is", "set"]}):
+                    frappe.throw("Review and approve the scout submission before completing this task")
         self._validate_scout_assignment(previous)
         self._apply_status_transition(previous)
 
