@@ -36,7 +36,7 @@ doc_events = {'Diaspora Request': {'before_save': ['fieldpulse.customer_requests
 
 after_migrate = 'fieldpulse.payment_install.after_migrate'
 
-scheduler_events = {'cron': {'*/5 * * * *': ['fieldpulse.native_events.reconcile']},
+scheduler_events = {'cron': {'*/5 * * * *': ['fieldpulse.native_events.reconcile', 'fieldpulse.access_notifications.retry_approvals']},
  'daily': ['fieldpulse.fieldpulse.doctype.scout_profile.scout_profile.refresh_activity_statuses']}
 
 override_whitelisted_methods = {'dd_assign_project_scouts': 'fieldpulse.scout_assignment.assign_project',

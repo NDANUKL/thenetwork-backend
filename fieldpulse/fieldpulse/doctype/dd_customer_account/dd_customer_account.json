@@ -369,6 +369,28 @@
       "show_dashboard": 0,
       "permlevel": 0,
       "columns": 0
+    },
+    {
+      "fieldname": "beta_access",
+      "label": "Beta access",
+      "fieldtype": "Select",
+      "options": "Pending\nApproved\nRejected",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "description": "Blank preserves existing access. Open registration admits pending accounts; rejected accounts remain blocked."
+    },
+    {
+      "fieldname": "approval_email_id",
+      "label": "Approval notification ID",
+      "fieldtype": "Data",
+      "hidden": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "approval_email_sent_at",
+      "label": "Approval email sent at",
+      "fieldtype": "Datetime",
+      "read_only": 1
     }
   ],
   "links": [],

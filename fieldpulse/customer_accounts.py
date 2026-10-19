@@ -2,6 +2,7 @@
 import json
 import frappe
 from fieldpulse.native_ownership import owned_event, owned_api
+from fieldpulse.beta_access import registration_access, access_status
 
 @frappe.whitelist()
 @owned_api('DD Customer Registration Bridge')
@@ -36,6 +37,7 @@ def registration(**kwargs):
                 "enabled": 0, "send_welcome_email": 0, "roles": [{"role": "DD Customer"}]})
             user.insert()
             profile = frappe.get_doc({"doctype": "DD Customer Account", "user": email,
+                "beta_access": "Pending" if registration_access() == "Invite only" else "Approved",
                 "email_verified": 0, "accepted_terms_at": frappe.utils.now_datetime(), "email_notifications": 1})
             profile.insert()
             frappe.response["message"] = {"eligible": True}
@@ -55,12 +57,12 @@ def registration(**kwargs):
             profile.save()
         if not profile.email_verified or not user.enabled:
             frappe.throw("Invalid account", frappe.PermissionError)
-        frappe.response["message"] = {"verified": True}
+        frappe.response["message"] = {"verified": True, "access_status": access_status(profile)}
     elif action == "profile":
         if not eligible or not profile.email_verified or not user.enabled:
             frappe.throw("Invalid account", frappe.PermissionError)
         frappe.response["message"] = {"customer": {"id": profile.name, "email": email,
-            "full_name": user.full_name, "email_verified": True, "phone": user.mobile_no,
+            "full_name": user.full_name, "email_verified": True, "access_status": access_status(profile), "phone": user.mobile_no,
             "timezone": user.time_zone, "email_notifications": bool(profile.email_notifications)}}
     elif action == "recover":
         if eligible and profile.email_verified and user.enabled:

@@ -1,0 +1,45 @@
+{
+  "doctype": "DocType",
+  "name": "DD Access Settings",
+  "module": "FieldPulse",
+  "issingle": 1,
+  "custom": 0,
+  "track_changes": 1,
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1
+    }
+  ],
+  "fields": [
+    {
+      "fieldname": "registration_access",
+      "label": "Registration access",
+      "fieldtype": "Select",
+      "options": "Invite only\nOpen to everyone",
+      "default": "Invite only",
+      "reqd": 1,
+      "description": "Open to everyone admits pending accounts immediately. Rejected accounts stay blocked."
+    },
+    {
+      "fieldname": "customer_origin",
+      "label": "Website origin",
+      "fieldtype": "Data",
+      "default": "https://diaspora-desk.com",
+      "reqd": 1
+    },
+    {
+      "fieldname": "resend_from_email",
+      "label": "Email sender",
+      "fieldtype": "Data",
+      "default": "Diaspora Desk <no-reply@diaspora-desk.com>"
+    },
+    {
+      "fieldname": "resend_api_key",
+      "label": "Resend API key",
+      "fieldtype": "Password",
+      "description": "Use the same verified sender and provider as the website."
+    }
+  ]
+}

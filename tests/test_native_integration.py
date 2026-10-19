@@ -110,7 +110,8 @@ class ApiParityTests(unittest.TestCase):
         ownership = types.ModuleType('fieldpulse.native_ownership')
         ownership.owned_event = lambda *names: lambda function: function
         ownership.owned_api = lambda *names: lambda function: function
-        return load('test_native_' + name, 'fieldpulse/' + name + '.py', {'frappe': api, 'fieldpulse.native_ownership': ownership})
+        policy = load('test_policy', 'fieldpulse/beta_access.py', {'frappe': api})
+        return load('test_native_' + name, 'fieldpulse/' + name + '.py', {'frappe': api, 'fieldpulse.native_ownership': ownership, 'fieldpulse.beta_access': policy})
 
     def test_registration_rejects_non_admin_before_reading_customer_records(self):
         api = fake_frappe()
@@ -137,7 +138,8 @@ class ApiParityTests(unittest.TestCase):
                 api = fake_frappe()
                 api.session.user = 'customer@example.com'
                 api.db.get_value.side_effect = lambda dt, name, field: 'Website User' if field == 'user_type' else 0 if field == 'desk_access' else 1
-                api.db.exists.return_value = True
+                api.db.exists.return_value = 'account-1'
+                api.get_doc.return_value = {'beta_access': ''}
                 api.get_roles.return_value = ['DD Customer']
                 api.get_all.side_effect = lambda dt, **kw: ['DD Customer'] if dt == 'Has Role' else []
                 api.utils.cint = int

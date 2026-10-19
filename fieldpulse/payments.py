@@ -91,6 +91,8 @@ def _customer():
     account = frappe.db.get_value('DD Customer Account', {'user': user, 'email_verified': 1}, 'name')
     if not account or 'DD Customer' not in frappe.get_roles(user):
         frappe.throw('Verified customer account required', frappe.PermissionError)
+    from fieldpulse.beta_access import require_access
+    require_access(account)
     return account
 
 def _owned(reference):

@@ -1,6 +1,7 @@
 """Native customer requests behavior, ported from the audited production definitions."""
 import json
 import frappe
+from fieldpulse.beta_access import require_access
 from fieldpulse.native_ownership import owned_event, owned_api
 
 @frappe.whitelist()
@@ -16,6 +17,8 @@ def requests(**kwargs):
     if "DD Customer" not in roles or any(frappe.db.get_value("Role", role, "desk_access") for role in roles):
         frappe.throw("Not permitted", frappe.PermissionError)
     
+    require_access(account_name)
+
     def row(item):
         actions = {"New": "Our team will review your request.", "In Review": "Our team is reviewing your brief.", "Assigned": "A scout has been assigned.", "In Progress": "Fieldwork is in progress.", "Completed": "The request has been completed.", "Rejected": "Our team will explain the next steps."}
         return {"name": item.name, "title": item.summary or item.category_label or "Verification request",
