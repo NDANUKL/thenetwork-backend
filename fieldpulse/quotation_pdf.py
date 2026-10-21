@@ -14,6 +14,8 @@ def quotation_assets():
 
     return {
         "logo": data_uri("images/DD_logo.png", "image/png"),
+        "regular_woff": data_uri("fonts/quotation/Carlito-Regular.woff", "application/font-woff"),
+        "bold_woff": data_uri("fonts/quotation/Carlito-Bold.woff", "application/font-woff"),
         "regular": data_uri("fonts/quotation/Carlito-Regular.ttf", "font/ttf"),
         "bold": data_uri("fonts/quotation/Carlito-Bold.ttf", "font/ttf"),
     }
