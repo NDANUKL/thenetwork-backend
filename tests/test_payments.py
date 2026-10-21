@@ -96,14 +96,14 @@ class FlowTests(unittest.TestCase):
         self.frappe.get_doc.return_value = Record(html='<p>Quotation</p>')
         self.frappe.render_template.return_value = '<p>Rendered</p>'
         self.frappe.response = {}
-        with patch.dict(sys.modules, {'frappe.utils.pdf': pdf}), patch('fieldpulse.quotation_pdf.ensure_quotation_fonts') as ensure_fonts:
+        with patch('fieldpulse.quotation_pdf.render_quotation_pdf', return_value=b'%PDF-test') as render_pdf:
             self.payments.download_quote("request")
-        ensure_fonts.assert_called_once()
+        render_pdf.assert_called_once()
         render_context = self.frappe.render_template.call_args.args[1]
         self.assertIs(render_context['doc'], current)
         self.assertTrue(render_context['quotation_assets']['logo'].startswith('data:image/png;base64,'))
         self.assertTrue(render_context['quotation_assets']['regular'].startswith('data:font/ttf;base64,'))
-        self.assertIn('<p>Rendered</p>', pdf.get_pdf.call_args.args[0])
+        self.assertIn('<p>Rendered</p>', render_pdf.call_args.args[0])
         self.assertEqual(self.frappe.response['filecontent'], b"%PDF-test")
 
     def quote_document(self):

@@ -371,14 +371,11 @@ def download_quote(reference):
     if not quote:
         frappe.throw('Quotation is not available', frappe.DoesNotExistError)
     # Ownership is established above; customers need no general Desk print permission.
-    from frappe.utils.pdf import get_pdf
     template = frappe.get_doc('Print Format', 'Diaspora Desk Quotation')
-    from fieldpulse.quotation_pdf import quotation_assets, ensure_quotation_fonts
-    ensure_quotation_fonts()
+    from fieldpulse.quotation_pdf import quotation_assets, render_quotation_pdf
     html = frappe.render_template(template.html, {'doc': quote, 'quotation_assets': quotation_assets()})
-    content = get_pdf('<html><head><meta charset="utf-8"></head><body><div class="print-format">'
-        + html + '</div></body></html>', options={'page-size': 'A4', 'margin-top': '15mm',
-        'margin-bottom': '15mm', 'margin-left': '15mm', 'margin-right': '15mm'})
+    content = render_quotation_pdf('<html><head><meta charset="utf-8"></head><body><div class="print-format">'
+        + html + '</div></body></html>')
     frappe.response['type'] = 'download'
     frappe.response['filename'] = quote.name + '.pdf'
     frappe.response['filecontent'] = content

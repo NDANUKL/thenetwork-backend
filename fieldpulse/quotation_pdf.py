@@ -1,10 +1,11 @@
 """Self-contained quotation artwork for authenticated PDF downloads."""
 import base64
 import os
-import subprocess
 import sys
 import tempfile
 from functools import lru_cache
+from contextlib import contextmanager
+from xml.etree import ElementTree
 from pathlib import Path
 
 
@@ -25,46 +26,44 @@ def quotation_assets():
     }
 
 
-@lru_cache(maxsize=1)
-def ensure_quotation_fonts():
-    """Make Carlito available to Linux Qt/Fontconfig, not just CSS @font-face.
-
-    Use only the worker user's font directory. No sudo, system font changes,
-    remote downloads, or environment changes during concurrent requests.
-    """
+@contextmanager
+def quotation_font_environment():
+    """Give this PDF subprocess its own Fontconfig without changing the worker."""
+    environment = os.environ.copy()
     if not sys.platform.startswith("linux"):
+        yield environment
         return
-    source = Path(__file__).resolve().parent / "public/fonts/quotation"
-    data_root = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
-    if not data_root.is_absolute():
-        data_root = Path.home() / ".local/share"
-    font_dir = data_root / "fonts/fieldpulse-quotation"
-    font_dir.mkdir(parents=True, exist_ok=True)
-    changed = False
+    font_dir = Path(__file__).resolve().parent / "public/fonts/quotation"
+    with tempfile.TemporaryDirectory(prefix="dd-quotation-fonts-") as temporary:
+        root = ElementTree.Element("fontconfig")
+        ElementTree.SubElement(root, "dir").text = str(font_dir)
+        ElementTree.SubElement(root, "cachedir").text = str(Path(temporary) / "cache")
+        alias = ElementTree.SubElement(root, "alias")
+        ElementTree.SubElement(alias, "family").text = "sans-serif"
+        prefer = ElementTree.SubElement(alias, "prefer")
+        ElementTree.SubElement(prefer, "family").text = "Carlito"
+        config = Path(temporary) / "fonts.conf"
+        ElementTree.ElementTree(root).write(config, encoding="utf-8", xml_declaration=True)
+        environment["FONTCONFIG_FILE"] = str(config)
+        yield environment
+
+
+def render_quotation_pdf(html):
+    """Preserve Frappe PDF preparation/security with per-render font settings."""
+    import pdfkit
+    from frappe.utils.pdf import prepare_options, cleanup
+
+    html, options = prepare_options(html, {
+        "page-size": "A4", "margin-top": "15mm", "margin-bottom": "15mm",
+        "margin-left": "15mm", "margin-right": "15mm",
+    })
+    options.update({
+        "disable-javascript": "", "disable-local-file-access": "",
+        "disable-smart-shrinking": "",
+    })
     try:
-        for weight in ("Regular", "Bold"):
-            filename = f"Carlito-{weight}.ttf"
-            target = font_dir / filename
-            content = (source / filename).read_bytes()
-            if target.exists() and target.read_bytes() == content:
-                continue
-            with tempfile.NamedTemporaryFile(dir=font_dir, prefix=".carlito-", delete=False) as temporary:
-                temporary.write(content)
-                temporary_path = Path(temporary.name)
-            try:
-                temporary_path.replace(target)
-            finally:
-                temporary_path.unlink(missing_ok=True)
-            changed = True
-        if changed:
-            subprocess.run(["fc-cache", "-f", str(font_dir)], check=True, capture_output=True, timeout=30)
-        for weight in ("Regular", "Bold"):
-            match = subprocess.run(
-                ["fc-match", "-f", "%{file}", f"Carlito:style={weight}"],
-                check=True, capture_output=True, text=True, timeout=10,
-            )
-            resolved = Path(match.stdout.strip()).resolve()
-            if resolved != (font_dir / f"Carlito-{weight}.ttf").resolve():
-                raise RuntimeError(f"PDF renderer substituted Carlito {weight}")
-    except (OSError, subprocess.SubprocessError) as error:
-        raise RuntimeError("Carlito fonts could not be registered for quotation PDFs") from error
+        with quotation_font_environment() as environment:
+            configuration = pdfkit.configuration(environ=environment)
+            return pdfkit.from_string(html, False, options=options, configuration=configuration)
+    finally:
+        cleanup(options)

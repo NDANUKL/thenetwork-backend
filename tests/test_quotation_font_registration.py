@@ -1,49 +1,67 @@
-"""Linux font registration must precede quotation rendering."""
+"""PDF rendering uses isolated fonts without installing or rejecting system fonts."""
 import importlib.util
-import subprocess
-import tempfile
+import os
+import sys
+import types
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("quotation_font_registration", ROOT / "fieldpulse/quotation_pdf.py")
+spec = importlib.util.spec_from_file_location("quotation_pdf_isolated", ROOT / "fieldpulse/quotation_pdf.py")
 fonts = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fonts)
 
 
-class FontRegistrationTests(unittest.TestCase):
-    def tearDown(self):
-        fonts.ensure_quotation_fonts.cache_clear()
+class FontEnvironmentTests(unittest.TestCase):
+    def test_linux_uses_bundled_fonts_and_leaves_global_environment_unchanged(self):
+        original = os.environ.get("FONTCONFIG_FILE")
+        with patch.object(fonts.sys, "platform", "linux"):
+            with fonts.quotation_font_environment() as environment:
+                config = Path(environment["FONTCONFIG_FILE"])
+                self.assertTrue(config.exists())
+                root = ElementTree.parse(config).getroot()
+                self.assertEqual(Path(root.findtext("dir")).resolve(), (ROOT / "fieldpulse/public/fonts/quotation").resolve())
+                self.assertEqual(root.findtext("alias/prefer/family"), "Carlito")
+                self.assertEqual(os.environ.get("FONTCONFIG_FILE"), original)
+            self.assertFalse(config.exists())
 
-    def test_linux_registers_bundled_fonts_and_checks_both_weights_once(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            data = Path(temporary)
-            target = data / "fonts/fieldpulse-quotation"
+    def test_non_linux_does_not_require_fontconfig_tools(self):
+        with patch.object(fonts.sys, "platform", "win32"):
+            with fonts.quotation_font_environment() as environment:
+                self.assertEqual(environment, dict(os.environ))
+                self.assertIsNot(environment, os.environ)
 
-            def run(command, **kwargs):
-                if command[0] == "fc-cache":
-                    return subprocess.CompletedProcess(command, 0)
-                weight = command[-1].split("style=")[1]
-                return subprocess.CompletedProcess(command, 0, str(target / f"Carlito-{weight}.ttf"))
+    def test_pdf_renderer_keeps_frappe_preparation_and_security_options(self):
+        pdfkit = MagicMock()
+        pdfkit.from_string.return_value = b"%PDF-verified"
+        frappe_pdf = types.ModuleType("frappe.utils.pdf")
+        frappe_pdf.prepare_options = MagicMock(return_value=("<html>prepared</html>", {"page-size": "A4"}))
+        frappe_pdf.cleanup = MagicMock()
+        with patch.dict(sys.modules, {"pdfkit": pdfkit, "frappe.utils.pdf": frappe_pdf}), patch.object(fonts.sys, "platform", "linux"):
+            def configuration(**kwargs):
+                self.assertTrue(Path(kwargs["environ"]["FONTCONFIG_FILE"]).exists())
+                return "isolated-configuration"
+            pdfkit.configuration.side_effect = configuration
+            self.assertEqual(fonts.render_quotation_pdf("<html>quote</html>"), b"%PDF-verified")
+        options = pdfkit.from_string.call_args.kwargs["options"]
+        self.assertIn("disable-javascript", options)
+        self.assertIn("disable-local-file-access", options)
+        self.assertEqual(pdfkit.from_string.call_args.kwargs["configuration"], "isolated-configuration")
+        frappe_pdf.prepare_options.assert_called_once()
+        frappe_pdf.cleanup.assert_called_once_with(options)
 
-            with patch.object(fonts.sys, "platform", "linux"), patch.dict(fonts.os.environ, {"XDG_DATA_HOME": str(data)}), patch.object(fonts.subprocess, "run", side_effect=run) as process:
-                fonts.ensure_quotation_fonts()
-                fonts.ensure_quotation_fonts()
-                self.assertEqual(process.call_count, 3)
-                for weight in ("Regular", "Bold"):
-                    self.assertEqual((target / f"Carlito-{weight}.ttf").read_bytes(), (ROOT / f"fieldpulse/public/fonts/quotation/Carlito-{weight}.ttf").read_bytes())
-
-    def test_font_substitution_fails_instead_of_silently_downloading_wrong_font(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            with patch.object(fonts.sys, "platform", "linux"), patch.dict(fonts.os.environ, {"XDG_DATA_HOME": temporary}), patch.object(fonts.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, "/system/NimbusSans.ttf")):
-                with self.assertRaisesRegex(RuntimeError, "substituted Carlito"):
-                    fonts.ensure_quotation_fonts()
-
-    def test_non_linux_uses_embedded_font_sources_without_fontconfig(self):
-        with patch.object(fonts.sys, "platform", "win32"), patch.object(fonts.subprocess, "run") as process:
-            fonts.ensure_quotation_fonts()
-            process.assert_not_called()
+    def test_cleanup_runs_after_renderer_failure(self):
+        pdfkit = MagicMock()
+        pdfkit.from_string.side_effect = OSError("Renderer failed")
+        frappe_pdf = types.ModuleType("frappe.utils.pdf")
+        frappe_pdf.prepare_options = MagicMock(return_value=("<html/>", {}))
+        frappe_pdf.cleanup = MagicMock()
+        with patch.dict(sys.modules, {"pdfkit": pdfkit, "frappe.utils.pdf": frappe_pdf}):
+            with self.assertRaisesRegex(OSError, "Renderer failed"):
+                fonts.render_quotation_pdf("<html/>")
+        frappe_pdf.cleanup.assert_called_once()
 
 
 if __name__ == "__main__":
