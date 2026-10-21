@@ -373,7 +373,8 @@ def download_quote(reference):
     # Ownership is established above; customers need no general Desk print permission.
     from frappe.utils.pdf import get_pdf
     template = frappe.get_doc('Print Format', 'Diaspora Desk Quotation')
-    html = frappe.render_template(template.html, {'doc': quote})
+    from fieldpulse.quotation_pdf import quotation_assets
+    html = frappe.render_template(template.html, {'doc': quote, 'quotation_assets': quotation_assets()})
     content = get_pdf('<html><head><meta charset="utf-8"></head><body><div class="print-format">'
         + html + '</div></body></html>', options={'page-size': 'A4', 'margin-top': '15mm',
         'margin-bottom': '15mm', 'margin-left': '15mm', 'margin-right': '15mm'})
