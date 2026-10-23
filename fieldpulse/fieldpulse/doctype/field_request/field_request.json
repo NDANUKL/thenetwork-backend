@@ -37,7 +37,8 @@
       "in_list_view": 1,
       "label": "Source",
       "options": "Diaspora Desk\nManual",
-      "reqd": 1
+      "reqd": 1,
+      "read_only": 1
     },
     {
       "fieldname": "source_reference",
@@ -49,7 +50,9 @@
       "fieldname": "diaspora_request",
       "fieldtype": "Link",
       "label": "Diaspora Request",
-      "options": "Diaspora Request"
+      "options": "Diaspora Request",
+      "read_only": 1,
+      "depends_on": "eval:!!doc.diaspora_request"
     },
     {
       "fieldname": "request_type",
@@ -421,5 +424,8 @@
   "sort_field": "modified",
   "sort_order": "DESC",
   "states": [],
-  "track_changes": 1
+  "track_changes": 1,
+  "title_field": "project_title",
+  "search_fields": "project_title,county,request_type",
+  "show_title_field_in_link": 1
 }

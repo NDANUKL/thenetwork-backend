@@ -39,7 +39,8 @@
       "fieldtype": "Link",
       "in_list_view": 1,
       "label": "Field Request",
-      "options": "Field Request"
+      "options": "Field Request",
+      "in_standard_filter": 1
     },
     {
       "fieldname": "scout_profile",
@@ -47,7 +48,8 @@
       "in_list_view": 1,
       "label": "Scout",
       "options": "Scout Profile",
-      "reqd": 1
+      "reqd": 1,
+      "in_standard_filter": 1
     },
     {
       "fieldname": "legacy_fp_task",
@@ -72,7 +74,9 @@
     {
       "fieldname": "questionnaire_version",
       "fieldtype": "Int",
-      "label": "Questionnaire Version"
+      "label": "Questionnaire Version",
+      "read_only": 1,
+      "description": "Set automatically from the assigned questionnaire. Preserved for this task."
     },
     {
       "default": "Assigned",
@@ -81,12 +85,13 @@
       "in_list_view": 1,
       "label": "Status",
       "options": "Assigned\nAccepted\nIn Progress\nSubmitted\nApproved\nRejected\nCancelled",
-      "reqd": 1
+      "reqd": 1,
+      "in_standard_filter": 1
     },
     {
       "fieldname": "assigned_at",
       "fieldtype": "Datetime",
-      "in_list_view": 1,
+      "in_list_view": 0,
       "label": "Assigned At",
       "read_only": 1
     },
@@ -246,7 +251,7 @@
       "label": "Review reasons",
       "fieldtype": "Small Text",
       "read_only": 1,
-      "in_list_view": 1
+      "in_list_view": 0
     }
   ],
   "index_web_pages_for_search": 1,
@@ -297,5 +302,8 @@
   "sort_field": "modified",
   "sort_order": "DESC",
   "states": [],
-  "track_changes": 1
+  "track_changes": 1,
+  "title_field": "project_title",
+  "search_fields": "project_title,field_request,scout_profile",
+  "show_title_field_in_link": 1
 }

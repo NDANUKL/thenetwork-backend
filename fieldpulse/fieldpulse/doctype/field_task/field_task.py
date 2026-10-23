@@ -18,6 +18,10 @@ class FieldTask(Document):
 
     def validate(self):
         previous = self.get_doc_before_save() if not self.is_new() else None
+        if previous and previous.get("questionnaire") == self.get("questionnaire"):
+            self.questionnaire_version = previous.get("questionnaire_version")
+        else:
+            self.questionnaire_version = frappe.db.get_value("FP Questionnaire", self.questionnaire, "version") if self.get("questionnaire") else 0
         if previous and previous.get("questionnaire_scope"):
             for key in ("questionnaire", "questionnaire_scope", "client_request_snapshot"):
                 if self.get(key) != previous.get(key):

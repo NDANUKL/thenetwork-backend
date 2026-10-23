@@ -112,7 +112,7 @@ class FlowTests(unittest.TestCase):
         doc.items = [Record(field_request='project-1', quantity=1, rate=100, description='Scope one', planned_scouts=1), Record(field_request='project-2', quantity=1, rate=100, description='Scope two', planned_scouts=1)]
         request = Record(name='request', full_name='Client', email='client@example.com')
         request.check_permission = MagicMock()
-        self.frappe.get_doc.side_effect = lambda dt, name: request if dt == 'Diaspora Request' else Record(name=name, diaspora_request='request', project_title=name)
+        self.frappe.get_doc.side_effect = lambda dt, name: request if dt == 'Diaspora Request' else Record(name=name, diaspora_request='request', project_title=name, field_brief='Confirmed scope for ' + name)
         self.frappe.db.exists.return_value = False
         return doc
 
@@ -124,6 +124,44 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(doc.vat_amount, 28.8)
         self.assertEqual(doc.total, 208.8)
         self.assertEqual(doc.deposit_amount + doc.balance_amount, doc.total)
+
+    def test_fixed_discount_shows_equivalent_percentage(self):
+        doc = self.quote_document()
+        doc['discount_type'] = 'Fixed amount'
+        doc['discount_value'] = 40
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.discount_amount, 40)
+        self.assertEqual(doc.discount_percentage, 20)
+        self.assertEqual(doc.discount_type, 'Fixed amount')
+
+    def test_percentage_draft_converts_without_changing_discount(self):
+        doc = self.quote_document()
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.discount_type, 'Fixed amount')
+        self.assertEqual(doc.discount_value, 20)
+        self.assertEqual(doc.discount_percentage, 10)
+        self.assertEqual(doc.total, 208.8)
+
+    def test_fixed_discount_percentage_rounds_to_two_decimals(self):
+        doc = self.quote_document()
+        doc['discount_type'] = 'Fixed amount'
+        doc['discount_value'] = 33.33
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.discount_percentage, 16.67)
+
+    def test_quotation_scope_comes_from_linked_project(self):
+        doc = self.quote_document()
+        doc.items[0]['description'] = 'Manually overridden scope'
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.items[0].description, 'Confirmed scope for project-1')
+        self.assertEqual(doc.items[1].description, 'Confirmed scope for project-2')
+
+    def test_quotation_requires_existing_project_brief(self):
+        doc = self.quote_document()
+        request = Record(name='request', full_name='Client', email='client@example.com', check_permission=MagicMock())
+        self.frappe.get_doc.side_effect = lambda dt, name: request if dt == 'Diaspora Request' else Record(name=name, diaspora_request='request', field_brief=' ')
+        with self.assertRaisesRegex(ValueError, 'linked project brief'):
+            self.payments.validate_quote(doc)
 
     def test_quotation_rejects_duplicate_or_unrelated_projects(self):
         doc = self.quote_document()

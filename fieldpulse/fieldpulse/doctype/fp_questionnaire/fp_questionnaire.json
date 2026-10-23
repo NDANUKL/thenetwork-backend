@@ -56,7 +56,9 @@
     {
       "fieldname": "schema_hash",
       "fieldtype": "Data",
-      "label": "Schema Hash"
+      "label": "Schema Hash",
+      "hidden": 1,
+      "read_only": 1
     },
     {
       "fieldname": "published_at",
@@ -73,7 +75,8 @@
       "fieldname": "source_sha256",
       "label": "Source document hash",
       "fieldtype": "Data",
-      "read_only": 1
+      "read_only": 1,
+      "hidden": 1
     }
   ],
   "index_web_pages_for_search": 1,

@@ -107,6 +107,13 @@ class AlignmentTests(unittest.TestCase):
         self.assertNotIn('responsibility', created[0])
         task.insert.assert_called_once()
 
+    def test_manual_request_source_is_fixed(self):
+        self.request.diaspora_request = None
+        self.request.source = 'Diaspora Desk'
+        self.m.map_field_request(self.request)
+        self.assertEqual(self.request.source, 'Manual')
+        self.api.get_doc.assert_not_called()
+
     def test_manual_request_needs_no_customer_project_number(self):
         self.request.diaspora_request=None; self.request.project_number=None
         self.request.status='Assigned'; self.api.get_doc.return_value=self.request

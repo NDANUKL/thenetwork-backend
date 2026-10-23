@@ -100,6 +100,14 @@ class NativeSourceTests(unittest.TestCase):
                 self.assertIn('fieldname: "scout_name"', content)
                 self.assertIn('fieldname: "base_county"', content)
                 self.assertIn('frappe.db.get_value("Scout Profile"', content)
+            elif record.get('enabled') and record['name'] == 'DD Alignment Project Form':
+                # Manual creation now has a fixed source and no customer link input.
+                # Keep source-controlled fields locked for auto-created DD projects.
+                self.assertIn('frm.set_df_property("source", "read_only", 1)', content)
+                self.assertIn('frm.set_df_property("diaspora_request", "hidden", !frm.doc.diaspora_request)', content)
+                self.assertIn('frm.set_value("source", "Manual")', content)
+                self.assertIn('"diaspora_request", "request_type", "county", "field_brief"', content)
+                self.assertIn('Verify the locations below before assigning scouts.', content)
             elif record.get('enabled'):
                 self.assertIn('\n'.join(line.strip() for line in record['script'].splitlines() if line.strip()), '\n'.join(line.strip() for line in content.splitlines() if line.strip()))
             else:

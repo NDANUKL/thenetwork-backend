@@ -26,7 +26,7 @@ def sample_quote(count=2, inclusive=False, legacy=False):
     taxable = (subtotal - discount) / 1.16 if inclusive else subtotal - discount
     vat = taxable * .16
     total = round(taxable + vat, 2)
-    return Document(name="DQ-2026-00320", request="DD-2026-00030", status="Issued", accepted_at=None, customer_name="Sample Customer", customer_email="customer@example.com", quotation_date="2026-10-21", valid_until="2026-11-04", currency="KES", items=items, subtotal=None if legacy else subtotal, discount_amount=discount, discount_type="Percentage", discount_value=10, discount_reason="Agreed project discount", tax_inclusive=inclusive, taxable_amount=round(taxable, 2), vat_rate=16, vat_amount=round(vat, 2), total=total, deposit_amount=round(total / 2, 2), balance_amount=round(total / 2, 2), agreed_completion_date="2026-11-08", terms="50% upfront; balance after report review. Scope changes require a revised quote.")
+    return Document(name="DQ-2026-00320", request="DD-2026-00030", status="Issued", accepted_at=None, customer_name="Sample Customer", customer_email="customer@example.com", quotation_date="2026-10-21", valid_until="2026-11-04", currency="KES", items=items, subtotal=None if legacy else subtotal, discount_amount=discount, discount_type="Percentage", discount_value=10, tax_inclusive=inclusive, taxable_amount=round(taxable, 2), vat_rate=16, vat_amount=round(vat, 2), total=total, deposit_amount=round(total / 2, 2), balance_amount=round(total / 2, 2), agreed_completion_date="2026-11-08", terms="50% upfront; balance after report review. Scope changes require a revised quote.")
 
 
 def render(quote):

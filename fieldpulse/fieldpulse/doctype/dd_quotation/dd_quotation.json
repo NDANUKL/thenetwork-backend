@@ -468,25 +468,31 @@
       "label": "Discount type",
       "fieldtype": "Select",
       "options": "None\nPercentage\nFixed amount",
-      "default": "None"
+      "default": "Fixed amount",
+      "hidden": 1
     },
     {
       "fieldname": "discount_value",
-      "label": "Discount value",
-      "fieldtype": "Float",
+      "label": "Discount amount",
+      "fieldtype": "Currency",
       "default": "0",
-      "description": "Percentage or amount in quotation currency. Applied before VAT."
+      "description": "Enter the USD amount to deduct before VAT. Use 0 for no discount.",
+      "precision": "2",
+      "options": "currency"
     },
     {
-      "fieldname": "discount_reason",
-      "label": "Discount reason",
-      "fieldtype": "Small Text"
+      "fieldname": "discount_percentage",
+      "label": "Equivalent discount (%)",
+      "fieldtype": "Percent",
+      "read_only": 1,
+      "precision": "2"
     },
     {
       "fieldname": "vat_rate",
       "label": "VAT rate (%)",
       "fieldtype": "Percent",
-      "default": "16"
+      "default": "16",
+      "precision": "2"
     },
     {
       "fieldname": "tax_inclusive",
@@ -499,28 +505,33 @@
       "label": "Subtotal",
       "fieldtype": "Currency",
       "options": "currency",
-      "read_only": 1
+      "read_only": 1,
+      "precision": "2"
     },
     {
       "fieldname": "discount_amount",
       "label": "Discount amount",
       "fieldtype": "Currency",
       "options": "currency",
-      "read_only": 1
+      "read_only": 1,
+      "precision": "2",
+      "hidden": 1
     },
     {
       "fieldname": "taxable_amount",
       "label": "Net amount before VAT",
       "fieldtype": "Currency",
       "options": "currency",
-      "read_only": 1
+      "read_only": 1,
+      "precision": "2"
     },
     {
       "fieldname": "vat_amount",
       "label": "VAT amount",
       "fieldtype": "Currency",
       "options": "currency",
-      "read_only": 1
+      "read_only": 1,
+      "precision": "2"
     },
     {
       "fieldname": "total",
@@ -555,7 +566,7 @@
       "in_standard_filter": 0,
       "in_preview": 0,
       "read_only": 1,
-      "precision": "",
+      "precision": "2",
       "length": 0,
       "translatable": 0,
       "hide_border": 0,
@@ -775,7 +786,7 @@
       "fieldname": "balance_amount",
       "length": 0,
       "fieldtype": "Currency",
-      "precision": "",
+      "precision": "2",
       "hide_seconds": 0,
       "hide_days": 0,
       "options": "currency",
@@ -813,7 +824,7 @@
       "fieldname": "deposit_amount",
       "length": 0,
       "fieldtype": "Currency",
-      "precision": "",
+      "precision": "2",
       "hide_seconds": 0,
       "hide_days": 0,
       "options": "currency",
@@ -851,7 +862,7 @@
       "fieldname": "deposit_percent",
       "length": 0,
       "fieldtype": "Percent",
-      "precision": "",
+      "precision": "2",
       "hide_seconds": 0,
       "hide_days": 0,
       "sort_options": 0,

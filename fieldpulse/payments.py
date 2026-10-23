@@ -137,16 +137,30 @@ def validate_quote(doc, method=None):
         item.quantity = 1
         item.rate = 100
         item.project_title = field.project_title or field.request_type
-        item.description = item.description or field.field_brief
+        item.description = (field.field_brief or "").strip()
         if not item.description:
-            frappe.throw('Describe the agreed scope for every project')
+            frappe.throw('Confirm the linked project brief before creating its quotation')
         item.amount = float(money(money(item.rate) * money(item.quantity)))
         total += money(item.amount)
     if not doc.terms:
         doc.terms = 'Pay 50% upfront. Scout assignment starts after your deposit is verified. Review your approved report before paying the remaining 50%.'
     try:
-        totals = quotation_totals(total, doc.get('discount_type') or 'None', doc.get('discount_value') or 0,
+        # Canonicalize old percentage drafts without changing their discount.
+        discount_type = doc.get('discount_type') or 'Fixed amount'
+        value = money(doc.get('discount_value') or 0)
+        if discount_type == 'Percentage':
+            if value > 100:
+                raise ValueError('Percentages must be between 0 and 100')
+            value = money(total * value / 100)
+        elif discount_type == 'None' and value:
+            raise ValueError('Select a discount type before entering a discount')
+        elif discount_type not in ('None', 'Fixed amount'):
+            raise ValueError('Choose a valid discount type')
+        totals = quotation_totals(total, 'Fixed amount', value,
             doc.get('vat_rate'), bool(doc.get('tax_inclusive')))
+        doc.discount_type = 'Fixed amount'
+        doc.discount_value = float(value)
+        doc.discount_percentage = float(money(value * 100 / total)) if total else 0
     except ValueError as exc:
         frappe.throw(str(exc))
     for key, value in totals.items():
@@ -182,7 +196,7 @@ def _billing(request):
     for payment in payments:
         payment.amount = float(payment.amount)
         payment.can_pay = quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed' and bool(frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}))))
-    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_reason': quote.get('discount_reason'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': quote.terms, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': []}
+    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': quote.terms, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': []}
 
 def billing(reference=None):
     if reference:

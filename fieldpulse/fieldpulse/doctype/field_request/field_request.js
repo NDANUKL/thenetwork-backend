@@ -2,7 +2,12 @@ if (frappe.boot.dd_native_handover_active) {
 // DD Alignment Project Form
 frappe.ui.form.on("Field Request", {
   refresh(frm) {
-    if (!frm.doc.diaspora_request) return;
+    frm.set_df_property("source", "read_only", 1);
+    frm.set_df_property("diaspora_request", "hidden", !frm.doc.diaspora_request);
+    if (!frm.doc.diaspora_request) {
+      if (frm.doc.source !== "Manual") frm.set_value("source", "Manual");
+      return;
+    }
     ["source", "source_reference", "diaspora_request", "request_type", "county", "field_brief", "project_number", "project_title", "project_key", "evidence_requirements", "customer_target_date", "deadline_preference", "status"].forEach(field => frm.set_df_property(field, "read_only", 1));
     frm.set_df_property("source_reference", "hidden", 1);
     frm.set_df_property("dd_site_locations", "hidden", 1);
@@ -27,7 +32,7 @@ frappe.ui.form.on("Field Request", {
         frappe.msgprint(__("Save this project before assigning scouts."));
         return;
       }
-      if (!frm.doc.project_number || frm.doc.alignment_review || !frm.doc.county) {
+      if ((frm.doc.diaspora_request && !frm.doc.project_number) || frm.doc.alignment_review || !frm.doc.county) {
         frappe.msgprint(__("Confirm this project's scope, project number and county before assigning scouts."));
         return;
       }

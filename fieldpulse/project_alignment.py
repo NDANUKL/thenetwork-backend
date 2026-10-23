@@ -245,6 +245,9 @@ def map_field_request(doc, method=None):
         check_project_access(source)
         plan = project_plan(source)
         fill_field_request(doc, source, plan)
+        doc.source = "Diaspora Desk"
+    else:
+        doc.source = "Manual"
 
 def ensure_field_requests(source, method=None):
     """The source transaction and a row lock cover conversion and retries."""

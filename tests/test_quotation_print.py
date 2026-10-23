@@ -45,6 +45,14 @@ class QuotationPrintTests(unittest.TestCase):
         self.assertNotIn("VAT (16%)", legacy)
         self.assertIn("KES 20,880.00", legacy)
 
+    def test_fixed_discount_prints_percentage_and_amount(self):
+        quote = preview.sample_quote()
+        quote.discount_type = 'Fixed amount'
+        quote.discount_value = quote.discount_amount
+        html = preview.render(quote)
+        self.assertIn('Discount (10.00%)', html)
+        self.assertIn('-KES 2,000.00', html)
+
     def test_customer_and_scope_content_is_escaped(self):
         quote = preview.sample_quote()
         quote.customer_name = '<script>alert("name")</script>'
