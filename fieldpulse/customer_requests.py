@@ -4,6 +4,33 @@ import frappe
 from fieldpulse.beta_access import require_access
 from fieldpulse.native_ownership import owned_event, owned_api
 
+def customer_stage(source):
+    """Describe coverage across all projects without changing operational statuses."""
+    if source.status not in ("Assigned", "In Progress", "Completed"):
+        return source.status
+    from fieldpulse.project_alignment import project_plan
+    plan = project_plan(source)
+    structured = source.get("project_contract_version")
+    key = "project_id" if structured else "project_number"
+    expected = {project["id" if structured else "number"] for project in plan["projects"]}
+    if not expected:
+        return source.status
+    projects = frappe.get_all("Field Request", filters={"diaspora_request": source.name,
+        "status": ["!=", "Cancelled"]}, fields=[key, "status"])
+    covered = {project.get(key) for project in projects
+        if project.status in ("Assigned", "In Progress", "Completed")}
+    if not expected.intersection(covered):
+        return "Awaiting assignment"
+    if plan["issues"] or not expected.issubset(covered):
+        return "Partially assigned"
+    relevant = [project for project in projects if project.get(key) in expected]
+    if all(project.status == "Completed" for project in relevant):
+        return "Completed"
+    if any(project.status in ("In Progress", "Completed") for project in relevant):
+        return "In Progress"
+    return "Assigned"
+
+
 @frappe.whitelist()
 @owned_api('DD Customer Request Records')
 def requests(**kwargs):
@@ -20,9 +47,10 @@ def requests(**kwargs):
     require_access(account_name)
 
     def row(item):
-        actions = {"New": "Our team will review your request.", "In Review": "Our team is reviewing your brief.", "Assigned": "A scout has been assigned.", "In Progress": "Fieldwork is in progress.", "Completed": "The request has been completed.", "Rejected": "Our team will explain the next steps."}
+        stage = customer_stage(frappe.get_doc("Diaspora Request", item.name)) if item.status in ("Assigned", "In Progress", "Completed") else item.status
+        actions = {"New": "Our team will review your request.", "In Review": "Our team is reviewing your brief.", "Assigned": "Scouts have been assigned to all projects.", "Partially assigned": "Scouts have been assigned to some projects. Assignment is pending for the remaining projects.", "Awaiting assignment": "Scout assignment is pending.", "In Progress": "Fieldwork is in progress.", "Completed": "The request has been completed.", "Rejected": "Our team will explain the next steps."}
         return {"name": item.name, "title": item.summary or item.category_label or "Verification request",
-            "status": "Details needed" if item.customer_action_required else item.status, "modified": item.modified, "next_action": item.customer_next_action or actions.get(item.status, "Our team will update you here.")}
+            "status": "Details needed" if item.customer_action_required else stage, "modified": item.modified, "next_action": actions[stage] if stage in ("Partially assigned", "Awaiting assignment") else item.customer_next_action or actions.get(stage, "Our team will update you here.")}
     
     action = frappe.form_dict.get("action")
     fields = ["name", "summary", "category_label", "status", "modified", "customer_next_action", "customer_action_required"]
@@ -35,7 +63,7 @@ def requests(**kwargs):
             document = frappe.get_doc("Diaspora Request", name)
             result = row(document)
             result.update({"original_brief": document.original_brief, "location": document.customer_location or document.get("county"),
-                "accepted_scope": document.customer_agreed_scope, "stage": document.status})
+                "accepted_scope": document.customer_agreed_scope, "stage": customer_stage(document)})
             location_keys = ["name", "site_label", "location_mode", "county", "area", "map_url", "latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes", "confirmation_status"]
             result["sites"] = []
             for site in document.get("customer_sites") or []:
@@ -121,7 +149,7 @@ def requests(**kwargs):
     elif action == "requests":
         page = max(1, min(10000, frappe.utils.cint(frappe.form_dict.get("page") or 1)))
         filter_name = frappe.form_dict.get("filter") or "all"
-        page_size = 20 if filter_name == "disputable" else 3
+        page_size = 20 if filter_name == "disputable" else 5
         filters = {"dd_customer_account": account_name}
         if filter_name == "completed":
             filters["status"] = "Completed"

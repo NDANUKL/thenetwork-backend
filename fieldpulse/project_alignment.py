@@ -224,8 +224,6 @@ def fill_field_request(target, source, plan):
     target.requires_verified_location = int(bool(source.get("dd_customer_account")))
     sync_locations(target, source, selected)
     if target.get("scope_confirmed"):
-        if not target.get("scope_review_note"):
-            frappe.throw("Record the scope review before confirming it.")
         target.alignment_review = int(not target.county or not target.evidence_requirements)
     validate_locations(target)
 

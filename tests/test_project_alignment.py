@@ -54,6 +54,17 @@ class AlignmentTests(unittest.TestCase):
         for s in ['broken','{}','[1]']:
             self.source.project_details=s
             with self.assertRaises(ValueError): self.m.project_plan(self.source)
+    def test_scope_confirmation_does_not_require_note(self):
+        self.request.scope_confirmed = 1
+        self.m.fill_field_request(self.request, self.source, self.m.project_plan(self.source))
+        self.assertEqual(self.request.alignment_review, 0)
+        self.assertFalse(self.request.get('scope_review_note'))
+    def test_scope_confirmation_still_requires_evidence(self):
+        self.request.scope_confirmed = 1
+        self.source.evidence_checklist = []
+        self.source.project_details = json.dumps([{'number': 1, 'description': 'Shop in Garissa County'}])
+        self.m.fill_field_request(self.request, self.source, self.m.project_plan(self.source))
+        self.assertEqual(self.request.alignment_review, 1)
     def test_existing_deadline_and_isolated_brief(self):
         self.request.deadline='2026-12-01'; self.m.fill_field_request(self.request,self.source,self.m.project_plan(self.source))
         self.assertEqual(self.request.deadline,'2026-12-01'); self.assertEqual(self.request.customer_target_date,'2026-10-15'); self.assertNotIn('Land brief',self.request.field_brief)

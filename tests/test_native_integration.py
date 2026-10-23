@@ -129,7 +129,7 @@ class ApiParityTests(unittest.TestCase):
             self.module(api, 'scout_registration').task_team()
         api.get_all.assert_not_called()
 
-    def test_customer_pagination_matches_live_default_three_and_filters(self):
+    def test_customer_pagination_uses_five_and_preserves_filters(self):
         script = next(r['script'] for r in SNAPSHOT['records'] if r['name'] == 'DD Customer Request Records')
         for filter_name in ('all', 'active', 'action', 'disputable'):
             results = []
@@ -152,8 +152,11 @@ class ApiParityTests(unittest.TestCase):
                 results.append(result)
                 calls.append(api.get_all.call_args)
             self.assertEqual(results[0], results[1])
-            self.assertEqual(calls[0], calls[1])
-            size = 20 if filter_name == 'disputable' else 3
+            # The retired script used three; native listings now show five.
+            legacy_size = 20 if filter_name == 'disputable' else 3
+            self.assertEqual(calls[0].kwargs['limit_start'], legacy_size)
+            self.assertEqual(calls[0].kwargs['limit_page_length'], legacy_size + 1)
+            size = 20 if filter_name == 'disputable' else 5
             self.assertEqual(calls[1].kwargs['limit_start'], size)
             self.assertEqual(calls[1].kwargs['limit_page_length'], size + 1)
 

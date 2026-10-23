@@ -117,8 +117,10 @@ def validate_quote(doc, method=None):
     sequence_value_1 = (request.full_name, request.email)
     doc.customer_name = sequence_value_1[0]
     doc.customer_email = sequence_value_1[1]
-    if doc.currency not in ('KES', 'USD', 'GBP', 'EUR'):
-        frappe.throw('Unsupported quotation currency')
+    if not doc.currency:
+        doc.currency = 'USD'
+    if doc.currency != 'USD':
+        frappe.throw('New quotations must use USD. Create a replacement USD quotation; existing amounts are not currency conversions.')
     if not doc.items or getdate(doc.valid_until) < getdate(doc.quotation_date):
         frappe.throw('Add projects and a valid quotation expiry')
     sequence_value_2 = (set(), money(0))
@@ -132,16 +134,16 @@ def validate_quote(doc, method=None):
         count = item.get('planned_scouts')
         if isinstance(count, bool) or not count or float(count) != int(count) or (not 1 <= int(count) <= 20):
             frappe.throw('Enter a planned scout count from 1 to 20 for every project')
-        if float(item.quantity) <= 0:
-            frappe.throw('Quantity must be positive')
+        item.quantity = 1
+        item.rate = 100
         item.project_title = field.project_title or field.request_type
         item.description = item.description or field.field_brief
         if not item.description:
             frappe.throw('Describe the agreed scope for every project')
         item.amount = float(money(money(item.rate) * money(item.quantity)))
         total += money(item.amount)
-    if doc.status == 'Issued' and (not doc.terms):
-        frappe.throw('Add the terms before issuing this quotation')
+    if not doc.terms:
+        doc.terms = 'Pay 50% upfront. Scout assignment starts after your deposit is verified. Review your approved report before paying the remaining 50%.'
     try:
         totals = quotation_totals(total, doc.get('discount_type') or 'None', doc.get('discount_value') or 0,
             doc.get('vat_rate'), bool(doc.get('tax_inclusive')))

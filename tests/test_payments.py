@@ -135,6 +135,29 @@ class FlowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'each quoted project once'):
             self.payments.validate_quote(doc)
 
+    def test_project_price_is_fixed_in_usd(self):
+        doc = self.quote_document()
+        doc.items[0]['rate'] = 999
+        doc.items[0]['quantity'] = 3
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.items[0].rate, 100)
+        self.assertEqual(doc.items[0].quantity, 1)
+        self.assertEqual(doc.items[0].amount, 100)
+        self.assertEqual(doc.subtotal, 200)
+
+    def test_non_usd_draft_is_not_silently_converted(self):
+        doc = self.quote_document()
+        doc['currency'] = 'KES'
+        with self.assertRaisesRegex(ValueError, 'must use USD'):
+            self.payments.validate_quote(doc)
+
+    def test_issued_quote_gets_standard_terms_automatically(self):
+        doc = self.quote_document()
+        doc['status'] = 'Issued'
+        self.payments.validate_quote(doc)
+        self.assertIn('Pay 50% upfront', doc.terms)
+        self.assertIn('approved report', doc.terms)
+
     def test_existing_issued_quotation_is_not_repriced(self):
         doc = self.quote_document()
         doc.get_doc_before_save = lambda: Record(status='Accepted')

@@ -70,7 +70,7 @@
     $(".updated").textContent = "Updating live data…";
     $("[data-action=refresh]").disabled = true;
     try {
-      const keys = ["waiting", "active", "overdue", "submitted", "available", "busy", "leave", "inactive", "approved"];
+      const keys = ["requests", "waiting", "active", "overdue", "submitted", "available", "busy", "leave", "inactive", "approved"];
       const results = await Promise.allSettled([
         ...keys.map(k => {const {type, f} = filters(k); return frappe.db.count(type, {filters:f});}),
         ...states.map(status => {const {f} = filters("tasks"); return frappe.db.count("Field Task", {filters:[...f, ["status", "=", status]]});}),

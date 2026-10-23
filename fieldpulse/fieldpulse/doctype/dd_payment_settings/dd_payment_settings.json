@@ -228,7 +228,7 @@
       "permlevel": 0,
       "ignore_user_permissions": 0,
       "columns": 0,
-      "default": "KES,USD,GBP,EUR",
+      "default": "USD",
       "in_list_view": 0,
       "fetch_if_empty": 0,
       "in_filter": 0,
@@ -250,7 +250,8 @@
       "sort_options": 0,
       "show_on_timeline": 0,
       "make_attachment_public": 0,
-      "doctype": "DocField"
+      "doctype": "DocField",
+      "description": "Use USD for new quotations. Retain other enabled currencies while historical payments remain outstanding."
     },
     {
       "fieldname": "sandbox_consumer_key",

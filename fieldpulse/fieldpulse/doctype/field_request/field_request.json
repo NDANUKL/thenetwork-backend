@@ -274,7 +274,7 @@
       "is_virtual": 0,
       "read_only": 0,
       "ignore_user_permissions": 0,
-      "hidden": 0,
+      "hidden": 1,
       "print_hide": 0,
       "print_hide_if_no_value": 0,
       "no_copy": 0,
