@@ -81,6 +81,9 @@ class NativeSourceTests(unittest.TestCase):
                 if record['name'] == 'Field Task' and field['fieldname'] == 'responsibility':
                     self.assertNotIn('responsibility', actual)
                     continue
+                if record['name'] == 'Diaspora Request' and field['fieldname'] in {'customer_location', 'customer_agreed_scope'}:
+                    self.assertNotIn(field['fieldname'], actual)
+                    continue
                 self.assertEqual(actual[field['fieldname']]['fieldtype'], field['fieldtype'])
                 self.assertEqual(actual[field['fieldname']].get('options'), field.get('options'))
             self.assertEqual(len(actual), len(schema['fields']))

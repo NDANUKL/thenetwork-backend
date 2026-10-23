@@ -62,8 +62,8 @@ def requests(**kwargs):
         else:
             document = frappe.get_doc("Diaspora Request", name)
             result = row(document)
-            result.update({"original_brief": document.original_brief, "location": document.customer_location or document.get("county"),
-                "accepted_scope": document.customer_agreed_scope, "stage": customer_stage(document)})
+            result.update({"original_brief": document.original_brief, "location": document.get("county"),
+                "stage": customer_stage(document)})
             location_keys = ["name", "site_label", "location_mode", "county", "area", "map_url", "latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes", "confirmation_status"]
             result["sites"] = []
             for site in document.get("customer_sites") or []:

@@ -302,7 +302,11 @@ def _verify(attempt_name, tracking_id=None):
         if payment.status == 'Paid' and payment.get('paid_attempt') != attempt.name:
             frappe.db.set_value('DD Payment Attempt', attempt.name, 'status', 'Review')
             return
-        frappe.db.set_value('DD Payment', payment.name, {'status': 'Paid', 'paid_attempt': attempt.name, 'paid_at': now_datetime()})
+        paid_values = {'status': 'Paid', 'paid_attempt': attempt.name, 'paid_at': now_datetime()}
+        frappe.db.set_value('DD Payment', payment.name, paid_values)
+        payment.update(paid_values)
+        from fieldpulse.customer_notifications import queue_event
+        queue_event('payment', payment)
     elif state == 'Reversed' and payment.get('paid_attempt') == attempt.name:
         frappe.db.set_value('DD Payment', payment.name, 'status', 'Reversed')
 

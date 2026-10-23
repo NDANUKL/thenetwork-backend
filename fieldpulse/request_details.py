@@ -9,6 +9,11 @@ def notifications(**kwargs):
     if not frappe.db.exists("Has Role", {"parent": frappe.session.user, "parenttype": "User", "role": "System Manager"}):
         frappe.throw("Not permitted", frappe.PermissionError)
     name = frappe.form_dict.get("round") or ""
+    if frappe.form_dict.get("action") == "queue":
+        if frappe.db.exists("DD Request Details", name):
+            from fieldpulse.customer_notifications import queue_event
+            queue_event("details", frappe.get_doc("DD Request Details", name))
+        return {"success": True}
     if not frappe.db.exists("DD Request Details", name):
         frappe.response["message"] = {"notification": None}
     else:

@@ -9,7 +9,7 @@ h2 { font-size:14pt; color:#07786f; margin:20px 0 8px; page-break-after:avoid; }
 footer { margin-top:20px; border-top:1px solid #dce5e6; padding-top:12px; font-size:9pt; color:#526778; }
 </style></head><body><header><div class="brand">Diaspora Desk</div><h1>{{ doc.title | e }}</h1><div class="meta">Request {{ doc.request | e }} &middot; Version {{ doc.report_version or 1 }}<br>Prepared {{ frappe.utils.formatdate(doc.modified) | e }}</div></header>
 <h2>Summary</h2><div class="text summary">{{ doc.executive_summary | e }}</div>
-<h2>Your agreed request</h2><div class="text">{{ (request.customer_agreed_scope or request.original_brief) | e }}</div>
+<h2>Your agreed request</h2><div class="text">{{ request.original_brief | e }}</div>
 <h2>Findings</h2><div class="text">{{ doc.findings | e }}</div>
 <h2>Limitations and outstanding checks</h2><div class="text">{{ (doc.limitations or 'No additional limitations recorded by the coordinator.') | e }}</div>
 {% if doc.next_steps %}<h2>Next steps</h2><div class="text">{{ doc.next_steps | e }}</div>{% endif %}

@@ -135,7 +135,6 @@ def apply_to_task(doc, method=None):
     if project.get("diaspora_request"):
         source = frappe.get_doc("Diaspora Request", project.diaspora_request)
         snapshot["client_request"] = source.original_brief
-        snapshot["agreed_scope"] = source.get("customer_agreed_scope")
         rounds = frappe.get_all("DD Request Details", filters={"request": source.name, "status": ["in", ["Ready for review", "Closed"]]}, pluck="name", order_by="creation asc")
         snapshot["clarifications"] = [{"question": q.question, "answer": q.answer} for name in rounds for q in frappe.get_doc("DD Request Details", name).questions]
     doc.client_request_snapshot = json.dumps(snapshot)

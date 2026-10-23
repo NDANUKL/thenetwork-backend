@@ -327,7 +327,9 @@ class FlowTests(unittest.TestCase):
         self.frappe.get_doc.side_effect = [attempt, payment]
         self.payments._config = MagicMock(return_value=("sandbox",))
         self.payments._provider = MagicMock(return_value=dict(status="200", merchant_reference="ref", amount=50, currency="KES", status_code=1, confirmation_code="confirmation"))
-        self.payments._verify("attempt")
+        with patch("fieldpulse.customer_notifications.queue_event") as queue:
+            self.payments._verify("attempt")
+        queue.assert_called_once_with("payment", payment)
         writes = self.frappe.db.set_value.call_args_list
         self.assertEqual(writes[0].args[2]["status"], "Paid")
         self.assertEqual(writes[0].args[2]["confirmation_code"], "confirmation")

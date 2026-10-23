@@ -61,3 +61,8 @@ permission_query_conditions = {
     "FP Question Response": "fieldpulse.scout_permissions.answer_query",
     "Field Evidence": "fieldpulse.scout_permissions.evidence_query",
 }
+
+# Customer-facing milestones share one durable, preference-aware delivery queue.
+for _notification_doctype in ("DD Request Details", "DD Quotation", "DD Payment", "DD Service Report", "DD Dispute"):
+    doc_events.setdefault(_notification_doctype, {})["on_update"] = "fieldpulse.customer_notifications.capture"
+scheduler_events["cron"]["*/5 * * * *"].append("fieldpulse.customer_notifications.retry_pending")
