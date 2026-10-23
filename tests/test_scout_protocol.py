@@ -21,6 +21,9 @@ protocol = load('scout_protocol_test', 'fieldpulse/scout_protocol.py')
 
 class ProtocolTests(unittest.TestCase):
     def setUp(self):
+        self.radius_patch = patch.dict(protocol.effective_geofence_radius.__globals__, TESTING_GEOFENCE_RADIUS_M=0)
+        self.radius_patch.start()
+        self.addCleanup(self.radius_patch.stop)
         self.question = dict(name='q', question_code='1.4', validation_json=json.dumps(dict(group='service', mandatory_evidence=True)))
         self.answer = dict(result='Observed', text='No construction activity observed.', media=[])
         self.media = [{'evidence_type': kind, 'caption': kind + ' showing the visible plot.'} for kind in ['Photo', 'Video']]
@@ -47,6 +50,20 @@ class ProtocolTests(unittest.TestCase):
             self.assertFalse(result['errors'])
             self.assertEqual(result['status'], 'Needs review')
             self.assertTrue(any('capture location requires review' in reason for reason in result['reasons']))
+
+    def test_testing_radius_allows_cross_county_arrival_and_evidence(self):
+        site = dict(latitude=-1.3, longitude=36.8, geofence_radius_m=50)
+        point = dict(latitude=-4.05, longitude=39.67, accuracy_m=8, captured_at='2026-10-23T15:00:00Z')
+        media = [dict(row, gps_lat=point['latitude'], gps_lng=point['longitude'], accuracy_m=8, captured_at=point['captured_at']) for row in self.media]
+        with patch.dict(protocol.effective_geofence_radius.__globals__, TESTING_GEOFENCE_RADIUS_M=2_000_000):
+            arrival = protocol.arrival_result(point, site)
+            self.assertEqual(arrival['status'], 'Inside')
+            self.assertFalse(self.evaluate(evidence={'1.4': media}, location=site, arrival=arrival)['errors'])
+            self.assertEqual(protocol.arrival_result(dict(point, accuracy_m=70), site)['status'], 'Insufficient accuracy')
+
+    def test_rejection_names_missing_evidence(self):
+        errors = self.evaluate(evidence={})['errors']
+        self.assertTrue(any('1.4: mandatory photo and caption missing' in error for error in errors))
 
     def test_verified_photo_and_video_allow_normal_review_not_automatic_approval(self):
         result = self.evaluate()

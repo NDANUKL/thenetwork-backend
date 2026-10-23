@@ -2,6 +2,7 @@ import frappe
 from frappe.model.document import Document
 
 from fieldpulse.utils import haversine_distance_m
+from fieldpulse.geofence import effective_geofence_radius
 
 
 class FPTaskResponse(Document):
@@ -40,7 +41,7 @@ class FPTaskResponse(Document):
             self.latitude, self.longitude, location.latitude, location.longitude
         )
         self.geofence_distance_m = distance
-        self.geofence_status = "Inside" if distance <= (location.geofence_radius_m or 50) else "Outside"
+        self.geofence_status = "Inside" if distance <= effective_geofence_radius(location.geofence_radius_m) else "Outside"
 
 
     def _validate_submission_complete(self):

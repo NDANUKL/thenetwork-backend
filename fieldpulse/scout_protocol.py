@@ -1,6 +1,7 @@
 """Pure validation shared by submission and coordinator review. No client status is trusted."""
 import json
 import math
+from fieldpulse.geofence import effective_geofence_radius
 
 
 def parsed(value, fallback=None):
@@ -13,13 +14,14 @@ def arrival_result(arrival, location):
     try:
         lat, lng, accuracy = [float(arrival[key]) for key in ("latitude", "longitude", "accuracy_m")]
         site_lat, site_lng = float(location["latitude"]), float(location["longitude"])
-        radius = float(location.get("geofence_radius_m") or 50)
-        if not all(math.isfinite(v) for v in [lat, lng, accuracy, site_lat, site_lng, radius]) or abs(lat) > 90 or abs(lng) > 180 or accuracy < 0 or radius <= 0:
+        site_radius = float(location.get("geofence_radius_m") or 50)
+        radius = effective_geofence_radius(site_radius)
+        if not all(math.isfinite(v) for v in [lat, lng, accuracy, site_lat, site_lng, radius]) or abs(lat) > 90 or abs(lng) > 180 or accuracy < 0 or site_radius <= 0:
             raise ValueError()
         radians = math.pi / 180
         a = math.sin((lat-site_lat)*radians/2)**2 + math.cos(lat*radians)*math.cos(site_lat*radians)*math.sin((lng-site_lng)*radians/2)**2
         distance = 6371000 * 2 * math.asin(min(1, math.sqrt(a)))
-        status = "Inside" if distance <= radius and accuracy <= radius else "Outside" if distance > radius else "Insufficient accuracy"
+        status = "Inside" if distance <= radius and accuracy <= site_radius else "Outside" if distance > radius else "Insufficient accuracy"
         if not arrival.get("captured_at"): status = "Invalid GPS"
         return dict(status=status, distance_m=round(distance, 2), site_latitude=site_lat, site_longitude=site_lng,
             radius_m=radius, latitude=lat, longitude=lng, accuracy_m=accuracy, captured_at=arrival.get("captured_at"))
@@ -79,7 +81,7 @@ def evaluate_submission(questions, answers, evidence, review, arrival, location=
                     issues.append(f"{code}: {item.get('evidence_type')} capture location requires review: {check['status']}")
     if arrival.get("status") != "Inside": issues.append("Arrival location requires review: " + arrival.get("status", "Invalid GPS"))
     if issues and not (review.get("incomplete") is True and str(review.get("incomplete_reason") or "").strip()):
-        fatal.append("Use Send incomplete task for review and explain the missing checks or evidence")
+        fatal.append("Submission needs attention: " + "; ".join(issues) + ". Complete these checks, or use Send incomplete task for review and explain the issue.")
     reasons = list(issues)
     if arrival.get("exception_reason"):
         reasons.append("Arrival exception: " + str(arrival["exception_reason"]))

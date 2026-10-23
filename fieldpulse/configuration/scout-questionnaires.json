@@ -6,7 +6,7 @@
     {
       "number": 1,
       "title": "Land or plot check",
-      "description": "Core service. Record visible conditions only; GPS and photographs do not establish ownership or surveyed boundaries.",
+      "description": "",
       "questions": [
         {
           "code": "1.1",
@@ -49,7 +49,7 @@
     {
       "number": 2,
       "title": "Property or building check",
-      "description": "Core service. No ownership determination or building safety certification. Presence of a fitting does not establish that it works.",
+      "description": "",
       "questions": [
         {
           "code": "2.1",
@@ -92,7 +92,7 @@
     {
       "number": 3,
       "title": "Construction progress check",
-      "description": "Core service. Compare defined work items; do not estimate unsupported completion percentages or certify workmanship or structural safety.",
+      "description": "",
       "questions": [
         {
           "code": "3.1",
@@ -135,7 +135,7 @@
     {
       "number": 4,
       "title": "Business or shop check",
-      "description": "Core service. One visit does not establish regular trading, profitability or overall performance.",
+      "description": "",
       "questions": [
         {
           "code": "4.1",
@@ -178,7 +178,7 @@
     {
       "number": 5,
       "title": "Vehicle check",
-      "description": "Core service. Visual check only; no ownership, mechanical soundness or roadworthiness conclusion. No test drive unless separately authorised and arranged.",
+      "description": "",
       "questions": [
         {
           "code": "5.1",
@@ -221,7 +221,7 @@
     {
       "number": 6,
       "title": "Equipment or funded asset check",
-      "description": "Core service. Presence does not prove ownership, payment, value, performance or suitability. No specialist testing.",
+      "description": "",
       "questions": [
         {
           "code": "6.1",
@@ -264,7 +264,7 @@
     {
       "number": 7,
       "title": "Adult student enrolment check",
-      "description": "Custom service subject to scope review. Adult only; student authorisation and institutional cooperation required. Enrolment does not establish attendance.",
+      "description": "",
       "questions": [
         {
           "code": "7.1",
@@ -307,7 +307,7 @@
     {
       "number": 8,
       "title": "University fee payment confirmation",
-      "description": "Custom service subject to scope review. Obtain student authorisation where required. Check whether remote confirmation can answer the request before arranging a visit.",
+      "description": "",
       "questions": [
         {
           "code": "8.1",
@@ -350,7 +350,7 @@
     {
       "number": 9,
       "title": "Adult student attendance check",
-      "description": "Custom service subject to scope review. Adult consent and institution-permitted confirmation required. A sighting on campus does not establish attendance.",
+      "description": "",
       "questions": [
         {
           "code": "9.1",
@@ -393,7 +393,7 @@
     {
       "number": 10,
       "title": "Adult clinic visit verification",
-      "description": "Custom service subject to scope review. Adult authorisation and facility agreement required. Confirm only the agreed visit or receipt; do not seek diagnosis, treatment details or confidential clinical records.",
+      "description": "",
       "questions": [
         {
           "code": "10.1",
@@ -436,7 +436,7 @@
     {
       "number": 11,
       "title": "Document comparison and issuer confirmation",
-      "description": "Custom service subject to scope review. Voluntarily supplied or shown documents only. Comparison does not establish authenticity, legal validity or absence of fraud.",
+      "description": "",
       "questions": [
         {
           "code": "11.1",
@@ -479,7 +479,7 @@
     {
       "number": 12,
       "title": "Receipt confirmation",
-      "description": "Custom service subject to scope review. Issuer cooperation required. A matching receipt does not establish delivery, item condition or every aspect of a transaction.",
+      "description": "",
       "questions": [
         {
           "code": "12.1",
@@ -522,7 +522,7 @@
     {
       "number": 13,
       "title": "Purchase or delivery confirmation",
-      "description": "Custom service subject to scope review. Presence does not establish ownership, payment or working condition. Do not sign for or accept goods unless separately authorised.",
+      "description": "",
       "questions": [
         {
           "code": "13.1",
@@ -565,7 +565,7 @@
     {
       "number": 14,
       "title": "General site visit",
-      "description": "Custom service subject to scope review. Define observable questions and access before assignment. No tracing, personal monitoring or unrestricted investigation.",
+      "description": "",
       "questions": [
         {
           "code": "14.1",
@@ -608,7 +608,7 @@
     {
       "number": 15,
       "title": "Merchant survey and field interviews",
-      "description": "Custom service subject to scope review. Use an approved sample and interview script. Participation is voluntary; no claim of market representativeness without a suitable sampling design.",
+      "description": "",
       "questions": [
         {
           "code": "15.1",

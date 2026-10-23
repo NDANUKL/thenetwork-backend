@@ -12,6 +12,7 @@ import frappe
 from frappe.utils import now_datetime
 
 from fieldpulse.utils import haversine_distance_m
+from fieldpulse.geofence import effective_geofence_radius
 from fieldpulse.mobile_datetime import mobile_datetime
 
 
@@ -177,7 +178,7 @@ def _apply_geofence_check(doc):
     location = frappe.get_doc("FP Location", doc.location)
     distance = haversine_distance_m(doc.latitude, doc.longitude, location.latitude, location.longitude)
     doc.geofence_distance_m = distance
-    doc.geofence_status = "Inside" if distance <= (location.geofence_radius_m or 50) else "Outside"
+    doc.geofence_status = "Inside" if distance <= effective_geofence_radius(location.geofence_radius_m) else "Outside"
 
 
 def _upsert_question_response(item):
