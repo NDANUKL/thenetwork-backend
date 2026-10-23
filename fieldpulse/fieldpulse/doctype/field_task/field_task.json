@@ -156,7 +156,9 @@
       "fieldname": "project_title",
       "label": "Project",
       "fieldtype": "Data",
-      "read_only": 1
+      "read_only": 1,
+      "in_list_view": 0,
+      "in_standard_filter": 0
     },
     {
       "fieldname": "county",
@@ -303,7 +305,6 @@
   "sort_order": "DESC",
   "states": [],
   "track_changes": 1,
-  "title_field": "project_title",
   "search_fields": "project_title,field_request,scout_profile",
-  "show_title_field_in_link": 1
+  "show_title_field_in_link": 0
 }

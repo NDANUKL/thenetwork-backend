@@ -3,6 +3,9 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib.parse import urlparse
 
 
+PAYMENT_TERMS = 'Pay 50% upfront; review your approved report before paying the remaining 50%. Scout assignment starts after your deposit is verified.'
+
+
 def money(value):
     try:
         result = Decimal(str(value))

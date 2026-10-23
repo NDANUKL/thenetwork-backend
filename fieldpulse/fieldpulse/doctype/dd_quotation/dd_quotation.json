@@ -473,7 +473,7 @@
     },
     {
       "fieldname": "discount_value",
-      "label": "Discount amount",
+      "label": "Discount amount in USD",
       "fieldtype": "Currency",
       "default": "0",
       "description": "Enter the USD amount to deduct before VAT. Use 0 for no discount.",

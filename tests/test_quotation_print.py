@@ -19,7 +19,6 @@ class QuotationPrintTests(unittest.TestCase):
         self.assertIn("font-family:Carlito", html)
         self.assertLess(html.index("format('woff')"), html.index("format('truetype')"))
         self.assertIn("KES 20,880.00", html)
-        self.assertIn("KES 10,440.00", html)
         self.assertNotIn("Signature", html)
         self.assertNotIn("PLEASE CONFIRM YOUR ACCEPTANCE", html)
 
@@ -52,6 +51,19 @@ class QuotationPrintTests(unittest.TestCase):
         html = preview.render(quote)
         self.assertIn('Discount (10.00%)', html)
         self.assertIn('-KES 2,000.00', html)
+
+    def test_payment_split_is_only_in_standard_terms(self):
+        quote = preview.sample_quote()
+        quote.total, quote.deposit_amount, quote.balance_amount = 13000, 6500, 6500
+        quote.terms = 'Old custom terms'
+        html = preview.render(quote)
+        summary = html[html.index('<table class="dd-summary">'):html.index('<div class="dd-terms">')]
+        self.assertIn('KES 13,000.00', summary)
+        self.assertNotIn('KES 6,500.00', html)
+        self.assertNotIn('Pay this total in two instalments:', html)
+        self.assertNotIn('dd-instalment', html)
+        self.assertNotIn('Old custom terms', html)
+        self.assertIn('Pay 50% upfront; review your approved report before paying the remaining 50%. Scout assignment starts after your deposit is verified.', html)
 
     def test_customer_and_scope_content_is_escaped(self):
         quote = preview.sample_quote()

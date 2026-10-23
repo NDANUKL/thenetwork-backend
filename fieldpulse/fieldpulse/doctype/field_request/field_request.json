@@ -310,7 +310,7 @@
       "label": "Project",
       "fieldtype": "Data",
       "read_only": 1,
-      "in_list_view": 1
+      "in_list_view": 0
     },
     {
       "fieldname": "project_key",
@@ -425,7 +425,6 @@
   "sort_order": "DESC",
   "states": [],
   "track_changes": 1,
-  "title_field": "project_title",
   "search_fields": "project_title,county,request_type",
-  "show_title_field_in_link": 1
+  "show_title_field_in_link": 0
 }

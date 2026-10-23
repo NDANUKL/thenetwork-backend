@@ -6,7 +6,7 @@ from urllib.parse import urlencode, quote as urlquote
 import frappe
 import requests
 from frappe.utils import getdate, now_datetime
-from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals
+from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals, PAYMENT_TERMS
 
 def roles(user=None):
     return frappe.get_roles(user or frappe.session.user)
@@ -142,8 +142,7 @@ def validate_quote(doc, method=None):
             frappe.throw('Confirm the linked project brief before creating its quotation')
         item.amount = float(money(money(item.rate) * money(item.quantity)))
         total += money(item.amount)
-    if not doc.terms:
-        doc.terms = 'Pay 50% upfront. Scout assignment starts after your deposit is verified. Review your approved report before paying the remaining 50%.'
+    doc.terms = PAYMENT_TERMS
     try:
         # Canonicalize old percentage drafts without changing their discount.
         discount_type = doc.get('discount_type') or 'Fixed amount'
@@ -181,7 +180,7 @@ def _quote(reference):
     return frappe.get_doc('DD Quotation', name) if name else None
 
 def _obligations(quote):
-    return frappe.get_all('DD Payment', filters={'quotation': quote.name}, fields=['name', 'kind', 'amount', 'currency', 'status'], order_by='creation asc')
+    return frappe.get_all('DD Payment', filters={'quotation': quote.name}, fields=['name', 'request', 'quotation', 'kind', 'amount', 'currency', 'status', 'paid_attempt', 'paid_at'], order_by='creation asc')
 
 def _billing(request):
     quote = _quote(request.name)
@@ -196,7 +195,9 @@ def _billing(request):
     for payment in payments:
         payment.amount = float(payment.amount)
         payment.can_pay = quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed' and bool(frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}))))
-    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': quote.terms, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': []}
+    from fieldpulse.payment_receipts import receipt_document
+    documents = [document for payment in payments if (document := receipt_document(payment, request.name))]
+    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': PAYMENT_TERMS, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': documents}
 
 def billing(reference=None):
     if reference:
