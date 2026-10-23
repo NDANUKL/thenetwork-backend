@@ -61,6 +61,22 @@ class ProtocolTests(unittest.TestCase):
             self.assertFalse(self.evaluate(evidence={'1.4': media}, location=site, arrival=arrival)['errors'])
             self.assertEqual(protocol.arrival_result(dict(point, accuracy_m=70), site)['status'], 'Insufficient accuracy')
 
+    def test_frappe_location_document_supports_arrival_and_uploaded_media(self):
+        class LocationDocument:
+            # Frappe documents expose get(), rather than dictionary subscripting.
+            def get(self, key):
+                return dict(latitude=-1.3, longitude=36.8, geofence_radius_m=50).get(key)
+        site = LocationDocument()
+        point = dict(latitude=-1.3, longitude=36.8, accuracy_m=8, captured_at='2026-10-23T15:00:00Z')
+        arrival = protocol.arrival_result(point, site)
+        self.assertEqual(arrival['status'], 'Inside')
+        media = [dict(row, gps_lat=point['latitude'], gps_lng=point['longitude'], accuracy_m=8, captured_at=point['captured_at']) for row in self.media]
+        result = self.evaluate(evidence={'1.4': media}, location=site, arrival=arrival)
+        self.assertFalse(result['errors'])
+        self.assertEqual(result['status'], 'Submitted for normal review')
+        missing_site = type('MissingLocationDocument', (), {'get': lambda self, key: None})()
+        self.assertEqual(protocol.arrival_result(point, missing_site)['status'], 'Invalid GPS')
+
     def test_rejection_names_missing_evidence(self):
         errors = self.evaluate(evidence={})['errors']
         self.assertTrue(any('1.4: mandatory photo and caption missing' in error for error in errors))

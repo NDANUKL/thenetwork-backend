@@ -13,7 +13,7 @@ def arrival_result(arrival, location):
     arrival = parsed(arrival, {}) or {}
     try:
         lat, lng, accuracy = [float(arrival[key]) for key in ("latitude", "longitude", "accuracy_m")]
-        site_lat, site_lng = float(location["latitude"]), float(location["longitude"])
+        site_lat, site_lng = float(location.get("latitude")), float(location.get("longitude"))
         site_radius = float(location.get("geofence_radius_m") or 50)
         radius = effective_geofence_radius(site_radius)
         if not all(math.isfinite(v) for v in [lat, lng, accuracy, site_lat, site_lng, radius]) or abs(lat) > 90 or abs(lng) > 180 or accuracy < 0 or site_radius <= 0:
