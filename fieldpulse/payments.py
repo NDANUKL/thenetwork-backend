@@ -126,10 +126,14 @@ def validate_quote(doc, method=None):
     sequence_value_2 = (set(), money(0))
     seen = sequence_value_2[0]
     total = sequence_value_2[1]
+    deadlines = []
     for item in doc.items:
         field = frappe.get_doc('Field Request', item.field_request)
         if field.diaspora_request != doc.request or field.name in seen:
             frappe.throw('Include each quoted project once, from this request')
+        item.agreed_work_deadline = field.get("deadline")
+        if item.agreed_work_deadline:
+            deadlines.append(getdate(item.agreed_work_deadline))
         seen.add(field.name)
         count = item.get('planned_scouts')
         if isinstance(count, bool) or not count or float(count) != int(count) or (not 1 <= int(count) <= 20):
@@ -142,6 +146,8 @@ def validate_quote(doc, method=None):
             frappe.throw('Confirm the linked project brief before creating its quotation')
         item.amount = float(money(money(item.rate) * money(item.quantity)))
         total += money(item.amount)
+    doc.agreed_completion_date = max(deadlines) if deadlines and len(deadlines) == len(doc.items) else None
+    doc.tax_inclusive = 0
     doc.terms = PAYMENT_TERMS
     try:
         # Canonicalize old percentage drafts without changing their discount.
@@ -156,7 +162,7 @@ def validate_quote(doc, method=None):
         elif discount_type not in ('None', 'Fixed amount'):
             raise ValueError('Choose a valid discount type')
         totals = quotation_totals(total, 'Fixed amount', value,
-            doc.get('vat_rate'), bool(doc.get('tax_inclusive')))
+            doc.get('vat_rate'), False)
         doc.discount_type = 'Fixed amount'
         doc.discount_value = float(value)
         doc.discount_percentage = float(money(value * 100 / total)) if total else 0
@@ -360,8 +366,9 @@ def require_deposit(doc, method=None):
         frappe.throw('Accept the quotation and verify the 50% deposit before assigning scouts')
     paid_attempt = frappe.db.get_value('DD Payment', {'quotation': quote.name, 'kind': 'deposit', 'status': 'Paid'}, 'paid_attempt')
     environment = frappe.db.get_value('DD Payment Attempt', paid_attempt, 'environment') if paid_attempt else None
-    if environment != 'live' and (not (environment == 'sandbox' and frappe.db.get_single_value('DD Payment Settings', 'allow_sandbox_dispatch') and frappe.db.get_value('Diaspora Request', reference, 'sandbox_testing'))):
-        frappe.throw('A live verified deposit is required for dispatch; sandbox dispatch must be explicitly enabled on a test site')
+    configured_environment = frappe.db.get_single_value('DD Payment Settings', 'environment')
+    if configured_environment not in ('sandbox', 'live') or environment != configured_environment:
+        frappe.throw('A verified deposit matching the current payment environment is required for dispatch')
     line = None
     for row in quote.items:
         if row.field_request == doc.field_request:

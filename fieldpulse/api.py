@@ -12,6 +12,7 @@ import frappe
 from frappe.utils import now_datetime
 
 from fieldpulse.utils import haversine_distance_m
+from fieldpulse.mobile_datetime import mobile_datetime
 
 
 def _get_scout_profile_for_user(user=None):
@@ -144,8 +145,8 @@ def _upsert_task_response(item):
             if item.get("status") == "Submitted":
                 return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
             frappe.throw("Submitted responses cannot be changed", frappe.PermissionError)
-        incoming_ts = item.get("client_updated_at")
-        if item.get("status") != "Submitted" and incoming_ts and doc.client_updated_at and incoming_ts <= str(doc.client_updated_at):
+        incoming_ts = mobile_datetime(item.get("client_updated_at"))
+        if item.get("status") != "Submitted" and incoming_ts and doc.client_updated_at and incoming_ts <= mobile_datetime(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
     else:
         doc = frappe.new_doc("FP Task Response")
@@ -160,7 +161,7 @@ def _upsert_task_response(item):
         "latitude", "longitude", "accuracy_m", "arrival_check_json", "final_review_json",
     ):
         if field in item:
-            doc.set(field, item[field])
+            doc.set(field, mobile_datetime(item[field]) if field in ("started_at", "submitted_at", "client_updated_at") else item[field])
     doc.agent = scout_profile
 
     _apply_geofence_check(doc)
@@ -204,8 +205,8 @@ def _upsert_question_response(item):
         doc = frappe.get_doc("FP Question Response", existing)
         if doc.task_response != parent.name or doc.question != question.name:
             frappe.throw("Answer ID belongs to another response or question", frappe.PermissionError)
-        incoming_ts = item.get("client_updated_at")
-        if incoming_ts and doc.client_updated_at and incoming_ts <= str(doc.client_updated_at):
+        incoming_ts = mobile_datetime(item.get("client_updated_at"))
+        if incoming_ts and doc.client_updated_at and incoming_ts <= mobile_datetime(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
     else:
         if frappe.db.exists("FP Question Response", {"task_response": parent.name, "question": question.name}):
@@ -218,7 +219,7 @@ def _upsert_question_response(item):
         "answer_text", "answer_json", "client_updated_at",
     ):
         if field in item:
-            doc.set(field, item[field])
+            doc.set(field, mobile_datetime(item[field]) if field in ("started_at", "submitted_at", "client_updated_at") else item[field])
 
     doc.question_code = question.question_code
     doc.save(ignore_permissions=True)

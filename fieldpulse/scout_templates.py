@@ -111,6 +111,8 @@ def prepare_project(doc, method=None):
         old = {row.question for row in previous.get("scout_checks") or []}
         if old != set(selected) or previous.get("scout_service") != doc.scout_service:
             doc.scout_checks_confirmed = 0
+    if doc.get("scout_checks_confirmed"):
+        doc.alignment_review = int(not doc.get("county") or not doc.get("evidence_requirements"))
     doc.scout_questionnaire = name
 
 

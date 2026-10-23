@@ -116,6 +116,32 @@ class FlowTests(unittest.TestCase):
         self.frappe.db.exists.return_value = False
         return doc
 
+    def test_quote_deadline_comes_from_linked_projects(self):
+        doc = self.quote_document()
+        original = self.frappe.get_doc.side_effect
+        def documents(dt, name):
+            result = original(dt, name)
+            if dt == 'Field Request':
+                result['deadline'] = '2026-11-03' if name == 'project-1' else '2026-11-07'
+            return result
+        self.frappe.get_doc.side_effect = documents
+        doc.agreed_completion_date = '2030-01-01'
+        self.payments.validate_quote(doc)
+        self.assertEqual(str(doc.agreed_completion_date), '2026-11-07')
+        self.assertEqual(doc.items[0].agreed_work_deadline, '2026-11-03')
+        self.assertEqual(doc.items[1].agreed_work_deadline, '2026-11-07')
+
+    def test_new_quote_always_adds_vat_on_top(self):
+        doc = self.quote_document()
+        doc['tax_inclusive'] = 1
+        doc['discount_type'] = 'Fixed amount'
+        doc['discount_value'] = 0
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.tax_inclusive, 0)
+        self.assertEqual(doc.subtotal, 200)
+        self.assertEqual(doc.vat_amount, 32)
+        self.assertEqual(doc.total, 232)
+
     def test_multi_project_quote_uses_combined_discounted_total(self):
         doc = self.quote_document()
         self.payments.validate_quote(doc)
@@ -217,6 +243,7 @@ class FlowTests(unittest.TestCase):
             self.payments.require_deposit(doc)
 
     def test_paid_assignment_enforces_project_scout_count(self):
+        self.frappe.db.get_single_value.return_value = "live"
         doc = Record(field_request="project", status="Assigned", scout_profile="scout-2", name="new")
         doc.is_new = lambda: True
         doc.get_doc_before_save = lambda: None
@@ -296,17 +323,24 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(self.payments.checkout("request", "payment", "retry"), {"checkout_url": attempt.checkout_url})
         self.payments._provider.assert_not_called()
 
-    def test_sandbox_collection_requires_explicit_test_dispatch_enablement(self):
+    def test_dispatch_requires_deposit_in_current_environment(self):
         doc = Record(field_request="project", status="Assigned", scout_profile="scout", name="new")
         doc.is_new = lambda: True
         doc.get_doc_before_save = lambda: None
-        self.frappe.db.get_value.side_effect = ["request", "attempt", "sandbox"]
+        quote = Record(name="quote", status="Accepted")
+        quote.items = [Record(field_request="project", planned_scouts=1)]
+        self.payments._quote = MagicMock(return_value=quote)
         self.frappe.db.exists.return_value = True
-        self.frappe.conf.get.return_value = False
-        self.frappe.db.get_single_value.return_value = False
-        self.payments._quote = MagicMock(return_value=Record(name="quote", status="Accepted"))
-        with self.assertRaisesRegex(ValueError, "live verified deposit"):
-            self.payments.require_deposit(doc)
+        self.frappe.get_all.return_value = []
+        for mode, paid_mode, allowed in [("sandbox", "sandbox", True), ("live", "live", True), ("live", "sandbox", False), ("sandbox", "live", False), (None, "sandbox", False), ("live", None, False)]:
+            with self.subTest(mode=mode, paid_mode=paid_mode):
+                self.frappe.db.get_value.side_effect = ["request", "attempt", paid_mode]
+                self.frappe.db.get_single_value.return_value = mode
+                if allowed:
+                    self.payments.require_deposit(doc)
+                else:
+                    with self.assertRaisesRegex(ValueError, "current payment environment"):
+                        self.payments.require_deposit(doc)
 
     def test_notification_verification_failure_returns_retry_not_paid(self):
         self.frappe.response = {}

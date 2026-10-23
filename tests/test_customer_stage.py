@@ -38,10 +38,10 @@ class CustomerStageTests(unittest.TestCase):
                     self.assertEqual(self.stage(statuses, structured), "Partially assigned")
 
     def test_all_projects_assigned(self):
-        self.assertEqual(self.stage(["Assigned", "Assigned"]), "Assigned")
+        self.assertEqual(self.stage(["Assigned", "Assigned"]), "Fully assigned")
 
     def test_no_assignments(self):
-        self.assertEqual(self.stage(["Awaiting Assignment", "Awaiting Assignment"]), "Awaiting assignment")
+        self.assertEqual(self.stage(["Awaiting Assignment", "Awaiting Assignment"]), "New")
 
     def test_progress_and_completion_require_coverage(self):
         self.assertEqual(self.stage(["Completed", "Assigned"]), "In Progress")

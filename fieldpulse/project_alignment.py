@@ -214,7 +214,7 @@ def fill_field_request(target, source, plan):
     target.field_brief = selected.get("description") or selected["title"]
     target.requires_verified_location = int(bool(source.get("dd_customer_account")))
     sync_locations(target, source, selected)
-    if target.get("scope_confirmed"):
+    if target.get("scout_checks_confirmed"):
         target.alignment_review = int(not target.county or not target.evidence_requirements)
     validate_locations(target)
 
@@ -328,22 +328,15 @@ def rollup_tasks(doc, method=None):
                 frappe.db.set_value("Field Request", request.name, "status", status)
             if request.diaspora_request:
                 source = frappe.get_doc("Diaspora Request", request.diaspora_request)
-                plan = project_plan(source)
-                requests = frappe.get_all("Field Request", filters={"diaspora_request": source.name, "status": ["!=", "Cancelled"]}, fields=["project_id", "project_number", "status"])
-                expected = [project["id"] if source.get("project_contract_version") else project["number"] for project in plan["projects"]]
-                covered = [row.project_id if source.get("project_contract_version") else row.project_number for row in requests]
-                status = "Assigned"
-                all_projects_present = True
-                for number in expected:
-                    if number not in covered:
-                        all_projects_present = False
-                if expected and not plan["issues"] and all_projects_present and requests and all(row.status == "Completed" for row in requests):
-                    status = "Completed"
-                elif any(row.status in ["In Progress", "Completed"] for row in requests):
-                    status = "In Progress"
-                if source.status != "Rejected" and source.status != status:
-                    # Derived aggregate status only, not a general customer-record edit.
-                    frappe.db.set_value("Diaspora Request", source.name, "status", status)
+                sync_request_status(source)
+
+
+def sync_request_status(source):
+    from fieldpulse.customer_requests import customer_stage
+    status = customer_stage(source)
+    if source.status != status:
+        frappe.db.set_value("Diaspora Request", source.name, "status", status)
+    return status
 
 @frappe.whitelist(methods=["POST"])
 def assign_project_scouts(field_request, assignments):
@@ -387,10 +380,7 @@ def assign_project_scouts(field_request, assignments):
         request.status = "Assigned"
         request.save()
     if request.diaspora_request:
-        # Derived workflow status only; no direct customer-record edit permission.
-        status = frappe.db.get_value("Diaspora Request", request.diaspora_request, "status")
-        if status in ["New", "In Review"]:
-            frappe.db.set_value("Diaspora Request", request.diaspora_request, "status", "Assigned")
+        sync_request_status(frappe.get_doc("Diaspora Request", request.diaspora_request))
     return {"tasks": created}
 
 

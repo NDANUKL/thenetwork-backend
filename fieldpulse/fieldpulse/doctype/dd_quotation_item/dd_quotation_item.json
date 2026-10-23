@@ -356,6 +356,15 @@
       "show_dashboard": 0,
       "permlevel": 0,
       "columns": 0
+    },
+    {
+      "fieldname": "agreed_work_deadline",
+      "label": "Agreed work deadline",
+      "fieldtype": "Date",
+      "read_only": 1,
+      "fetch_from": "field_request.deadline",
+      "fetch_if_empty": 0,
+      "in_list_view": 1
     }
   ],
   "links": [],

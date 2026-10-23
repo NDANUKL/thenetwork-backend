@@ -498,7 +498,9 @@
       "fieldname": "tax_inclusive",
       "label": "Entered prices include VAT",
       "fieldtype": "Check",
-      "default": "0"
+      "default": "0",
+      "hidden": 1,
+      "read_only": 1
     },
     {
       "fieldname": "subtotal",
@@ -581,7 +583,7 @@
     },
     {
       "fieldname": "agreed_completion_date",
-      "label": "Proposed completion date",
+      "label": "Agreed work deadline",
       "fieldtype": "Date",
       "search_index": 0,
       "show_dashboard": 0,
@@ -610,7 +612,7 @@
       "allow_bulk_edit": 0,
       "in_standard_filter": 0,
       "in_preview": 0,
-      "read_only": 0,
+      "read_only": 1,
       "precision": "",
       "length": 0,
       "translatable": 0,
@@ -622,7 +624,8 @@
       "sort_options": 0,
       "show_on_timeline": 0,
       "make_attachment_public": 0,
-      "doctype": "DocField"
+      "doctype": "DocField",
+      "description": "Automatically uses the latest agreed deadline among the quoted projects."
     },
     {
       "fieldname": "terms",

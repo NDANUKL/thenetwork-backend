@@ -26,6 +26,13 @@ class AlignmentTests(unittest.TestCase):
         def throw(msg,exc=ValueError): raise exc(msg)
         self.api=types.SimpleNamespace(throw=throw,PermissionError=PermissionError,has_permission=Mock(return_value=True),get_doc=Mock(),get_all=Mock(),utils=types.SimpleNamespace(now=lambda:'2026-10-09',add_days=lambda d,n:date.fromisoformat(d)+timedelta(days=n)),db=types.SimpleNamespace(exists=Mock(return_value=False),get_value=Mock(return_value=None),set_value=Mock()))
         self.m.frappe=self.api
+        self.api.whitelist=lambda **kw:lambda fn:fn
+        from tests.test_native_integration import load
+        ownership=types.SimpleNamespace(owned_api=lambda *a:lambda fn:fn,owned_event=lambda *a:lambda fn:fn)
+        customer=load('alignment_customer_stage','fieldpulse/customer_requests.py',{'frappe':self.api,'fieldpulse.beta_access':types.SimpleNamespace(require_access=lambda n:None),'fieldpulse.native_ownership':ownership})
+        modules=patch.dict(sys.modules,{'fieldpulse.customer_requests':customer,'fieldpulse.project_alignment':self.m})
+        modules.start()
+        self.addCleanup(modules.stop)
         self.source=Doc(name='DD1',creation='2026-10-01 12:00:00',deadline_preference='twoWeeks',category='land_property_check',summary='Project 1: Shop brief\n\nProject 2: Land brief',evidence_checklist=[Doc(evidence_item='Project 1 [SHOP · Garissa]: photos'),Doc(evidence_item='Project 2 [LAND · Nyandarua]: boundary')])
         self.request=Doc(name='FR1',diaspora_request='DD1',project_number=1,project_title='SHOP',county='Garissa',alignment_review=0,status='Awaiting Assignment',priority='Normal',deadline='2026-10-15',evidence_requirements='photos',field_brief='Shop brief',save=Mock())
     def test_projects_isolated(self):
@@ -123,7 +130,7 @@ class AlignmentTests(unittest.TestCase):
 
     def test_partial_and_full_rollup(self):
         self.api.get_doc.side_effect=lambda dt,n:self.request if dt=='Field Request' else self.source
-        for tasks,projects,want in [(['Approved','Assigned'],[(1,'In Progress')],'In Progress'),(['Approved'],[(1,'Completed')],'In Progress'),(['Approved'],[(1,'Completed'),(2,'Completed')],'Completed')]:
+        for tasks,projects,want in [(['Approved','Assigned'],[(1,'In Progress')],'Partially assigned'),(['Approved'],[(1,'Completed')],'Partially assigned'),(['Approved'],[(1,'Completed'),(2,'Completed')],'Completed')]:
             self.api.get_all.side_effect=lambda dt,**kw:[Doc(status=s) for s in tasks] if dt=='Field Task' else [Doc(project_number=n,status=s) for n,s in projects]
             self.api.db.set_value.reset_mock(); self.m.rollup_tasks(Doc(field_request='FR1'))
             calls=self.api.db.set_value.call_args_list

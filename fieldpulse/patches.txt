@@ -12,3 +12,9 @@ fieldpulse.patches.v1_0.create_field_operations_coordinator
 fieldpulse.patches.v1_0.migrate_fp_agents_to_scout_profiles
 fieldpulse.patches.v1_0.migrate_fp_tasks_to_field_tasks
 fieldpulse.patches.v1_0.quotation_payments
+
+fieldpulse.patches.v1_0.refresh_diaspora_request_statuses
+
+fieldpulse.patches.v1_0.simplify_coordinator_checks
+
+fieldpulse.patches.v1_0.assign_readable_task_numbers

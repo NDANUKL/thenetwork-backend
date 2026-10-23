@@ -552,7 +552,7 @@
       "options": "Needs confirmation\nConfirmed for dispatch",
       "search_index": 0,
       "show_dashboard": 0,
-      "hidden": 0,
+      "hidden": 1,
       "set_only_once": 0,
       "allow_in_quick_entry": 0,
       "print_hide": 0,
@@ -578,7 +578,7 @@
       "allow_bulk_edit": 0,
       "in_standard_filter": 0,
       "in_preview": 0,
-      "read_only": 0,
+      "read_only": 1,
       "precision": "",
       "length": 0,
       "translatable": 0,
@@ -838,6 +838,14 @@
       "show_dashboard": 0,
       "permlevel": 0,
       "columns": 0
+    },
+    {
+      "fieldname": "location_verified",
+      "label": "Location verified",
+      "fieldtype": "Check",
+      "default": "0",
+      "in_list_view": 1,
+      "description": "Confirm the precise destination and any meeting arrangements before assigning a scout."
     }
   ],
   "links": [],

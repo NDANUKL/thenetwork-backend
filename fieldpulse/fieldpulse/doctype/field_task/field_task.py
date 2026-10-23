@@ -14,10 +14,14 @@ class FieldTask(Document):
     """A scout allocation created from a Field Request."""
 
     def before_insert(self):
+        from fieldpulse.task_numbers import next_task_number
+        self.task_number = next_task_number()
         self.assigned_at = self.assigned_at or now_datetime()
 
     def validate(self):
         previous = self.get_doc_before_save() if not self.is_new() else None
+        if previous and self.get("task_number") != previous.get("task_number"):
+            frappe.throw("Task numbers cannot be changed")
         if previous and previous.get("questionnaire") == self.get("questionnaire"):
             self.questionnaire_version = previous.get("questionnaire_version")
         else:

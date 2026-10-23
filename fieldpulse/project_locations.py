@@ -44,12 +44,15 @@ def validate_locations(doc):
     previous = doc.get_doc_before_save() if not doc.is_new() else None
     destinations = []
     for site in doc.get("project_locations") or []:
+        if site.get("location_verified") is not None:
+            site.confirmation_status = "Confirmed for dispatch" if site.get("location_verified") else "Needs confirmation"
         prior = next((row for row in previous.get("project_locations") or [] if row.name == site.name), None) if previous else None
         if site.county not in [value.strip() for value in (doc.county or "").split(",")]:
             frappe.throw("County comes from the customer project and cannot be changed here.")
         changed = prior and any(site.get(key) != prior.get(key) for key in ["latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes"])
         if changed and prior.confirmation_status == "Confirmed for dispatch":
             site.confirmation_status = "Needs confirmation"
+            site.location_verified = 0
         if bool(site.latitude) != bool(site.longitude):
             frappe.throw("Enter both latitude and longitude.")
         if site.latitude:

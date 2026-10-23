@@ -78,8 +78,8 @@
         ...states.map(status => {const {f} = filters("tasks"); return frappe.db.count("Field Task", {filters:[...f, ["status", "=", status]]});}),
         waitingQueue(),
         list("available", ["name", "scout_name", "base_county", "activity_status"], "scout_name asc", 3),
-        list("overdue", ["name", "project_title", "county", "scout_profile", "status", "due_at"], "due_at asc", 4),
-        list("submitted", ["name", "project_title", "county", "scout_profile", "status", "due_at"], "submitted_at asc", 4),
+        list("overdue", ["name", "task_number", "project_title", "county", "scout_profile", "status", "due_at"], "due_at asc", 4),
+        list("submitted", ["name", "task_number", "project_title", "county", "scout_profile", "status", "due_at"], "submitted_at asc", 4),
       ]);
       if (version !== generation) return;
       if (results.some(r => r.status === "rejected")) throw new Error("Data unavailable");

@@ -13,7 +13,11 @@ frappe.ui.form.on("Field Request", {
     frm.set_df_property("dd_site_locations", "hidden", 1);
     frm.set_df_property("deadline", "label", "Agreed work deadline");
     frm.set_df_property("deadline", "description", "Copied to the scout task's Due date. Confirm this date when arranging the work.");
-    frm.set_intro(frm.doc.alignment_review ? "This project's scope needs review. Ask the customer for details from the linked Diaspora Request." : "Verify the locations below before assigning scouts. Customer scope and county are taken from the submission.", frm.doc.alignment_review ? "orange" : "blue");
+    const missing = [];
+    if (!frm.doc.county) missing.push("Add the project county.");
+    if (!frm.doc.evidence_requirements) missing.push("Confirm the project's evidence requirements.");
+    if (frm.doc.alignment_review && !missing.length) missing.push("Review the agreed brief and tick Checklist reviewed before assigning a scout.");
+    frm.set_intro(missing.join(" "), "orange");
   },
 });
 
@@ -25,7 +29,7 @@ frappe.ui.form.on("Field Request", {
     frm.set_df_property("priority", "description", "");
     frm.set_df_property("deadline", "description", "");
     frm.set_df_property("status", "description", __("Use Assign scouts to select a Scout Profile and create their Field Task. Changing status alone does not assign a scout."));
-    if (frm.doc.alignment_review) frm.set_intro("Confirm each project's scope and county before assigning scouts.", "orange");
+
     if (frm.is_new() || ["Completed", "Cancelled"].includes(frm.doc.status) || !frm.perm.some(p => p.write)) return;
     frm.add_custom_button(__("Assign scouts"), () => {
       if (frm.is_dirty()) {
@@ -67,7 +71,8 @@ frappe.ui.form.on("Field Request", {
           try {
             const result = await frappe.call({ method: "dd_assign_scouts_without_extra_columns", args: { field_request: frm.doc.name, assignments: JSON.stringify(values.assignments) }, freeze: true });
             dialog.hide();
-            frappe.msgprint(__("Scout tasks: {0}", [result.message.tasks.join(", ")]));
+            const assigned = await frappe.db.get_list("Field Task", {filters: {name: ["in", result.message.tasks]}, fields: ["name", "task_number"], limit: 20});
+            frappe.msgprint(__("Scout tasks: {0}", [assigned.map(task => task.task_number || task.name).join(", ")]));
             await frm.reload_doc();
           } finally { dialog.enable_primary_action(); }
         },

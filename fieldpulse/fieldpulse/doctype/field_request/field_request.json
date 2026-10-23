@@ -221,7 +221,8 @@
       "fieldname": "alignment_review",
       "label": "Project Scope Needs Review",
       "fieldtype": "Check",
-      "read_only": 1
+      "read_only": 1,
+      "hidden": 1
     },
     {
       "label": "Scope confirmed by coordinator",
@@ -238,9 +239,9 @@
       "reqd": 0,
       "unique": 0,
       "is_virtual": 0,
-      "read_only": 0,
+      "read_only": 1,
       "ignore_user_permissions": 0,
-      "hidden": 0,
+      "hidden": 1,
       "print_hide": 0,
       "print_hide_if_no_value": 0,
       "no_copy": 0,
@@ -367,17 +368,17 @@
     },
     {
       "fieldname": "scout_checks",
-      "label": "Selected service checks",
+      "label": "Scout checklist",
       "fieldtype": "Table",
       "options": "DD Scout Check",
-      "description": "Every selected check is required. Keep the service evidence check. Shared questions are included automatically."
+      "description": "Choose what the scout must inspect. Photo/video evidence and common questions remain required."
     },
     {
       "fieldname": "scout_checks_confirmed",
-      "label": "Selected checks match the agreed client request",
+      "label": "Checklist reviewed",
       "fieldtype": "Check",
       "default": "0",
-      "description": "Review the service, retain its mandatory evidence question, hide out-of-scope checks, then confirm before dispatch."
+      "description": "Confirm this checklist covers the agreed client request before assigning a scout."
     }
   ],
   "index_web_pages_for_search": 1,

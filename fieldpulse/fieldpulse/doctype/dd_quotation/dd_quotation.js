@@ -31,8 +31,22 @@ frappe.ui.form.on("DD Quotation", {
   discount_value(frm) { updateDiscountPreview(frm); }
 
 });
+function updateDeadlinePreview(frm) {
+  const rows = frm.doc.items || [];
+  const dates = rows.map(row => row.agreed_work_deadline).filter(Boolean).sort();
+  frm.set_value("agreed_completion_date", dates.length && dates.length === rows.length ? dates[dates.length - 1] : null);
+}
 frappe.ui.form.on("DD Quotation Item", {
-  items_remove(frm) { updateDiscountPreview(frm); },
+  async field_request(frm, cdt, cdn) {
+    const row = locals[cdt][cdn];
+    const selected = row.field_request;
+    const response = selected ? await frappe.db.get_value("Field Request", selected, "deadline") : null;
+    if (row.field_request !== selected) return;
+    await frappe.model.set_value(cdt, cdn, "agreed_work_deadline", response?.message?.deadline || null);
+    updateDeadlinePreview(frm);
+  },
+  agreed_work_deadline(frm) { updateDeadlinePreview(frm); },
+  items_remove(frm) { updateDiscountPreview(frm); updateDeadlinePreview(frm); },
   items_add(frm, cdt, cdn) {
     frappe.model.set_value(cdt, cdn, { quantity: 1, rate: 100 });
     updateDiscountPreview(frm);

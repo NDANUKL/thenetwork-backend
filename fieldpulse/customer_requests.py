@@ -6,7 +6,7 @@ from fieldpulse.native_ownership import owned_event, owned_api
 
 def customer_stage(source):
     """Describe coverage across all projects without changing operational statuses."""
-    if source.status not in ("Assigned", "In Progress", "Completed"):
+    if source.status == "Rejected":
         return source.status
     from fieldpulse.project_alignment import project_plan
     plan = project_plan(source)
@@ -14,13 +14,13 @@ def customer_stage(source):
     key = "project_id" if structured else "project_number"
     expected = {project["id" if structured else "number"] for project in plan["projects"]}
     if not expected:
-        return source.status
+        return "New"
     projects = frappe.get_all("Field Request", filters={"diaspora_request": source.name,
         "status": ["!=", "Cancelled"]}, fields=[key, "status"])
     covered = {project.get(key) for project in projects
         if project.status in ("Assigned", "In Progress", "Completed")}
     if not expected.intersection(covered):
-        return "Awaiting assignment"
+        return "New"
     if plan["issues"] or not expected.issubset(covered):
         return "Partially assigned"
     relevant = [project for project in projects if project.get(key) in expected]
@@ -28,7 +28,7 @@ def customer_stage(source):
         return "Completed"
     if any(project.status in ("In Progress", "Completed") for project in relevant):
         return "In Progress"
-    return "Assigned"
+    return "Fully assigned"
 
 
 @frappe.whitelist()
@@ -47,8 +47,8 @@ def requests(**kwargs):
     require_access(account_name)
 
     def row(item):
-        stage = customer_stage(frappe.get_doc("Diaspora Request", item.name)) if item.status in ("Assigned", "In Progress", "Completed") else item.status
-        actions = {"New": "Our team will review your request.", "In Review": "Our team is reviewing your brief.", "Assigned": "Scouts have been assigned to all projects.", "Partially assigned": "Scouts have been assigned to some projects. Assignment is pending for the remaining projects.", "Awaiting assignment": "Scout assignment is pending.", "In Progress": "Fieldwork is in progress.", "Completed": "The request has been completed.", "Rejected": "Our team will explain the next steps."}
+        stage = customer_stage(frappe.get_doc("Diaspora Request", item.name)) if item.status != "Rejected" else item.status
+        actions = {"New": "Our team will review your request.", "Fully assigned": "Scouts have been assigned to all projects.", "Partially assigned": "Scouts have been assigned to some projects. Assignment is pending for the remaining projects.", "Awaiting assignment": "Scout assignment is pending.", "In Progress": "Fieldwork is in progress.", "Completed": "The request has been completed.", "Rejected": "Our team will explain the next steps."}
         return {"name": item.name, "title": item.summary or item.category_label or "Verification request",
             "status": "Details needed" if item.customer_action_required else stage, "modified": item.modified, "next_action": actions[stage] if stage in ("Partially assigned", "Awaiting assignment") else item.customer_next_action or actions.get(stage, "Our team will update you here.")}
     
@@ -125,6 +125,7 @@ def requests(**kwargs):
                         for key in ["location_mode", "county", "area", "map_url", "latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes"]:
                             site.set(key, location.get(key) or "")
                         site.confirmation_status = "Needs confirmation"
+                        site.location_verified = 0
                         question.location_answer = json.dumps(location)
                         question.answer = "Updated location details for " + site.site_label
                     else:
@@ -229,8 +230,11 @@ def validate_locations(doc, method=None):
         if prior:
             for key in ["latitude", "longitude", "map_url", "pin_type", "contact_name", "contact_phone", "access_notes"]:
                 if site.get(key) != prior.get(key): changed = True
+        if site.get("location_verified") is not None:
+            site.confirmation_status = "Confirmed for dispatch" if site.get("location_verified") else "Needs confirmation"
         if prior and prior.confirmation_status == "Confirmed for dispatch" and changed:
             site.confirmation_status = "Needs confirmation"
+            site.location_verified = 0
         if site.confirmation_status == "Confirmed for dispatch":
             if not site.latitude or not site.longitude or site.pin_type == "Approximate area":
                 frappe.throw("Confirm an entrance or meeting point with coordinates before dispatch")

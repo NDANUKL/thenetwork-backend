@@ -6,6 +6,7 @@ import boto3
 import frappe
 from botocore.client import Config
 from frappe.utils import now_datetime
+from fieldpulse.mobile_datetime import mobile_datetime
 
 
 PRESIGNED_URL_EXPIRY_SECONDS = 15 * 60
@@ -161,7 +162,7 @@ def request_evidence_upload(
                 "original_filename": os.path.basename(filename),
                 "mime_type": mime_type,
                 "file_size": int(file_size),
-                "captured_at": captured_at,
+                "captured_at": mobile_datetime(captured_at),
                 "gps_lat": gps_lat,
                 "gps_lng": gps_lng,
                 "caption": str(caption or "")[:2000],

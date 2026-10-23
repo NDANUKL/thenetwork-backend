@@ -74,14 +74,17 @@ class NativeSourceTests(unittest.TestCase):
             schema = json.loads((ROOT / PLAN['doctypes'][record['name']]).read_text(encoding='utf-8'))
             self.assertEqual(schema['module'], 'FieldPulse')
             self.assertEqual(schema['custom'], 0)
-            self.assertEqual(schema.get('permissions'), record.get('permissions'))
+            self.assertEqual([p for p in schema.get('permissions', []) if not p.get('permlevel')], record.get('permissions'))
             actual = {f['fieldname']: f for f in schema['fields']}
             for field in record['fields'] + [r for r in custom_fields if r['dt'] == record['name']]:
                 # Retired after handover: unused assignment metadata.
                 if record['name'] == 'Field Task' and field['fieldname'] == 'responsibility':
                     self.assertNotIn('responsibility', actual)
                     continue
-                if record['name'] == 'Diaspora Request' and field['fieldname'] in {'customer_location', 'customer_agreed_scope'}:
+                if record['name'] == 'Diaspora Request' and field['fieldname'] in {'customer_location', 'customer_agreed_scope', 'sandbox_testing'}:
+                    self.assertNotIn(field['fieldname'], actual)
+                    continue
+                if record['name'] == 'DD Payment Settings' and field['fieldname'] == 'allow_sandbox_dispatch':
                     self.assertNotIn(field['fieldname'], actual)
                     continue
                 self.assertEqual(actual[field['fieldname']]['fieldtype'], field['fieldtype'])
@@ -110,7 +113,7 @@ class NativeSourceTests(unittest.TestCase):
                 self.assertIn('frm.set_df_property("diaspora_request", "hidden", !frm.doc.diaspora_request)', content)
                 self.assertIn('frm.set_value("source", "Manual")', content)
                 self.assertIn('"diaspora_request", "request_type", "county", "field_brief"', content)
-                self.assertIn('Verify the locations below before assigning scouts.', content)
+                self.assertIn('Add the project county.', content)
             elif record.get('enabled'):
                 self.assertIn('\n'.join(line.strip() for line in record['script'].splitlines() if line.strip()), '\n'.join(line.strip() for line in content.splitlines() if line.strip()))
             else:

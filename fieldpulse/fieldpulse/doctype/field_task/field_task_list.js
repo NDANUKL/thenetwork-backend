@@ -1,6 +1,7 @@
 frappe.listview_settings["Field Task"] = {
   hide_name_filter: true,
-  add_fields: ["field_request", "scout_profile", "status", "submission_review_status", "submission_review_reasons"],
+  hide_name_column: true,
+  add_fields: ["task_number", "field_request", "scout_profile", "status", "submission_review_status", "submission_review_reasons"],
   formatters: {
     submission_review_status(value, df, doc) {
       const escape = frappe.utils.escape_html;
