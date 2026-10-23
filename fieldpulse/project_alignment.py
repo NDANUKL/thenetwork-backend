@@ -210,15 +210,6 @@ def fill_field_request(target, source, plan):
     if initial or target.status == "Awaiting Assignment" and not frappe.db.exists("Field Task", {"field_request": target.name}):
         target.request_type = selected["request_type"]
     target.evidence_requirements = "\n".join(selected["evidence"])
-    if initial or target.status == "Awaiting Assignment" and not frappe.db.exists("Field Task", {"field_request": target.name}):
-        timing = {"flexible": "No fixed customer deadline", "oneWeek": "Within one week of submission", "twoWeeks": "Within two weeks of submission", "specific": "By the customer's selected date"}.get(source.deadline_preference, "")
-        brief = selected.get("description") or ""
-        for paragraph in (source.summary or "").split("\n\n"):
-            if paragraph.strip().lower().startswith("project " + str(number) + ":"):
-                brief = paragraph.strip()
-        if len(plan["projects"]) == 1 and not brief:
-            brief = source.summary or ""
-        target.field_brief = "Project " + str(number) + ": " + selected["title"] + " — " + selected["county"] + "\n\n" + brief + "\n\nEvidence required:\n" + target.evidence_requirements + "\n\nCustomer timing: " + timing + (" (" + plan["deadline"] + ")" if plan["deadline"] else "")
     # The operational brief is the structured scope, not the combined summary.
     target.field_brief = selected.get("description") or selected["title"]
     target.requires_verified_location = int(bool(source.get("dd_customer_account")))
@@ -379,12 +370,11 @@ def assign_project_scouts(field_request, assignments):
         seen.append(scout)
         profile = frappe.get_doc("Scout Profile", scout)
         profile.check_permission("read")
-        responsibility = (assignment.get("responsibility") or "").strip()
         existing = frappe.db.get_value("Field Task", {"field_request": name, "scout_profile": scout, "status": ["not in", ["Cancelled", "Approved"]]}, "name")
         if existing:
             created.append(existing)
         else:
-            task = frappe.get_doc({"doctype": "Field Task", "field_request": name, "scout_profile": scout, "status": "Assigned", "assigned_at": frappe.utils.now(), "responsibility": responsibility, "location": assignment.get("location"), "questionnaire": assignment.get("questionnaire")})
+            task = frappe.get_doc({"doctype": "Field Task", "field_request": name, "scout_profile": scout, "status": "Assigned", "assigned_at": frappe.utils.now(), "location": assignment.get("location"), "questionnaire": assignment.get("questionnaire")})
             if task.questionnaire:
                 task.questionnaire_version = frappe.db.get_value("FP Questionnaire", task.questionnaire, "version")
             task.insert()

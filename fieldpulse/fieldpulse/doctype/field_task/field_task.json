@@ -28,7 +28,6 @@
     "priority",
     "task_brief",
     "evidence_requirements",
-    "responsibility",
     "questionnaire_scope",
     "client_request_snapshot",
     "submission_review_status",
@@ -195,7 +194,7 @@
       "is_virtual": 0,
       "read_only": 1,
       "ignore_user_permissions": 0,
-      "hidden": 0,
+      "hidden": 1,
       "print_hide": 0,
       "print_hide_if_no_value": 0,
       "no_copy": 0,
@@ -222,16 +221,12 @@
       "read_only": 1
     },
     {
-      "fieldname": "responsibility",
-      "label": "Scout Responsibility",
-      "fieldtype": "Small Text"
-    },
-    {
       "fieldname": "questionnaire_scope",
       "label": "Assigned question codes",
       "fieldtype": "Code",
       "options": "JSON",
-      "read_only": 1
+      "read_only": 1,
+      "hidden": 1
     },
     {
       "fieldname": "client_request_snapshot",

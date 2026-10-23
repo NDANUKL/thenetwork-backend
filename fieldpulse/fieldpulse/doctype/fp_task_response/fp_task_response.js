@@ -18,8 +18,19 @@ frappe.ui.form.on("FP Task Response", {
         value.demonstration && "Demonstration: " + value.demonstration].filter(Boolean).join("\n\n");
     };
     const answers = new Map(data.answers.map(a => [a.question, a]));
-    const html = block("Full client request", request.client_request || request.task_scope) + block("Agreed scope", request.agreed_scope || request.task_scope) +
-      block("This taskâ€™s assigned checks", request.task_scope) + block("Request-specific evidence tasks", request.evidence_tasks) +
+    const seenContext = new Set();
+    const context = [
+      ["Full client request", request.client_request || request.task_scope],
+      ["Agreed scope", request.agreed_scope],
+      ["Assigned checks", request.task_scope],
+      ["Request-specific evidence tasks", request.evidence_tasks],
+    ].map(([title, value]) => {
+      const text = String(value || "").trim();
+      if (!text || seenContext.has(text)) return "";
+      seenContext.add(text);
+      return block(title, text);
+    }).join("");
+    const html = context +
       (request.clarifications || []).map(c => block(c.question, c.answer)).join("") +
       block("Arrival check", `${arrival.status || "Not recorded"}\nDistance: ${arrival.distance_m ?? "Unknown"} m\nGPS accuracy: ${arrival.accuracy_m ?? "Unknown"} m\nCaptured: ${arrival.captured_at || "Unknown"}\nException: ${arrival.exception_reason || "None"}`) +
       block("Review status", [data.review_status, data.review_reasons].filter(Boolean).join("\n")) +

@@ -143,14 +143,16 @@
       "label": "Arrival check",
       "fieldtype": "Code",
       "options": "JSON",
-      "read_only": 1
+      "read_only": 1,
+      "hidden": 1
     },
     {
       "fieldname": "final_review_json",
       "label": "Final request review",
       "fieldtype": "Code",
       "options": "JSON",
-      "read_only": 1
+      "read_only": 1,
+      "hidden": 1
     },
     {
       "fieldname": "review_status",

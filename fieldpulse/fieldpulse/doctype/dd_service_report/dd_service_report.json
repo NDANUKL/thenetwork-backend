@@ -387,7 +387,8 @@
       "label": "Reviewed submission references",
       "fieldtype": "Code",
       "options": "JSON",
-      "read_only": 1
+      "read_only": 1,
+      "hidden": 1
     },
     {
       "fieldname": "report_version",

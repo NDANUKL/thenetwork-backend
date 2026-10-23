@@ -5,7 +5,7 @@ let assign;
 let dialog;
 const frappe = {
   boot: { dd_native_handover_active: true },
-  ui: { form: { on: (_name, handlers) => { if (handlers.refresh.toString().includes('Assign scouts')) assign = handlers.refresh; } },
+  ui: { form: { on: (_name, handlers) => { if (handlers.refresh?.toString().includes('Assign scouts')) assign = handlers.refresh; } },
     Dialog: function(options) { Object.assign(this, options); this.fields_dict = {assignments: {grid: {refresh() {}}}}; this.show = () => {}; dialog = this; } },
   db: {get_value: async () => ({message: {scout_name: 'Pauline Wanjiku', base_county: 'Nairobi'}})},
 };

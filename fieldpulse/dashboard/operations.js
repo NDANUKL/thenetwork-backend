@@ -11,10 +11,12 @@
   const counties = "Mombasa|Kwale|Kilifi|Tana River|Lamu|Taita Taveta|Garissa|Wajir|Mandera|Marsabit|Isiolo|Meru|Tharaka Nithi|Embu|Kitui|Machakos|Makueni|Nyandarua|Nyeri|Kirinyaga|Murang'a|Kiambu|Turkana|West Pokot|Samburu|Trans Nzoia|Uasin Gishu|Elgeyo Marakwet|Nandi|Baringo|Laikipia|Nakuru|Narok|Kajiado|Kericho|Bomet|Kakamega|Vihiga|Bungoma|Busia|Siaya|Kisumu|Homa Bay|Migori|Kisii|Nyamira|Nairobi".split("|").sort();
   $("#ops-county").insertAdjacentHTML("beforeend", counties.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(""));
   function filters(kind) {
+    const globalLists = { quotations: "DD Quotation", scout_submissions: "FP Task Response", client_reports: "DD Service Report" };
+    if (globalLists[kind]) return { type: globalLists[kind], f: [] };
     const county = $("#ops-county").value;
     const scout = ["available", "busy", "leave", "inactive", "scouts"].includes(kind);
-    const type = scout ? "Scout Profile" : ["waiting", "requests"].includes(kind) ? "Field Request" : "Field Task";
-    const f = county ? [[scout ? "base_county" : "county", "=", county]] : [];
+    const type = kind === "diaspora_requests" ? "Diaspora Request" : scout ? "Scout Profile" : ["waiting", "requests"].includes(kind) ? "Field Request" : "Field Task";
+    const f = county ? [[scout ? "base_county" : "county", kind === "diaspora_requests" ? "like" : "=", kind === "diaspora_requests" ? `%${county}%` : county]] : [];
     if (kind === "waiting") f.push(["status", "=", "Awaiting Assignment"]);
     if (kind === "active") f.push(["status", "in", active]);
     if (kind === "overdue") f.push(["status", "not in", unfinished], ["due_at", "<", frappe.datetime.now_datetime()]);
@@ -70,7 +72,7 @@
     $(".updated").textContent = "Updating live data…";
     $("[data-action=refresh]").disabled = true;
     try {
-      const keys = ["requests", "waiting", "active", "overdue", "submitted", "available", "busy", "leave", "inactive", "approved"];
+      const keys = ["quotations", "scout_submissions", "client_reports", "diaspora_requests", "waiting", "active", "overdue", "submitted", "available", "busy", "leave", "inactive", "approved"];
       const results = await Promise.allSettled([
         ...keys.map(k => {const {type, f} = filters(k); return frappe.db.count(type, {filters:f});}),
         ...states.map(status => {const {f} = filters("tasks"); return frappe.db.count("Field Task", {filters:[...f, ["status", "=", status]]});}),
@@ -93,7 +95,7 @@
       root.querySelectorAll("[data-count]").forEach(el => el.textContent = "—");
       root.querySelectorAll("[data-rows]").forEach(el => el.innerHTML = el.tagName === "TBODY" ? '<tr><td colspan="4" class="empty">Data unavailable. Try refreshing.</td></tr>' : '<div class="empty">Data unavailable. Try refreshing.</div>');
       $(".capacity-bar").innerHTML = "";
-      $(".error").textContent = "Some operations data could not be loaded. Check your connection and access to Field Requests, Field Tasks and Scout Profiles, then refresh.";
+      $(".error").textContent = "Some operations data could not be loaded. Check your connection and access to the request, task, scout, quotation, submission and report lists, then refresh.";
       $(".error").hidden = false;
       $(".updated").textContent = "Update failed";
     } finally {

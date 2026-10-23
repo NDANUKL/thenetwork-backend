@@ -90,6 +90,23 @@ class AlignmentTests(unittest.TestCase):
         self.api.has_permission.return_value=True; self.request.status='Assigned'; self.api.db.get_value.return_value='EXISTING'
         self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'}]),{'tasks':['EXISTING']})
         self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'},{'scout':'S2'}]),{'tasks':['EXISTING','EXISTING']})
+    def test_assignment_ignores_retired_responsibility_payload(self):
+        self.request.status = 'Assigned'
+        self.request.diaspora_request = None
+        task = Doc(name='TASK-1', insert=Mock())
+        created = []
+        def get_doc(kind, name=None):
+            if isinstance(kind, dict):
+                created.append(kind)
+                return task
+            return self.request if kind == 'Field Request' else Doc(name=name)
+        self.api.get_doc.side_effect = get_doc
+        self.api.db.get_value.return_value = None
+        result = self.m.assign_project_scouts('FR1', [{'scout': 'S1', 'responsibility': 'Old client value'}])
+        self.assertEqual(result, {'tasks': ['TASK-1']})
+        self.assertNotIn('responsibility', created[0])
+        task.insert.assert_called_once()
+
     def test_manual_request_needs_no_customer_project_number(self):
         self.request.diaspora_request=None; self.request.project_number=None
         self.request.status='Assigned'; self.api.get_doc.return_value=self.request

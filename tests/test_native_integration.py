@@ -77,6 +77,10 @@ class NativeSourceTests(unittest.TestCase):
             self.assertEqual(schema.get('permissions'), record.get('permissions'))
             actual = {f['fieldname']: f for f in schema['fields']}
             for field in record['fields'] + [r for r in custom_fields if r['dt'] == record['name']]:
+                # Retired after handover: unused assignment metadata.
+                if record['name'] == 'Field Task' and field['fieldname'] == 'responsibility':
+                    self.assertNotIn('responsibility', actual)
+                    continue
                 self.assertEqual(actual[field['fieldname']]['fieldtype'], field['fieldtype'])
                 self.assertEqual(actual[field['fieldname']].get('options'), field.get('options'))
             self.assertEqual(len(actual), len(schema['fields']))

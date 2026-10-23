@@ -6,13 +6,17 @@
   <div class="toolbar"><div class="scope"><label for="ops-county">Coverage</label><select id="ops-county" aria-label="Filter coverage by county"><option value="">All counties</option></select></div><div class="refresh-area"><span class="updated" role="status">Loading live data…</span><button class="refresh" data-action="refresh" aria-label="Refresh dashboard">↻ Refresh</button></div></div>
   <div class="error" role="alert" hidden></div>
   <section class="metrics" aria-label="Operations summary">
-    <button class="metric" data-list="requests"><span class="metric-label">All requests <span>&#8599;</span></span><strong data-count="requests">&mdash;</strong><span class="metric-note">Field requests across all statuses</span></button>
+    <button class="metric" data-list="diaspora_requests"><span class="metric-label">All requests <span>&#8599;</span></span><strong data-count="diaspora_requests">&mdash;</strong><span class="metric-note">Diaspora requests across all statuses</span></button>
     <button class="metric amber" data-list="waiting"><span class="metric-label">Awaiting assignment <span>↗</span></span><strong data-count="waiting">—</strong><span class="metric-note">Projects waiting for scout allocation</span></button>
     <button class="metric blue" data-list="active"><span class="metric-label">Active fieldwork <span>↗</span></span><strong data-count="active">—</strong><span class="metric-note">Assigned, accepted or in progress</span></button>
     <button class="metric red" data-list="overdue"><span class="metric-label">Overdue tasks <span>↗</span></span><strong data-count="overdue">—</strong><span class="metric-note">Follow up with the assigned scout</span></button>
     <button class="metric green" data-list="submitted"><span class="metric-label">Evidence to review <span>↗</span></span><strong data-count="submitted">—</strong><span class="metric-note">Submitted and awaiting approval</span></button>
   </section>
-  <section class="panel review-reporting" aria-label="Scout submissions and client reports"><div class="panel-head"><div><div class="eyebrow">REVIEW AND REPORTING</div><h2>Scout submissions</h2><p>Compare the complete client request with findings, photos, videos and unresolved checks before approving work.</p></div><div><a class="text-button" href="/app/fp-task-response?status=Submitted">Review scout submissions</a> &middot; <a class="text-button" href="/app/dd-service-report">Client reports</a></div></div></section>
+  <section class="metrics reporting-metrics" aria-label="Quotations, submissions and reports">
+    <button class="metric blue" data-list="quotations"><span class="metric-label">Quotations <span>&#8599;</span></span><strong data-count="quotations">&mdash;</strong><span class="metric-note">All counties &middot; all statuses</span></button>
+    <button class="metric amber" data-list="scout_submissions"><span class="metric-label">Scout submissions <span>&#8599;</span></span><strong data-count="scout_submissions">&mdash;</strong><span class="metric-note">All counties &middot; all statuses</span></button>
+    <button class="metric green" data-list="client_reports"><span class="metric-label">Client reports <span>&#8599;</span></span><strong data-count="client_reports">&mdash;</strong><span class="metric-note">All counties &middot; all statuses</span></button>
+  </section>
   <div class="dashboard-grid">
     <section class="panel queue"><div class="panel-head"><div><div class="eyebrow">DISPATCH</div><h2>Assignment queue <span class="count-pill" data-count="waiting">—</span></h2><p>Urgent requests first. Open a project to assign scouts.</p></div><button class="text-button" data-list="waiting">View all ↗</button></div>
       <div class="table-scroll"><table><thead><tr><th>Project / request</th><th>County</th><th>Target date</th><th>Next step</th></tr></thead><tbody data-rows="queue"><tr><td colspan="4" class="empty">Loading projects…</td></tr></tbody></table></div>

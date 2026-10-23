@@ -31,7 +31,7 @@ class TestFieldRequest(FrappeTestCase):
         first=frappe.get_doc('Field Request',rows[0].name); first.save()
         self.assertEqual(frappe.db.count('Field Request',{'diaspora_request':source.name}),2)
         scouts=[frappe.get_doc(dict(doctype='Scout Profile',scout_name='Alignment '+str(uuid4()),base_county='Garissa',availability_status='Available')).insert() for _ in range(3)]
-        assignments=[dict(scout=scouts[0].name,responsibility='Exterior photographs'),dict(scout=scouts[1].name,responsibility='Inventory observations')]
+        assignments=[dict(scout=scouts[0].name),dict(scout=scouts[1].name)]
         tasks=assign_project_scouts(first.name,json.dumps(assignments))['tasks']
         self.assertEqual(assign_project_scouts(first.name,assignments)['tasks'],tasks)
         task=frappe.get_doc('Field Task',tasks[0])
