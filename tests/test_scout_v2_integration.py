@@ -36,6 +36,25 @@ class InstallationTests(unittest.TestCase):
         self.site.get_doc('FP Questionnaire','DD-land-v2').schema_hash = 'changed'
         with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_templates()
 
+    def test_migration_preserves_published_v2_and_visit_versions(self):
+        self.site.conf['dd_questionnaire_v2_enabled'] = True
+        self.site.logger = MagicMock()
+        spec = importlib.util.spec_from_file_location('legacy_preservation_test', ROOT/'fieldpulse/scout_templates.py')
+        legacy = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {'frappe': self.site}): spec.loader.exec_module(legacy)
+        for workflow, version in ((False, 2), (True, 3)):
+            with self.subTest(version=version):
+                self.site.conf['dd_scout_visit_workflow_enabled'] = workflow
+                self.module.install_templates()
+                doc = self.site.get_doc('FP Questionnaire', f'DD-land-v{version}')
+                doc.schema_hash = 'published-site-hash'
+                before = [dict(q) for q in self.site.get_all('FP Question', {'questionnaire':doc.name})]
+                with patch.dict(sys.modules, {'fieldpulse.scout_templates':legacy}):
+                    self.module.install_templates(preserve_published=True)
+                self.assertEqual(doc.schema_hash, 'published-site-hash')
+                self.assertEqual(before, [dict(q) for q in self.site.get_all('FP Question', {'questionnaire':doc.name})])
+                with self.assertRaisesRegex(ValueError, 'new version'):self.module.install_templates()
+
     def test_same_site_services_share_opening_and_closing(self):
         services = self.module.catalogue()['services'][:2]
         name = self.module.install_service(services)

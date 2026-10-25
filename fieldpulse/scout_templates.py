@@ -4,10 +4,11 @@ import json
 import re
 from pathlib import Path
 import frappe
+from fieldpulse.school_fees import apply_policy, LEGACY_TITLE, TITLE
 
 
 def catalogue():
-    return json.loads((Path(__file__).parent / "configuration/scout-questionnaires.json").read_text(encoding="utf-8"))
+    return apply_policy(json.loads((Path(__file__).parent / "configuration/scout-questionnaires.json").read_text(encoding="utf-8")))
 
 
 SHARED = [
@@ -18,19 +19,32 @@ SHARED = [
 ]
 
 
-def install_templates():
+def preserve_existing_published(name, preserve_published=False):
+    """Migration may retain historical publications, never bless or rewrite drift."""
+    if not preserve_published or frappe.db.get_value('FP Questionnaire', name, 'status') != 'Published':
+        return False
+    frappe.logger('fieldpulse').warning(
+        'Preserved published questionnaire %s: source hash differs. '
+        'No questions or hashes were changed; publish revised content as a new version.', name)
+    return True
+
+
+def install_templates(preserve_published=False):
     data = catalogue()
     for service in data["services"]:
         code = "DD-" + service["service_code"]
-        name = f"{code}-v{data['version']}"
+        version = service.get("questionnaire_version", data["version"])
+        name = f"{code}-v{version}"
         digest = hashlib.sha256(json.dumps(service, sort_keys=True).encode()).hexdigest()
-        existing = frappe.db.exists("FP Questionnaire", name) or frappe.db.get_value("FP Questionnaire", {"questionnaire_code": code, "version": data["version"]}, "name")
+        existing = frappe.db.exists("FP Questionnaire", name) or frappe.db.get_value("FP Questionnaire", {"questionnaire_code": code, "version": version}, "name")
         if existing:
             if frappe.db.get_value("FP Questionnaire", existing, "schema_hash") != digest:
+                if preserve_existing_published(existing, preserve_published):
+                    continue
                 frappe.throw("Questionnaire source changed: publish a new version instead of overwriting " + name)
             continue
         doc = frappe.get_doc(dict(doctype="FP Questionnaire", questionnaire_code=code,
-            title=service["title"], service_code=service["service_code"], version=data["version"],
+            title=service["title"], service_code=service["service_code"], version=version,
             status="Draft", description=service["description"], schema_hash=digest, source_sha256=data["source_sha256"]))
         doc.insert(ignore_permissions=True, set_name=name)
         rows = [dict(code=key, label=label, detail=detail, group="shared", result_options=options) for key, label, options, detail in SHARED]
@@ -48,7 +62,7 @@ def install_templates():
         doc.save(ignore_permissions=True)
     if getattr(frappe, 'conf', {}).get('dd_questionnaire_v2_enabled'):
         from fieldpulse.scout_v2 import install_templates as install_v2
-        install_v2()
+        install_v2(preserve_published=preserve_published)
 
 
 def infer_service(text, request_type=""):
@@ -77,7 +91,8 @@ def infer_service(text, request_type=""):
         if "land" in found and request_type == "Property Verification": return "land"
         if found == {"construction"}: return "construction"
     if "merchant_survey" in found and found <= {"merchant_survey", "business"}: return "merchant_survey"
-    if found.intersection({"adult_enrolment", "university_fees", "adult_attendance", "adult_clinic"}) and not re.search(r"\badult\b|\buniversity\b|\bcollege\b", text): return None
+    if found.intersection({"adult_enrolment", "adult_attendance", "adult_clinic"}) and not re.search(r"\badult\b|\buniversity\b|\bcollege\b", text): return None
+    if "university_fees" in found and found <= {"university_fees", "receipt"} and re.search(r"school|university|college|tuition", text): return "university_fees"
     if len(found) == 1: return next(iter(found))
     if not found and request_type == "Construction Progress": return "construction"
     if not found and request_type == "General Site Visit": return "general_visit"
@@ -85,6 +100,8 @@ def infer_service(text, request_type=""):
 
 
 def prepare_project(doc, method=None):
+    if doc.get("scout_service") == LEGACY_TITLE:
+        doc.scout_service = TITLE
     if not doc.get("scout_service"):
         doc.scout_service = infer_service(doc.get("project_title"), "") or infer_service((doc.get("project_title") or "") + " " + (doc.get("field_brief") or ""), doc.get("request_type"))
     if not doc.get("scout_service"): return
@@ -94,8 +111,8 @@ def prepare_project(doc, method=None):
     code = service["service_code"]
     doc.scout_service = service["title"]
     filters = {"service_code": code, "status": "Published", "project": ["is", "not set"]}
-    if not getattr(frappe, 'conf', {}).get('dd_questionnaire_v2_enabled'): filters['version'] = 1
-    elif not getattr(frappe, 'conf', {}).get('dd_scout_visit_workflow_enabled'): filters['version'] = ['<', 3]
+    if not getattr(frappe, 'conf', {}).get('dd_questionnaire_v2_enabled'): filters['version'] = ['in', [1, 4]] if code == 'university_fees' else 1
+    elif not getattr(frappe, 'conf', {}).get('dd_scout_visit_workflow_enabled'): filters['version'] = ['in', [1, 2, 4, 5]] if code == 'university_fees' else ['<', 3]
     name = frappe.db.get_value("FP Questionnaire", filters, "name", order_by="version desc")
     if not name: frappe.throw("Publish the service questionnaire before dispatch")
     previous_template = doc.get("scout_questionnaire")

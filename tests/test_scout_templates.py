@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).parents[1]
 
@@ -109,6 +109,43 @@ class TemplateInstallTests(unittest.TestCase):
         doc = self.site.get_doc('FP Questionnaire', 'DD-land-v1')
         doc.schema_hash = 'changed'
         with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_templates()
+
+    def test_migration_preserves_published_drift_without_replacing_questions_or_hash(self):
+        doc = self.site.get_doc('FP Questionnaire', 'DD-land-v1')
+        doc.schema_hash = 'historical-production-hash'
+        questions = [dict(row) for row in self.site.get_all('FP Question', {'questionnaire': doc.name})]
+        self.site.logger = MagicMock()
+        self.module.install_templates(preserve_published=True)
+        self.assertEqual(doc.schema_hash, 'historical-production-hash')
+        self.assertEqual(doc.status, 'Published')
+        self.assertEqual([dict(row) for row in self.site.get_all('FP Question', {'questionnaire': doc.name})], questions)
+        self.assertEqual(len(self.site.get_all('FP Questionnaire')), 15)
+        self.site.logger.return_value.warning.assert_called_once()
+        # A successful migration does not approve the drift for explicit publishing.
+        with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_templates()
+
+    def test_migration_still_rejects_conflicting_unpublished_template(self):
+        doc = self.site.get_doc('FP Questionnaire', 'DD-land-v1')
+        doc.schema_hash = 'unknown-hash'
+        doc.status = 'Draft'
+        with self.assertRaisesRegex(ValueError, 'new version'):
+            self.module.install_templates(preserve_published=True)
+
+    def test_after_migrate_selects_preservation_only_for_migration(self):
+        spec = importlib.util.spec_from_file_location('payment_install_test', ROOT / 'fieldpulse/payment_install.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        templates = types.SimpleNamespace(install_templates=MagicMock())
+        with patch.dict(sys.modules, {
+            'fieldpulse.alignment_install': types.SimpleNamespace(sync_dashboard=MagicMock()),
+            'fieldpulse.finance_install': types.SimpleNamespace(install=MagicMock()),
+            'fieldpulse.scout_templates': templates,
+        }):
+            module.after_migrate()
+            templates.install_templates.assert_called_once_with(preserve_published=True)
+            templates.install_templates.reset_mock()
+            module.install()
+            templates.install_templates.assert_called_once_with(preserve_published=False)
 
     def test_dispatch_pins_scope_and_refuses_unconfirmed_checks(self):
         project = self.project()

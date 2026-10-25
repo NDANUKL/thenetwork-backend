@@ -22,8 +22,8 @@ class Site:
         self.flags = types.SimpleNamespace(in_migrate=False,in_install=False)
         self.enqueue = MagicMock()
         self.db = types.SimpleNamespace(sql=MagicMock(return_value=[]), exists=lambda dt,name:(dt,name) in self.docs,
-            get_value=lambda dt,name,field:1, set_value=self.set_value, commit=MagicMock(), count=MagicMock(return_value=0))
-        self.utils = types.SimpleNamespace(now_datetime=lambda:self.clock,get_datetime=lambda value:datetime.fromisoformat(value) if isinstance(value,str) else value)
+            get_value=lambda dt,name,field:'Active' if dt=='DD Recurring Plan' and field=='status' else 1, set_value=self.set_value, commit=MagicMock(), count=MagicMock(return_value=0))
+        self.utils = types.SimpleNamespace(now_datetime=lambda:self.clock,today=lambda:str(self.clock.date()),get_datetime=lambda value:datetime.fromisoformat(value) if isinstance(value,str) else value)
         self.whitelist = lambda **kwargs:lambda function:function
         self.PermissionError = PermissionError
     def throw(self, message, error=ValueError): raise error(message)
@@ -67,14 +67,15 @@ class CustomerNotificationTests(unittest.TestCase):
         values={'details':dict(status='Details needed'), 'quotation':dict(status='Issued',version=1),
             'payment':dict(status='Paid',paid_attempt='ATT-1',kind='deposit',amount=50,currency='USD'),
             'report':dict(status='Approved',report_file='/private/files/report.pdf',report_version=1),
-            'dispute':dict(status='Awaiting customer',response='Please review our response.')}
+            'dispute':dict(status='Awaiting customer',response='Please review our response.'),
+            'recurring':dict(status='Awaiting access',source_request='DD-1',plan='PLAN-1',due_date='2026-11-01',window_end='2026-11-07')}
         return self.site.add(self.module.SOURCE_TYPES[kind],kind.upper(),request='DD-1',**values[kind])
-    def test_all_five_events_queue_after_commit_and_deduplicate(self):
+    def test_all_six_events_queue_after_commit_and_deduplicate(self):
         for kind in self.module.SOURCE_TYPES:
             source=self.source(kind)
             first=self.module.queue_event(kind,source)
             self.assertEqual(first,self.module.queue_event(kind,source))
-        self.assertEqual(self.site.enqueue.call_count,5)
+        self.assertEqual(self.site.enqueue.call_count,6)
         self.assertTrue(all(call.kwargs['enqueue_after_commit'] for call in self.site.enqueue.call_args_list))
     def test_preferences_block_capture_and_delivery(self):
         source=self.source('details')
@@ -185,3 +186,15 @@ class CustomerNotificationTests(unittest.TestCase):
         self.site.enqueue.assert_called_once()
         self.site.enqueue.reset_mock();self.site.flags.in_migrate=True
         self.module.capture(self.source('report'));self.site.enqueue.assert_not_called()
+
+
+    def test_recurring_reminder_uses_portal_plan_link_and_suppresses_paused_plan(self):
+        source=self.source('recurring')
+        msg=self.module.event_message('recurring',source,'DD-1','https://example.com')
+        self.assertIn('/dashboard/recurring/PLAN-1',msg['text'])
+        self.assertIn('2026-11-01',msg['text'])
+        key=self.module.queue_event('recurring',source)
+        self.site.db.get_value=lambda dt,name,field:'Paused' if dt=='DD Recurring Plan' and field=='status' else 1
+        self.module.send(key)
+        self.assertEqual(self.site.docs[self.module.DOCTYPE,key].status,'Skipped')
+        self.http.post.assert_not_called()

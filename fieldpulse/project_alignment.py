@@ -8,6 +8,10 @@ from fieldpulse.project_contract import ProjectContractError, structured_project
 def check_project_access(source):
     # No customer-record role permissions are added. Automation can use an
     # existing operational request only when the caller can write that request.
+    if source.get('recurring_plan') and frappe.flags.get('dd_recurring_write'):
+        from fieldpulse.recurring import require_staff
+        require_staff()
+        return
     allowed = source.has_permission("read")
     if not allowed:
         linked = frappe.get_all("Field Request", filters={"diaspora_request": source.name}, fields=["name"])

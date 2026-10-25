@@ -40,7 +40,9 @@
     "customer_checks_reviewed_by",
     "customer_checks_reviewed_at",
     "scout_checks_reviewed_by",
-    "scout_checks_reviewed_at"
+    "scout_checks_reviewed_at",
+    "recurring_plan",
+    "recurring_template"
   ],
   "fields": [
     {
@@ -371,7 +373,7 @@
       "fieldname": "scout_service",
       "label": "Scout service",
       "fieldtype": "Select",
-      "options": "\nLand or plot check\nProperty or building check\nConstruction progress check\nBusiness or shop check\nVehicle check\nEquipment or funded asset check\nAdult student enrolment check\nUniversity fee payment confirmation\nAdult student attendance check\nAdult clinic visit verification\nDocument comparison and issuer confirmation\nReceipt confirmation\nPurchase or delivery confirmation\nGeneral site visit\nMerchant survey and field interviews"
+      "options": "\nLand or plot check\nProperty or building check\nConstruction progress check\nBusiness or shop check\nVehicle check\nEquipment or funded asset check\nAdult student enrolment check\nSchool fee payment confirmation\nAdult student attendance check\nAdult clinic visit verification\nDocument comparison and issuer confirmation\nReceipt confirmation\nPurchase or delivery confirmation\nGeneral site visit\nMerchant survey and field interviews"
     },
     {
       "fieldname": "scout_questionnaire",
@@ -479,6 +481,23 @@
       "label": "Questionnaire reviewed at",
       "fieldtype": "Datetime",
       "read_only": 1
+    },
+    {
+      "fieldname": "recurring_plan",
+      "label": "Recurring Plan",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "DD Recurring Plan",
+      "no_copy": 1
+    },
+    {
+      "fieldname": "recurring_template",
+      "label": "Recurring Template",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "FP Questionnaire",
+      "hidden": 1,
+      "no_copy": 1
     }
   ],
   "index_web_pages_for_search": 1,

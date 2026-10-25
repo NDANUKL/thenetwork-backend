@@ -85,3 +85,10 @@ for _finance_doctype, _finance_query in {
 
 for _finance_child in ('DD Payout Allocation','DD Budget Line'):
     has_permission[_finance_child]='fieldpulse.finance_documents.child_permission'
+
+# Recurring scopes never bypass the existing quote, deposit, location or scout-pay gates.
+doc_events['Diaspora Request']['before_save'].append('fieldpulse.recurring.guard_request')
+doc_events['Field Request']['before_save'].append('fieldpulse.recurring.guard_project')
+scheduler_events['cron']['*/5 * * * *'].append('fieldpulse.recurring.process_due')
+
+doc_events.setdefault('DD Recurring Occurrence', {})['on_update']='fieldpulse.customer_notifications.capture'

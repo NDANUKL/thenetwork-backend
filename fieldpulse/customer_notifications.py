@@ -11,14 +11,20 @@ import frappe
 from fieldpulse.beta_access import access_status
 
 DOCTYPE = "DD Customer Notification"
-SOURCE_TYPES = {"details": "DD Request Details", "quotation": "DD Quotation", "payment": "DD Payment", "report": "DD Service Report", "dispute": "DD Dispute"}
+SOURCE_TYPES = {"details": "DD Request Details", "quotation": "DD Quotation", "payment": "DD Payment", "report": "DD Service Report", "dispute": "DD Dispute", "recurring": "DD Recurring Occurrence"}
 
 
 def digest(value):
     return hashlib.sha256(str(value).encode("utf-8")).hexdigest()
 
 
+def request_reference(doc):
+    return doc.get('source_request') if doc.get('doctype') == 'DD Recurring Occurrence' else doc.request
+
+
 def current_event(kind, doc):
+    if kind == "recurring":
+        return doc.status == 'Awaiting access' and frappe.db.get_value('DD Recurring Plan',doc.plan,'status') == 'Active' and str(doc.window_end) >= str(frappe.utils.today())
     if kind == "details": return doc.status == "Details needed" and not doc.get("email_sent_at")
     if kind == "quotation": return doc.status == "Issued"
     if kind == "report": return doc.status == "Approved" and bool(doc.get("report_file"))
@@ -30,6 +36,7 @@ def current_event(kind, doc):
 
 
 def revision(kind, doc):
+    if kind == "recurring": return str(frappe.db.get_value("DD Recurring Plan",doc.plan,"modified"))
     if kind == "dispute": return digest((doc.response or "").strip())
     if kind == "payment": return doc.get("paid_attempt") or ""
     return str(doc.get("version") or doc.get("report_version") or 1)
@@ -43,7 +50,7 @@ def eligible(account):
 
 def queue_event(kind, doc):
     if not frappe.conf.get("dd_native_handover_approved") or not current_event(kind, doc): return None
-    request = frappe.get_doc("Diaspora Request", doc.request)
+    request = frappe.get_doc("Diaspora Request", request_reference(doc))
     if not request.get("dd_customer_account"): return None
     account = frappe.get_doc("DD Customer Account", request.dd_customer_account)
     if not eligible(account): return None
@@ -86,6 +93,14 @@ def event_message(kind, doc, reference, origin):
         "report": ("Your verification report is ready", "Your approved report is ready to download. Review it before paying the remaining balance. If anything needs attention, you can raise a dispute from your request.", f"/dashboard/requests/{reference_path}#report", "Review your report"),
         "dispute": ("A response to your dispute", "Our team has responded to your dispute. Open it to read the reply and any next steps.", f"/dashboard/disputes/{quote(doc.name, safe='')}", "Read the response"),
     }
+    if kind == "recurring":
+        title, body, path, label = ("Confirm access for your upcoming check",
+            f"Your recurring visit is scheduled for {doc.due_date} to {doc.window_end}. Confirm access and review the arrangements. Each visit needs its own accepted quotation and verified deposit before dispatch.",
+            f"/dashboard/recurring/{quote(doc.plan,safe='')}", "Review upcoming check")
+        values = dict(origin=origin, title=title, eyebrow="RECURRING CHECK", preheader=title,
+            body=body,link=origin+path,label=label,note="Manage your recurring plan and email preferences from your dashboard.")
+        shell=json.loads((Path(__file__).parent / "templates/emails/dd_shell.json").read_text(encoding="utf-8"))
+        return {"subject":title,"html":re.sub(r"{{(\w+)}}",lambda m:escape(values[m[1]],quote=True),shell),"text":body+"\n\n"+values['link']}
     if kind == "payment":
         from fieldpulse.payment_receipts import verified_attempt
         attempt = verified_attempt(doc)
@@ -125,7 +140,7 @@ def send(notification):
     doc = frappe.get_doc(record.source_type, record.source_name)
     request = frappe.get_doc("Diaspora Request", record.request)
     account = frappe.get_doc("DD Customer Account", record.customer_account)
-    if (doc.request != record.request or request.dd_customer_account != account.name or not eligible(account)
+    if (request_reference(doc) != record.request or request.dd_customer_account != account.name or not eligible(account)
             or not current_event(record.kind, doc) or revision(record.kind, doc) != record.source_revision):
         frappe.db.set_value(DOCTYPE, record.name, "status", "Skipped")
         return

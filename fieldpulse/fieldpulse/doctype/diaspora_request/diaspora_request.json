@@ -30,7 +30,10 @@
     "alignment_review",
     "county",
     "project_details",
-    "project_contract_version"
+    "project_contract_version",
+    "recurring_plan",
+    "recurring_occurrence",
+    "recurring_source"
   ],
   "fields": [
     {
@@ -459,6 +462,31 @@
       "show_dashboard": 0,
       "permlevel": 0,
       "columns": 0
+    },
+    {
+      "fieldname": "recurring_plan",
+      "label": "Recurring Plan",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "DD Recurring Plan",
+      "no_copy": 1
+    },
+    {
+      "fieldname": "recurring_occurrence",
+      "label": "Recurring Occurrence",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "DD Recurring Occurrence",
+      "unique": 1,
+      "no_copy": 1
+    },
+    {
+      "fieldname": "recurring_source",
+      "label": "Recurring Source",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "Diaspora Request",
+      "no_copy": 1
     }
   ],
   "index_web_pages_for_search": 1,

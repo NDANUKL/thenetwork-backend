@@ -4,13 +4,14 @@ import hashlib
 import json
 from pathlib import Path
 import frappe
+from fieldpulse.school_fees import apply_policy
 from fieldpulse.scout_library import (SHARED_V2, CLOSING_V2, decode, resolve_config,
     validate_config, required_evidence, visible)
 
 
 def catalogue():
     version = 3 if workflow_enabled() else 2
-    return json.loads((Path(__file__).parent / f'configuration/scout-questionnaires-v{version}.json').read_text(encoding='utf-8'))
+    return apply_policy(json.loads((Path(__file__).parent / f'configuration/scout-questionnaires-v{version}.json').read_text(encoding='utf-8')))
 
 
 def workflow_enabled():
@@ -28,26 +29,31 @@ def library_options():
     return dict(enabled=enabled(), services=[dict(code=s['service_code'], title=s['title']) for s in catalogue()['services']])
 
 
-def install_templates():
+def install_templates(preserve_published=False):
     """Opt-in installation only; never changes existing project/task pins."""
     if not enabled(): return
-    for service in catalogue()['services']: install_service([service])
+    for service in catalogue()['services']: install_service([service], preserve_published=preserve_published)
 
 
-def install_service(services):
+def install_service(services, preserve_published=False):
     data = catalogue()
     combined = len(services) > 1
     identity_data = dict(services=services, shared=SHARED_V2, closing=CLOSING_V2, source_sha256=data['source_sha256'])
     if data.get('visit_workflow_version'): identity_data.update(visit_workflow_version=data['visit_workflow_version'], policy_sha256=data['policy_sha256'])
     identity = hashlib.sha256(json.dumps(identity_data, sort_keys=True).encode()).hexdigest()
     code = 'DD-bundle-' + identity[:16] if combined else 'DD-' + services[0]['service_code']
-    name = code + '-v' + str(data['version'])
+    version = max([data['version']] + [s.get('questionnaire_version', data['version']) for s in services])
+    name = code + '-v' + str(version)
     if frappe.db.exists('FP Questionnaire', name):
-        if frappe.db.get_value('FP Questionnaire', name, 'schema_hash') != identity: frappe.throw('Publish a new version; questionnaire source changed')
+        if frappe.db.get_value('FP Questionnaire', name, 'schema_hash') != identity:
+            if preserve_published:
+                from fieldpulse.scout_templates import preserve_existing_published
+                if preserve_existing_published(name, preserve_published): return name
+            frappe.throw('Publish a new version; questionnaire source changed')
         return name
     doc = frappe.get_doc(dict(doctype='FP Questionnaire', questionnaire_code=code,
         title=' / '.join(s['title'] for s in services), service_code=services[0]['service_code'],
-        version=data['version'], status='Draft', description='\n\n'.join(s['description'] for s in services),
+        version=version, status='Draft', description='\n\n'.join(s['description'] for s in services),
         schema_hash=identity, source_sha256=data['source_sha256']))
     doc.insert(ignore_permissions=True, set_name=name)
     rows = [dict(q, group='shared') for q in SHARED_V2]

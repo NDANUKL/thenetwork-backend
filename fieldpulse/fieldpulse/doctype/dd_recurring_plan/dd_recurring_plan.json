@@ -1,0 +1,183 @@
+{
+  "doctype": "DocType",
+  "name": "DD Recurring Plan",
+  "module": "FieldPulse",
+  "autoname": "hash",
+  "engine": "InnoDB",
+  "track_changes": 1,
+  "field_order": [
+    "title",
+    "status",
+    "source_request",
+    "customer_account",
+    "frequency",
+    "first_visit",
+    "last_visit",
+    "visit_count",
+    "window_days",
+    "review_notes",
+    "approved_by",
+    "approved_at",
+    "scope_section",
+    "scope_snapshot",
+    "scope_hash",
+    "submission_id",
+    "creation_hash",
+    "history",
+    "service_category"
+  ],
+  "fields": [
+    {
+      "fieldname": "title",
+      "label": "Title",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "read_only": 1,
+      "options": "Pending review\nActive\nPaused\nCancelled\nDeclined\nCompleted",
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "source_request",
+      "label": "Source Request",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "Diaspora Request",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "customer_account",
+      "label": "Customer Account",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "DD Customer Account",
+      "reqd": 1
+    },
+    {
+      "fieldname": "frequency",
+      "label": "Frequency",
+      "fieldtype": "Select",
+      "read_only": 1,
+      "options": "Monthly\nEvery 3 months\nSpecific dates",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "first_visit",
+      "label": "First Visit",
+      "fieldtype": "Date",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "last_visit",
+      "label": "Last Visit",
+      "fieldtype": "Date",
+      "read_only": 1
+    },
+    {
+      "fieldname": "visit_count",
+      "label": "Visit Count",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "window_days",
+      "label": "Window Days",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "review_notes",
+      "label": "Review Notes",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_by",
+      "label": "Approved By",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "User"
+    },
+    {
+      "fieldname": "approved_at",
+      "label": "Approved At",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "scope_section",
+      "label": "Approved source scope",
+      "fieldtype": "Section Break",
+      "read_only": 1,
+      "collapsible": 1
+    },
+    {
+      "fieldname": "scope_snapshot",
+      "label": "Scope Snapshot",
+      "fieldtype": "Code",
+      "read_only": 1,
+      "options": "JSON"
+    },
+    {
+      "fieldname": "scope_hash",
+      "label": "Scope Hash",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "submission_id",
+      "label": "Submission Id",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "creation_hash",
+      "label": "Creation Hash",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "history",
+      "label": "Decision history",
+      "fieldtype": "Code",
+      "read_only": 1,
+      "options": "JSON"
+    },
+    {
+      "fieldname": "service_category",
+      "label": "Service category",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_standard_filter": 1,
+      "in_list_view": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1,
+      "export": 1,
+      "print": 1
+    },
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "export": 1,
+      "print": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC"
+}
