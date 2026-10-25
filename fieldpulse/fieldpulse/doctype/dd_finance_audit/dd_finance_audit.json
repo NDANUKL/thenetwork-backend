@@ -1,0 +1,71 @@
+{
+  "doctype": "DocType",
+  "name": "DD Finance Audit",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "reference_doctype",
+      "label": "Record type",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "reference_name",
+      "label": "Record",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "action",
+      "label": "Action",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "actor",
+      "label": "Actor",
+      "fieldtype": "Link",
+      "options": "User",
+      "reqd": 1
+    },
+    {
+      "fieldname": "recorded_at",
+      "label": "Recorded at",
+      "fieldtype": "Datetime",
+      "reqd": 1
+    },
+    {
+      "fieldname": "details",
+      "label": "Audit details",
+      "fieldtype": "Code",
+      "options": "JSON"
+    }
+  ],
+  "field_order": [
+    "reference_doctype",
+    "reference_name",
+    "action",
+    "actor",
+    "recorded_at",
+    "details"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DFA-{#####}",
+  "title_field": "name"
+}

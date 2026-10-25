@@ -1,0 +1,9 @@
+{
+  "doctype": "Page",
+  "name": "dd-finance",
+  "page_name": "dd-finance",
+  "title": "Scout Finance",
+  "module": "FieldPulse",
+  "standard": "Yes",
+  "roles": [{"role": "Finance"}, {"role": "System Manager"}]
+}

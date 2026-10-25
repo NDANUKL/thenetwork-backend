@@ -32,7 +32,16 @@
     "questionnaire_scope",
     "client_request_snapshot",
     "submission_review_status",
-    "submission_review_reasons"
+    "submission_review_reasons",
+    "rework_type",
+    "rework_questions_json",
+    "rework_response",
+    "replaces_task",
+    "replacement_task",
+    "rework_source_response",
+    "rework_assignment_reason",
+    "revisit_request",
+    "finance_offer"
   ],
   "fields": [
     {
@@ -94,7 +103,7 @@
       "fieldtype": "Select",
       "in_list_view": 1,
       "label": "Status",
-      "options": "Assigned\nAccepted\nIn Progress\nSubmitted\nApproved\nRejected\nCancelled",
+      "options": "Assigned\nAccepted\nIn Progress\nSubmitted\nApproved\nRejected\nCancelled\nAwaiting authorization",
       "reqd": 1,
       "in_standard_filter": 1
     },
@@ -264,6 +273,67 @@
       "fieldtype": "Small Text",
       "read_only": 1,
       "in_list_view": 0
+    },
+    {
+      "fieldname": "rework_type",
+      "label": "Rework type",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "rework_questions_json",
+      "label": "Questions requiring rework",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "rework_response",
+      "label": "Rework response",
+      "fieldtype": "Link",
+      "options": "FP Task Response",
+      "read_only": 1
+    },
+    {
+      "fieldname": "replaces_task",
+      "label": "Replaces task",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "Field Task"
+    },
+    {
+      "fieldname": "replacement_task",
+      "label": "Replacement task",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "Field Task"
+    },
+    {
+      "fieldname": "rework_source_response",
+      "label": "Revisit source submission",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "FP Task Response"
+    },
+    {
+      "fieldname": "rework_assignment_reason",
+      "label": "Reason for reassignment",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "revisit_request",
+      "label": "Revisit authorization",
+      "fieldtype": "Link",
+      "options": "DD Revisit Request",
+      "read_only": 1
+    },
+    {
+      "fieldname": "finance_offer",
+      "label": "Accepted scout fee arrangement",
+      "fieldtype": "Link",
+      "options": "DD Scout Offer",
+      "read_only": 1
     }
   ],
   "index_web_pages_for_search": 1,
@@ -309,6 +379,11 @@
     {
       "read": 1,
       "role": "Field Agent"
+    },
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1
     }
   ],
   "sort_field": "modified",

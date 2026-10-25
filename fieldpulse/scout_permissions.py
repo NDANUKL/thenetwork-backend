@@ -10,6 +10,8 @@ def staff(user):
 
 def record_permission(doc, user=None, ptype=None, debug=False):
     user = user or frappe.session.user
+    if doc.doctype == 'Field Task' and 'Finance' in frappe.get_roles(user) and ptype in (None, 'read', 'select', 'report'):
+        return None
     if staff(user): return None
     scout = frappe.db.exists("Scout Profile", {"user": user})
     if not scout: return False
@@ -25,6 +27,7 @@ def record_permission(doc, user=None, ptype=None, debug=False):
 
 def condition_for(doctype, user=None):
     user = user or frappe.session.user
+    if doctype == 'Field Task' and 'Finance' in frappe.get_roles(user): return ''
     if staff(user): return ""
     scout = frappe.db.exists("Scout Profile", {"user": user})
     if not scout: return "1=0"

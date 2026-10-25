@@ -20,6 +20,10 @@ class FieldTask(Document):
 
     def validate(self):
         previous = self.get_doc_before_save() if not self.is_new() else None
+        if self.is_new() and self.get('replaces_task') and frappe.flags.dd_replacement_source != self.replaces_task:
+            frappe.throw('Use the coordinator rework action to create a replacement assignment')
+        if previous and self.get('replaces_task') != previous.get('replaces_task'):
+            frappe.throw('Replacement assignment provenance cannot be changed')
         if previous and self.get("task_number") != previous.get("task_number"):
             frappe.throw("Task numbers cannot be changed")
         if previous and previous.get("questionnaire") == self.get("questionnaire"):
@@ -33,6 +37,8 @@ class FieldTask(Document):
             if self.status == "Approved" and previous.status != "Approved":
                 if not frappe.db.exists("FP Task Response", {"task": self.name, "status": "Submitted", "qa_status": "Passed", "reviewed_by": ["is", "set"]}):
                     frappe.throw("Review and approve the scout submission before completing this task")
+        if previous and previous.scout_profile != self.scout_profile and (previous.get('rework_response') or previous.get('revisit_request')):
+            frappe.throw('A rework response belongs to its assigned scout; create a separate revisit assignment instead')
         self._validate_scout_assignment(previous)
         self._apply_status_transition(previous)
 
@@ -61,11 +67,25 @@ class FieldTask(Document):
 
         old_status = previous.status
         if self.status == "Cancelled":
+            if old_status == 'Awaiting authorization' and self.get('revisit_request'):
+                revisit_status = frappe.db.get_value('DD Revisit Request', self.revisit_request, 'status')
+                if revisit_status in ('Awaiting authorization', 'Authorized') and frappe.flags.dd_authorized_revisit != self.revisit_request:
+                    frappe.throw('Close or dispatch the pending revisit authorization before cancelling its task')
             if old_status == "Approved":
                 frappe.throw("An approved task cannot be cancelled")
             return
 
+        if self.status == 'Awaiting authorization':
+            if old_status != 'Submitted' or not frappe.flags.dd_pending_revisit_response:
+                frappe.throw('Use the submission review to record a revisit request')
+            self.rework_count = (previous.rework_count or 0) + 1
+            return
+        if old_status == 'Awaiting authorization':
+            if self.status != 'In Progress' or not self.get('revisit_request') or frappe.flags.dd_authorized_revisit != self.revisit_request:
+                frappe.throw('Authorize and dispatch the revisit before restarting work')
+            return
         if self.status == "Rejected":
+            if self.get('rework_type') == 'Return to site': frappe.throw('Site revisits require authorization before dispatch')
             if old_status != "Submitted":
                 frappe.throw("Only a submitted task can be rejected for rework")
             self.status = "In Progress"

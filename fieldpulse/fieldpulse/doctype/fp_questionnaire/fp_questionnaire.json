@@ -14,7 +14,9 @@
     "schema_hash",
     "published_at",
     "service_code",
-    "source_sha256"
+    "source_sha256",
+    "project",
+    "base_questionnaire"
   ],
   "fields": [
     {
@@ -77,6 +79,20 @@
       "fieldtype": "Data",
       "read_only": 1,
       "hidden": 1
+    },
+    {
+      "fieldname": "project",
+      "label": "Project-specific questionnaire",
+      "fieldtype": "Link",
+      "options": "Field Request",
+      "read_only": 1
+    },
+    {
+      "fieldname": "base_questionnaire",
+      "label": "Source template",
+      "fieldtype": "Link",
+      "options": "FP Questionnaire",
+      "read_only": 1
     }
   ],
   "index_web_pages_for_search": 1,

@@ -74,7 +74,13 @@ class NativeSourceTests(unittest.TestCase):
             schema = json.loads((ROOT / PLAN['doctypes'][record['name']]).read_text(encoding='utf-8'))
             self.assertEqual(schema['module'], 'FieldPulse')
             self.assertEqual(schema['custom'], 0)
-            self.assertEqual([p for p in schema.get('permissions', []) if not p.get('permlevel')], record.get('permissions'))
+            # The new Finance role is an additive, read-only grant on operational
+            # records. Preserve every audited role and its existing permissions.
+            permissions = [p for p in schema.get('permissions', []) if not p.get('permlevel')]
+            self.assertEqual([p for p in permissions if p.get('role') != 'Finance'], record.get('permissions'))
+            for permission in permissions:
+                if permission.get('role') == 'Finance':
+                    self.assertEqual(permission, {'role': 'Finance', 'read': 1, 'report': 1})
             actual = {f['fieldname']: f for f in schema['fields']}
             for field in record['fields'] + [r for r in custom_fields if r['dt'] == record['name']]:
                 # Retired after handover: unused assignment metadata.

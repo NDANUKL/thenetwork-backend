@@ -1,0 +1,129 @@
+{
+  "doctype": "DocType",
+  "name": "DD Scout Expense",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "offer",
+      "label": "Accepted arrangement",
+      "fieldtype": "Link",
+      "options": "DD Scout Offer",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "client_uuid",
+      "label": "Client request ID",
+      "fieldtype": "Data",
+      "unique": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Draft\nSubmitted\nApproved\nRejected",
+      "default": "Draft",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "kind",
+      "label": "Expense type",
+      "fieldtype": "Select",
+      "options": "Travel\nExpense",
+      "reqd": 1
+    },
+    {
+      "fieldname": "currency",
+      "label": "Currency",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "amount",
+      "label": "Claimed amount",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "reqd": 1
+    },
+    {
+      "fieldname": "description",
+      "label": "Expense and business purpose",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "evidence",
+      "label": "Private supporting evidence",
+      "fieldtype": "Attach"
+    },
+    {
+      "fieldname": "alternative_evidence",
+      "label": "Authorised alternative evidence / reference",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "review_notes",
+      "label": "Approval / rejection reason",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "approved_by",
+      "label": "Approved by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_at",
+      "label": "Approved at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    }
+  ],
+  "field_order": [
+    "offer",
+    "client_uuid",
+    "status",
+    "kind",
+    "currency",
+    "amount",
+    "description",
+    "evidence",
+    "alternative_evidence",
+    "review_notes",
+    "approved_by",
+    "approved_at"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Field Agent",
+      "read": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DSE-{#####}",
+  "title_field": "name",
+  "protect_attached_files": 1,
+  "make_attachments_public": 0
+}

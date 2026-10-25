@@ -1,0 +1,133 @@
+{
+  "doctype": "DocType",
+  "name": "DD Finance Case",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "request",
+      "label": "Client request",
+      "fieldtype": "Link",
+      "options": "Diaspora Request",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "dispute",
+      "label": "Service issue / external chargeback",
+      "fieldtype": "Link",
+      "options": "DD Dispute"
+    },
+    {
+      "fieldname": "task",
+      "label": "Affected assignment",
+      "fieldtype": "Link",
+      "options": "Field Task"
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Proposed\nApproved\nClosed",
+      "default": "Proposed",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "kind",
+      "label": "Case",
+      "fieldtype": "Select",
+      "options": "Cancellation\nRework\nGateway chargeback\nRecovery / wrong recipient\nOther",
+      "reqd": 1
+    },
+    {
+      "fieldname": "stage",
+      "label": "Cancellation / work stage",
+      "fieldtype": "Select",
+      "options": "Pre-quote\nQuote accepted before deposit\nDeposit before dispatch\nScout en route\nFailed access\nPartial work\nCompleted work\nNo suitable scout\nOther",
+      "reqd": 1
+    },
+    {
+      "fieldname": "decision",
+      "label": "Decision, rationale and financial effect",
+      "fieldtype": "Long Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "scout_compensation",
+      "label": "Agreed scout compensation treatment",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "pause_dispatch",
+      "label": "Pause new assignments / checkout",
+      "fieldtype": "Check",
+      "default": "1"
+    },
+    {
+      "fieldname": "next_update",
+      "label": "Next update due",
+      "fieldtype": "Datetime"
+    },
+    {
+      "fieldname": "handler",
+      "label": "Assigned handler",
+      "fieldtype": "Link",
+      "options": "User"
+    },
+    {
+      "fieldname": "approved_by",
+      "label": "Approved by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_at",
+      "label": "Approved at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    }
+  ],
+  "field_order": [
+    "request",
+    "dispute",
+    "task",
+    "status",
+    "kind",
+    "stage",
+    "decision",
+    "scout_compensation",
+    "pause_dispatch",
+    "next_update",
+    "handler",
+    "approved_by",
+    "approved_at"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DFC-{#####}",
+  "title_field": "name",
+  "protect_attached_files": 1,
+  "make_attachments_public": 0
+}

@@ -232,6 +232,9 @@ def accept_quote(reference, quote, version, submission_id):
     return {'success': True}
 
 def checkout(reference, payment, submission_id, return_origin=None):
+    if getattr(frappe,'conf',{}).get('dd_finance_enabled') in (True,1,'1'):
+        from fieldpulse.finance import assert_customer_open
+        assert_customer_open(reference)
     request = _owned(reference)
     _lock('Diaspora Request', request.name)
     obligation = frappe.get_doc('DD Payment', payment)

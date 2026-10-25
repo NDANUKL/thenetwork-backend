@@ -1,0 +1,222 @@
+{
+  "doctype": "DocType",
+  "name": "DD Customer Refund",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "payment",
+      "label": "Original completed payment",
+      "fieldtype": "Link",
+      "options": "DD Payment",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "request",
+      "label": "Client request",
+      "fieldtype": "Link",
+      "options": "Diaspora Request",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "dispute",
+      "label": "Service issue / resolution",
+      "fieldtype": "Link",
+      "options": "DD Dispute"
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Requested\nApproved\nProvider pending\nConfirmed\nFailed",
+      "default": "Requested",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "currency",
+      "label": "Original payment currency",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "amount",
+      "label": "Refund amount",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "reqd": 1
+    },
+    {
+      "fieldname": "original_method",
+      "label": "Verified original payment method",
+      "fieldtype": "Select",
+      "options": "Card\nMobile money",
+      "reqd": 1
+    },
+    {
+      "fieldname": "route",
+      "label": "Execution route",
+      "fieldtype": "Select",
+      "options": "Pesapal\nProvider-approved alternative",
+      "default": "Pesapal",
+      "reqd": 1
+    },
+    {
+      "fieldname": "reason",
+      "label": "Decision and remedy rationale",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "provider_approval_reference",
+      "label": "Provider approval / exposure-resolution reference",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "provider_approval_evidence",
+      "label": "Private provider approval evidence",
+      "fieldtype": "Attach"
+    },
+    {
+      "fieldname": "alternative_exposure_cleared",
+      "label": "Original gateway refund/chargeback exposure resolved",
+      "fieldtype": "Check"
+    },
+    {
+      "fieldname": "independent_reviewer",
+      "label": "Independent alternative-route reviewer",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "independent_review_at",
+      "label": "Independent review at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "independent_review_notes",
+      "label": "Independent review notes",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "provider_reference",
+      "label": "Provider case / confirmation reference",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "confirmation_evidence",
+      "label": "Actual refund confirmation evidence",
+      "fieldtype": "Attach",
+      "read_only": 1
+    },
+    {
+      "fieldname": "credit_reference",
+      "label": "Accounting credit document reference",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "service_component",
+      "label": "Service revenue credited (excludes tax)",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2"
+    },
+    {
+      "fieldname": "conversion_rate",
+      "label": "Units of reporting currency per unit",
+      "fieldtype": "Float",
+      "precision": "8"
+    },
+    {
+      "fieldname": "rate_date",
+      "label": "Conversion-rate date",
+      "fieldtype": "Date"
+    },
+    {
+      "fieldname": "approved_by",
+      "label": "Approved by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_at",
+      "label": "Approved at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "confirmed_at",
+      "label": "Refund confirmed at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "independent_review_hash",
+      "label": "Independently reviewed terms",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    }
+  ],
+  "field_order": [
+    "payment",
+    "request",
+    "dispute",
+    "status",
+    "currency",
+    "amount",
+    "original_method",
+    "route",
+    "reason",
+    "provider_approval_reference",
+    "provider_approval_evidence",
+    "alternative_exposure_cleared",
+    "independent_reviewer",
+    "independent_review_at",
+    "independent_review_notes",
+    "provider_reference",
+    "confirmation_evidence",
+    "credit_reference",
+    "service_component",
+    "conversion_rate",
+    "rate_date",
+    "approved_by",
+    "approved_at",
+    "confirmed_at",
+    "independent_review_hash"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DCR-{#####}",
+  "title_field": "name",
+  "protect_attached_files": 1,
+  "make_attachments_public": 0
+}

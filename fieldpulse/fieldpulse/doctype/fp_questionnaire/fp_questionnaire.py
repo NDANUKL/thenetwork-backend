@@ -8,6 +8,21 @@ class FPQuestionnaire(Document):
             from fieldpulse.scout_templates import SHARED
             rows = frappe.get_all("FP Question", filters={"questionnaire": self.name, "active": 1}, fields=["question_code", "question_type", "required", "validation_json"])
             codes = [row.question_code for row in rows]
+            if rows and all(json.loads(row.validation_json or '{}').get('protocol_version') == 2 for row in rows):
+                from fieldpulse.scout_library import validate_config
+                from fieldpulse.scout_library import SHARED_V2
+                if len(codes) != len(set(codes)) or not {'S1', 'S2', 'S_EXTRA'}.issubset(codes) or {'S3', 'S4'}.intersection(codes):
+                    frappe.throw('Version 2 requires two unique opening questions and one optional closing question')
+                for row in rows:
+                    config = json.loads(row.validation_json)
+                    try: validate_config(config)
+                    except ValueError as error: frappe.throw(str(error))
+                    expected = next((shared for shared in SHARED_V2 if shared['code'] == row.question_code), None)
+                    if row.question_type != 'service_check' or config.get('group') not in {'shared','service','final'}: frappe.throw('Use structured version 2 service questions')
+                    if expected and (config.get('group') != 'shared' or config.get('result_options') != expected['result_options']): frappe.throw('Keep the version 2 opening outcomes')
+                    if row.question_code == 'S_EXTRA' and (config.get('group') != 'final' or not config.get('optional') or row.required): frappe.throw('The closing question must remain optional')
+                self._validate_published_identity()
+                return
             if len(codes) != len(set(codes)) or not {"S1", "S2", "S3", "S4", "S_EXTRA"}.issubset(codes):
                 frappe.throw("Retain unique shared visit questions and the final additional-evidence question")
             mandatory = 0
@@ -22,16 +37,19 @@ class FPQuestionnaire(Document):
                     frappe.throw("Every displayed service check must require an answer")
                 if config.get("group") == "service" and config.get("mandatory_evidence"): mandatory += 1
             if mandatory != 1: frappe.throw("Retain exactly one mandatory photo-and-video service question")
-        if not self.is_new() and self.get("service_code"):
-            old = self.get_doc_before_save()
-            if old and old.get("published_at"):
-                for key in ("title", "description", "version", "service_code", "questionnaire_code", "source_sha256", "schema_hash"):
-                    if self.get(key) != old.get(key):
-                        frappe.throw("Published service templates are immutable; create a new version")
+        self._validate_published_identity()
         if not self.is_new():
             old_status = frappe.db.get_value("FP Questionnaire", self.name, "status")
             if old_status == "Published" and self.status == "Published":
                 self._block_content_edits_once_published()
+
+    def _validate_published_identity(self):
+        if not self.is_new() and self.get("service_code"):
+            old = self.get_doc_before_save()
+            if old and old.get("published_at"):
+                for key in ("title", "description", "version", "service_code", "questionnaire_code", "source_sha256", "schema_hash", "project", "base_questionnaire"):
+                    if self.get(key) != old.get(key):
+                        frappe.throw("Published service templates are immutable; create a new version")
 
     def _block_content_edits_once_published(self):
         old = frappe.get_doc("FP Questionnaire", self.name)

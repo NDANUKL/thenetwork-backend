@@ -1,0 +1,613 @@
+{
+  "base": {
+    "protocol_version": 2,
+    "group": "service",
+    "answer_type": "single",
+    "result_options": [
+      "Yes",
+      "No",
+      "Unable to check"
+    ],
+    "evidence": []
+  },
+  "cases": [
+    {
+      "name": "opening yes needs no repeated text",
+      "code": "S1",
+      "config": {
+        "group": "shared",
+        "text_when": [
+          "No",
+          "Unable to check"
+        ]
+      },
+      "answer": {
+        "result": "Yes"
+      },
+      "valid": true
+    },
+    {
+      "name": "opening issue needs explanation",
+      "code": "S1",
+      "config": {
+        "group": "shared",
+        "text_when": [
+          "No"
+        ]
+      },
+      "answer": {
+        "result": "No"
+      },
+      "valid": false
+    },
+    {
+      "name": "missing answer",
+      "answer": {},
+      "valid": false
+    },
+    {
+      "name": "unknown option",
+      "answer": {
+        "result": "invented"
+      },
+      "valid": false
+    },
+    {
+      "name": "photo missing",
+      "config": {
+        "evidence": [
+          {
+            "id": "overview",
+            "kind": "Photo",
+            "subject": "Plot overview"
+          }
+        ]
+      },
+      "answer": {
+        "result": "Yes"
+      },
+      "valid": false
+    },
+    {
+      "name": "photo exception permits review but does not fulfil",
+      "config": {
+        "evidence": [
+          {
+            "id": "overview",
+            "kind": "Photo",
+            "subject": "Plot overview"
+          }
+        ]
+      },
+      "answer": {
+        "result": "Yes",
+        "exceptions": {
+          "1.1::overview": {
+            "reason": "Permission refused"
+          }
+        }
+      },
+      "valid": true,
+      "review": true,
+      "states": [
+        "Unavailable"
+      ]
+    },
+    {
+      "name": "other exception needs detail",
+      "config": {
+        "evidence": [
+          {
+            "id": "overview",
+            "kind": "Photo",
+            "subject": "Plot overview"
+          }
+        ]
+      },
+      "answer": {
+        "result": "Yes",
+        "exceptions": {
+          "1.1::overview": {
+            "reason": "Other"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "wrong exception reason",
+      "config": {
+        "evidence": [
+          {
+            "id": "overview",
+            "kind": "Photo",
+            "subject": "Plot overview"
+          }
+        ]
+      },
+      "answer": {
+        "result": "Yes",
+        "exceptions": {
+          "1.1::overview": {
+            "reason": "Do not want to"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "no conditional photo for negative answer",
+      "config": {
+        "evidence": [
+          {
+            "id": "issue",
+            "kind": "Photo",
+            "subject": "Issue close-up",
+            "when": [
+              "Yes"
+            ]
+          }
+        ]
+      },
+      "answer": {
+        "result": "No"
+      },
+      "valid": true,
+      "states": []
+    },
+    {
+      "name": "stale exception rejected",
+      "answer": {
+        "result": "Yes",
+        "exceptions": {
+          "1.1::old": {
+            "reason": "Permission refused"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "reuse access explanation",
+      "answer": {
+        "result": "Unable to check",
+        "explanation_ref": "S2"
+      },
+      "answers": {
+        "S2": {
+          "result": "No access",
+          "text": "Office locked"
+        }
+      },
+      "valid": true,
+      "review": true
+    },
+    {
+      "name": "cannot reuse a successful access answer as explanation",
+      "answer": {
+        "result": "Unable to check",
+        "explanation_ref": "S2"
+      },
+      "answers": {
+        "S2": {
+          "result": "Full access",
+          "text": "Open"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "skip service when site not found",
+      "answer": {},
+      "answers": {
+        "S1": {
+          "site_not_found": true
+        }
+      },
+      "valid": true,
+      "skipped": true
+    },
+    {
+      "name": "merchant refusal skips interview",
+      "code": "15.4",
+      "answer": {},
+      "answers": {
+        "15.1": {
+          "result": "Eligible but declined"
+        }
+      },
+      "valid": true,
+      "skipped": true
+    },
+    {
+      "name": "merchant declined needs no repeated explanation",
+      "code": "15.1",
+      "config": {
+        "result_options": [
+          "Eligible and agreed",
+          "Eligible but declined",
+          "Not eligible",
+          "Unable to establish eligibility"
+        ]
+      },
+      "answer": {
+        "result": "Eligible but declined"
+      },
+      "valid": true,
+      "review": true
+    },
+    {
+      "name": "no payment record skips details",
+      "code": "8.2",
+      "config": {
+        "record_gate": true
+      },
+      "answer": {},
+      "answers": {
+        "8.1": {
+          "result": "No matching record found"
+        }
+      },
+      "valid": true,
+      "skipped": true
+    },
+    {
+      "name": "two checklist rows require separate answers",
+      "config": {
+        "answer_type": "checklist",
+        "items": [
+          {
+            "id": "a",
+            "label": "Pump"
+          },
+          {
+            "id": "b",
+            "label": "Generator"
+          }
+        ]
+      },
+      "answer": {
+        "items": {
+          "a": {
+            "result": "Yes"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "one image supports two assigned items",
+      "config": {
+        "answer_type": "checklist",
+        "items": [
+          {
+            "id": "a",
+            "label": "Pump"
+          },
+          {
+            "id": "b",
+            "label": "Generator"
+          }
+        ],
+        "evidence": [
+          {
+            "id": "photo",
+            "kind": "Photo",
+            "subject": "Present asset"
+          }
+        ]
+      },
+      "answer": {
+        "items": {
+          "a": {
+            "result": "Yes"
+          },
+          "b": {
+            "result": "Yes"
+          }
+        },
+        "evidence_links": [
+          {
+            "attachment_id": "shared",
+            "requirement_id": "1.1:a:photo",
+            "support_note": "Pump at left"
+          },
+          {
+            "attachment_id": "shared",
+            "requirement_id": "1.1:b:photo",
+            "support_note": "Generator at right"
+          }
+        ]
+      },
+      "bank": [
+        {
+          "attachment_id": "shared",
+          "kind": "Photo",
+          "caption": "Both assigned assets"
+        }
+      ],
+      "valid": true,
+      "states": [
+        "Attached",
+        "Attached"
+      ]
+    },
+    {
+      "name": "wrong media cannot fulfil photo",
+      "config": {
+        "evidence": [
+          {
+            "id": "photo",
+            "kind": "Photo",
+            "subject": "Asset"
+          }
+        ]
+      },
+      "answer": {
+        "result": "Yes",
+        "evidence_links": [
+          {
+            "attachment_id": "clip",
+            "requirement_id": "1.1::photo",
+            "support_note": "Asset"
+          }
+        ]
+      },
+      "bank": [
+        {
+          "attachment_id": "clip",
+          "kind": "Video",
+          "caption": "Asset"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "not demonstrated explanation",
+      "config": {
+        "answer_type": "checklist",
+        "items": [
+          {
+            "id": "a",
+            "label": "Pump",
+            "demonstration_required": true
+          }
+        ]
+      },
+      "answer": {
+        "items": {
+          "a": {
+            "result": "Yes",
+            "demonstration": "Not demonstrated"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "blocked service explanation",
+      "answer": {
+        "blocked": true,
+        "explanation_ref": "S2"
+      },
+      "answers": {
+        "S2": {
+          "result": "Partial access",
+          "text": "Store room inaccessible"
+        }
+      },
+      "valid": true,
+      "review": true
+    },
+    {
+      "name": "opening cannot be bypassed with blocked flag",
+      "code": "S1",
+      "config": {
+        "group": "shared"
+      },
+      "answer": {
+        "blocked": true,
+        "text": "skip"
+      },
+      "valid": false
+    },
+    {
+      "name": "authorisation dispute pauses authorised checks",
+      "config": {
+        "authorisation_required": true
+      },
+      "answer": {},
+      "answers": {
+        "S2": {
+          "result": "Full access",
+          "authorisation_disputed": true,
+          "text": "Office disputes consent"
+        }
+      },
+      "valid": true,
+      "skipped": true
+    },
+    {
+      "name": "custom not applicable requires coordinator permission",
+      "config": {
+        "answer_type": "custom",
+        "result_options": [
+          "Checked",
+          "Not applicable"
+        ],
+        "items": [
+          {
+            "id": "a",
+            "label": "Approved question",
+            "evidence": []
+          }
+        ]
+      },
+      "answer": {
+        "items": {
+          "a": {
+            "result": "Not applicable"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "negative quantity rejected",
+      "config": {
+        "answer_type": "checklist",
+        "items": [
+          {
+            "id": "a",
+            "label": "Goods",
+            "quantity_required": true
+          }
+        ]
+      },
+      "answer": {
+        "items": {
+          "a": {
+            "result": "Yes",
+            "quantity": "-2"
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "reported information requires source role",
+      "config": {
+        "result_options": [
+          "Reported"
+        ]
+      },
+      "answer": {
+        "result": "Reported"
+      },
+      "valid": false
+    },
+    {
+      "name": "written document link accepted",
+      "config": {
+        "evidence": [
+          {
+            "id": "record",
+            "kind": "Document",
+            "subject": "Approved written confirmation"
+          }
+        ]
+      },
+      "answer": {
+        "result": "Yes",
+        "evidence_links": [
+          {
+            "attachment_id": "document",
+            "requirement_id": "1.1::record",
+            "support_note": "Approved institutional confirmation"
+          }
+        ]
+      },
+      "bank": [
+        {
+          "attachment_id": "document",
+          "kind": "Document",
+          "caption": "Written confirmation"
+        }
+      ],
+      "valid": true,
+      "states": [
+        "Attached"
+      ]
+    },
+    {
+      "name": "confirmation required for later confirmed checklist field",
+      "code": "8.2",
+      "config": {
+        "answer_type": "checklist",
+        "result_options": [
+          "Matches",
+          "Not confirmed"
+        ],
+        "items": [
+          {
+            "id": "date",
+            "label": "Date"
+          },
+          {
+            "id": "amount",
+            "label": "Amount"
+          }
+        ],
+        "evidence": [
+          {
+            "id": "confirmation",
+            "kind": "Document",
+            "subject": "Approved fields",
+            "once": true
+          }
+        ]
+      },
+      "answer": {
+        "items": {
+          "date": {
+            "result": "Not confirmed",
+            "text": "Unavailable"
+          },
+          "amount": {
+            "result": "Matches"
+          }
+        },
+        "exceptions": {
+          "8.2::confirmation": {
+            "reason": "Permission refused"
+          }
+        }
+      },
+      "valid": true,
+      "review": true,
+      "states": [
+        "Unavailable"
+      ]
+    },
+    {
+      "name": "representative unavailable is an explained limitation without invented role",
+      "config": {
+        "result_options": [
+          "Answered",
+          "No representative available or willing to answer"
+        ],
+        "source_required": true,
+        "text_when": [
+          "Answered"
+        ]
+      },
+      "answer": {
+        "result": "No representative available or willing to answer"
+      },
+      "valid": true,
+      "review": true
+    },
+    {
+      "name": "recorded merchant profile requires its actual detail",
+      "config": {
+        "result_options": [
+          "Recorded",
+          "Unable to check"
+        ],
+        "confirmed_detail": true
+      },
+      "answer": {
+        "result": "Recorded"
+      },
+      "valid": false
+    },
+    {
+      "name": "business identity difference requires details",
+      "answer": {
+        "result": "Yes",
+        "identity_differs": true
+      },
+      "valid": false
+    }
+  ]
+}

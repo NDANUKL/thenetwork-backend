@@ -1,0 +1,193 @@
+{
+  "doctype": "DocType",
+  "name": "DD Scout Offer",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "project",
+      "label": "Project",
+      "fieldtype": "Link",
+      "options": "Field Request",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "scout",
+      "label": "Scout",
+      "fieldtype": "Link",
+      "options": "Scout Profile",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "revisit",
+      "label": "Authorised rework / revisit",
+      "fieldtype": "Link",
+      "options": "DD Revisit Request"
+    },
+    {
+      "fieldname": "task",
+      "label": "Assignment",
+      "fieldtype": "Link",
+      "options": "Field Task",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Draft\nIssued\nAccepted\nDeclined\nWithdrawn",
+      "default": "Draft",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "currency",
+      "label": "Currency",
+      "fieldtype": "Data",
+      "default": "KES",
+      "reqd": 1
+    },
+    {
+      "fieldname": "fee",
+      "label": "Agreed task fee",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "reqd": 1
+    },
+    {
+      "fieldname": "travel_basis",
+      "label": "Travel basis",
+      "fieldtype": "Select",
+      "options": "No travel\nFixed allowance\nReimburse approved actuals",
+      "default": "No travel",
+      "reqd": 1
+    },
+    {
+      "fieldname": "travel_amount",
+      "label": "Travel allowance / reimbursement cap",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2"
+    },
+    {
+      "fieldname": "advance_limit",
+      "label": "Approved travel advance limit",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2"
+    },
+    {
+      "fieldname": "expense_conditions",
+      "label": "Expense approval conditions",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "payout_terms",
+      "label": "Payout timing and dispute treatment",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "due_days",
+      "label": "Days after work approval",
+      "fieldtype": "Int",
+      "reqd": 1,
+      "default": "7"
+    },
+    {
+      "fieldname": "valid_until",
+      "label": "Accept before",
+      "fieldtype": "Date",
+      "reqd": 1
+    },
+    {
+      "fieldname": "terms_hash",
+      "label": "Accepted terms hash",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "accepted_by",
+      "label": "Accepted by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "accepted_at",
+      "label": "Accepted at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "decision_notes",
+      "label": "Withdrawal / decline reason",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "conversion_rate",
+      "label": "Units of reporting currency per unit",
+      "fieldtype": "Float",
+      "precision": "8"
+    },
+    {
+      "fieldname": "rate_date",
+      "label": "Agreed/accounting conversion-rate date",
+      "fieldtype": "Date"
+    }
+  ],
+  "field_order": [
+    "project",
+    "scout",
+    "revisit",
+    "task",
+    "status",
+    "currency",
+    "fee",
+    "travel_basis",
+    "travel_amount",
+    "advance_limit",
+    "expense_conditions",
+    "payout_terms",
+    "due_days",
+    "valid_until",
+    "terms_hash",
+    "accepted_by",
+    "accepted_at",
+    "decision_notes",
+    "conversion_rate",
+    "rate_date"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Field Agent",
+      "read": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DSO-{#####}",
+  "title_field": "name"
+}

@@ -6,31 +6,40 @@
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [
-    "client_uuid",
+    "response_overview",
     "task",
     "agent",
     "location",
+    "overview_column",
     "status",
     "started_at",
     "submitted_at",
+    "coordinator_review",
+    "qa_status",
+    "review_status",
+    "review_reasons",
+    "rejection_reason",
+    "reviewed_by",
+    "reviewed_at",
+    "review_notes",
+    "scout_submission",
+    "submission_review",
+    "technical_details",
+    "client_uuid",
     "client_updated_at",
     "device_id",
     "app_version",
+    "technical_column",
     "latitude",
     "longitude",
     "accuracy_m",
     "geofence_status",
     "geofence_distance_m",
-    "qa_status",
-    "rejection_reason",
     "arrival_check_json",
     "final_review_json",
-    "review_status",
-    "review_reasons",
-    "reviewed_by",
-    "reviewed_at",
-    "review_notes",
-    "submission_review"
+    "rework_of",
+    "rework_type",
+    "rework_questions_json"
   ],
   "fields": [
     {
@@ -39,7 +48,8 @@
       "in_list_view": 1,
       "label": "Client UUID",
       "reqd": 1,
-      "unique": 1
+      "unique": 1,
+      "read_only": 1
     },
     {
       "fieldname": "task",
@@ -47,7 +57,8 @@
       "in_list_view": 1,
       "label": "Field Task",
       "options": "Field Task",
-      "reqd": 1
+      "reqd": 1,
+      "read_only": 1
     },
     {
       "fieldname": "agent",
@@ -55,13 +66,15 @@
       "in_list_view": 1,
       "label": "Scout Profile",
       "options": "Scout Profile",
-      "reqd": 1
+      "reqd": 1,
+      "read_only": 1
     },
     {
       "fieldname": "location",
       "fieldtype": "Link",
       "label": "Location",
-      "options": "FP Location"
+      "options": "FP Location",
+      "read_only": 1
     },
     {
       "default": "Draft",
@@ -70,55 +83,65 @@
       "in_list_view": 1,
       "label": "Status",
       "options": "Draft\nSubmitted\nAccepted\nRejected",
-      "reqd": 1
+      "reqd": 1,
+      "read_only": 1
     },
     {
       "fieldname": "started_at",
       "fieldtype": "Datetime",
-      "label": "Started At"
+      "label": "Started At",
+      "read_only": 1
     },
     {
       "fieldname": "submitted_at",
       "fieldtype": "Datetime",
-      "label": "Submitted At"
+      "label": "Submitted At",
+      "read_only": 1
     },
     {
       "fieldname": "client_updated_at",
       "fieldtype": "Datetime",
       "label": "Client Updated At",
-      "reqd": 1
+      "reqd": 1,
+      "read_only": 1
     },
     {
       "fieldname": "device_id",
       "fieldtype": "Data",
-      "label": "Device ID"
+      "label": "Device ID",
+      "read_only": 1
     },
     {
       "fieldname": "app_version",
       "fieldtype": "Data",
-      "label": "App Version"
+      "label": "App Version",
+      "read_only": 1
     },
     {
       "fieldname": "latitude",
       "fieldtype": "Float",
-      "label": "Latitude"
+      "label": "Latitude",
+      "read_only": 1
     },
     {
       "fieldname": "longitude",
       "fieldtype": "Float",
-      "label": "Longitude"
+      "label": "Longitude",
+      "read_only": 1
     },
     {
       "fieldname": "accuracy_m",
       "fieldtype": "Float",
-      "label": "Accuracy M"
+      "label": "Accuracy M",
+      "read_only": 1
     },
     {
       "default": "Unknown",
       "fieldname": "geofence_status",
       "fieldtype": "Select",
       "label": "Geofence Status",
-      "options": "Unknown\nInside\nOutside\nInvalid GPS"
+      "options": "Unknown\nInside\nOutside\nInvalid GPS",
+      "read_only": 1
     },
     {
       "fieldname": "geofence_distance_m",
@@ -131,12 +154,14 @@
       "fieldname": "qa_status",
       "fieldtype": "Select",
       "label": "QA Status",
-      "options": "Pending\nPassed\nFailed\nNeeds Review"
+      "options": "Pending\nPassed\nFailed\nNeeds Review",
+      "read_only": 1
     },
     {
       "fieldname": "rejection_reason",
       "fieldtype": "Small Text",
-      "label": "Rejection Reason"
+      "label": "Rejection Reason",
+      "read_only": 1
     },
     {
       "fieldname": "arrival_check_json",
@@ -191,6 +216,55 @@
       "fieldname": "submission_review",
       "label": "Submission and evidence",
       "fieldtype": "HTML"
+    },
+    {
+      "fieldname": "response_overview",
+      "fieldtype": "Section Break",
+      "label": "Submission overview"
+    },
+    {
+      "fieldname": "overview_column",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "coordinator_review",
+      "fieldtype": "Section Break",
+      "label": "Coordinator review"
+    },
+    {
+      "fieldname": "scout_submission",
+      "fieldtype": "Section Break",
+      "label": "Scout submission and evidence"
+    },
+    {
+      "fieldname": "technical_details",
+      "fieldtype": "Section Break",
+      "label": "Technical details",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "technical_column",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "rework_of",
+      "label": "Revision of submission",
+      "fieldtype": "Link",
+      "options": "FP Task Response",
+      "read_only": 1
+    },
+    {
+      "fieldname": "rework_type",
+      "label": "Rework type",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "rework_questions_json",
+      "label": "Questions requiring rework",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
     }
   ],
   "index_web_pages_for_search": 1,

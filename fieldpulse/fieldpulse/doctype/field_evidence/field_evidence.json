@@ -21,7 +21,11 @@
     "upload_status",
     "etag",
     "caption",
-    "accuracy_m"
+    "accuracy_m",
+    "metadata_origin",
+    "location_sampled_at",
+    "description",
+    "clarification_required"
   ],
   "fields": [
     {
@@ -139,6 +143,29 @@
       "label": "Capture accuracy (m)",
       "fieldtype": "Float",
       "read_only": 1
+    },
+    {
+      "fieldname": "metadata_origin",
+      "label": "Evidence origin",
+      "fieldtype": "Select",
+      "options": "\nCamera\nImported document",
+      "read_only": 1
+    },
+    {
+      "fieldname": "location_sampled_at",
+      "label": "GPS sampled at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "description",
+      "label": "Subject or issue detail",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "clarification_required",
+      "label": "Subject needs clarification",
+      "fieldtype": "Check"
     }
   ],
   "index_web_pages_for_search": 1,

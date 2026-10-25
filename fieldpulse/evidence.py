@@ -75,7 +75,13 @@ def _validate_question_response(question_response, field_task, evidence_type):
         frappe.throw("Question Response does not belong to this Field Task", frappe.PermissionError)
 
     if question.question_type == "service_check":
-        if evidence_type not in {"Photo", "Video"}:
+        import json
+        config = json.loads(question.validation_json or '{}')
+        if config.get('visit_workflow_version') == 2:
+            from fieldpulse.scout_visit import require_verified_arrival
+            require_verified_arrival(frappe.get_doc('FP Task Response', response.task_response), frappe.get_doc('Field Task', field_task))
+        allowed = {'Photo', 'Video', 'Document'} if config.get('protocol_version') == 2 else {'Photo', 'Video'}
+        if evidence_type not in allowed:
             frappe.throw("Service checks accept photos and videos only")
         expected_evidence_type = evidence_type
     else:
@@ -117,6 +123,10 @@ def request_evidence_upload(
     gps_lng=None,
     caption=None,
     accuracy_m=None,
+    metadata_origin=None,
+    location_sampled_at=None,
+    description=None,
+    clarification_required=0,
 ):
     """Create/reuse evidence metadata and return a short-lived R2 PUT URL."""
     if not client_uuid:
@@ -133,7 +143,18 @@ def request_evidence_upload(
     scout_profile = _current_scout()
     _assert_scout_owns_task(field_task, scout_profile)
     if question_response:
-        _validate_question_response(question_response, field_task, evidence_type)
+        answer = _validate_question_response(question_response, field_task, evidence_type)
+        from fieldpulse.scout_visit import strict
+        task = frappe.get_doc('Field Task', field_task)
+        if task.get('rework_type') == 'Correct answers' and evidence_type in {'Photo','Video'}:
+            frappe.throw('Answer corrections cannot collect new site evidence; request an authorized revisit')
+        if task.get('rework_type') == 'Return to site' and task.get('rework_response') and evidence_type in {'Photo', 'Video'}:
+            from fieldpulse.scout_rework import require_fresh_capture
+            require_fresh_capture(frappe.get_doc('FP Task Response', task.rework_response), captured_at)
+        if strict(task):
+            if evidence_type in {'Photo','Video'} and metadata_origin != 'Camera': frappe.throw('Use the on-site camera for visit photos and videos')
+            if evidence_type == 'Document' and (metadata_origin != 'Imported document' or any(value is not None for value in (captured_at,gps_lat,gps_lng,accuracy_m,location_sampled_at))):
+                frappe.throw('Imported documents must not claim an on-site capture time or GPS position')
     if evidence_type in {"Photo", "Video"} and not mime_type.startswith("image/" if evidence_type == "Photo" else "video/"):
         frappe.throw("Evidence media type does not match its content type")
     if question_response and frappe.db.get_value("FP Question Response", question_response, "question_type") == "service_check" and not (caption and str(caption).strip()):
@@ -167,12 +188,16 @@ def request_evidence_upload(
                 "gps_lng": gps_lng,
                 "caption": str(caption or "")[:2000],
                 "accuracy_m": accuracy_m,
+                "metadata_origin": metadata_origin,
+                "location_sampled_at": mobile_datetime(location_sampled_at),
+                "description": str(description or '')[:2000],
+                "clarification_required": int(str(clarification_required).lower() in {'1','true'}),
                 "upload_status": "Pending",
             }
         )
         evidence.insert(ignore_permissions=True)
 
-    if frappe.db.get_value("Field Task", field_task, "status") in ("Submitted", "Approved", "Cancelled"):
+    if frappe.db.get_value("Field Task", field_task, "status") in ("Submitted", "Approved", "Cancelled", "Awaiting authorization"):
         frappe.throw("Evidence is frozen after submission; request rework", frappe.PermissionError)
 
     upload_url = _r2_client(settings).generate_presigned_url(
@@ -208,7 +233,7 @@ def confirm_evidence_upload(evidence_id, etag):
     _assert_scout_owns_task(evidence.field_task, scout_profile)
     if evidence.upload_status == "Uploaded":
         return {"evidence_id": evidence.name, "upload_status": "Uploaded", "etag": evidence.etag}
-    if frappe.db.get_value("Field Task", evidence.field_task, "status") in ("Submitted", "Approved", "Cancelled"):
+    if frappe.db.get_value("Field Task", evidence.field_task, "status") in ("Submitted", "Approved", "Cancelled", "Awaiting authorization"):
         frappe.throw("Evidence is frozen after submission; request rework", frappe.PermissionError)
     settings = _r2_settings()
     try:
@@ -244,10 +269,12 @@ def confirm_evidence_upload(evidence_id, etag):
 @frappe.whitelist()
 def get_evidence_view_url(evidence_id):
     """Return a short-lived GET URL to an authorized Desk user."""
-    if not EVIDENCE_VIEW_ROLES.intersection(frappe.get_roles()):
-        frappe.throw("Not permitted to view field evidence", frappe.PermissionError)
-
     evidence = frappe.get_doc("Field Evidence", evidence_id)
+    if not EVIDENCE_VIEW_ROLES.intersection(frappe.get_roles()):
+        scout = _current_scout()
+        if evidence.scout != scout:
+            frappe.throw("Not permitted to view field evidence", frappe.PermissionError)
+        _assert_scout_owns_task(evidence.field_task, scout)
     if evidence.upload_status != "Uploaded":
         frappe.throw("Evidence is not available for viewing")
     settings = _r2_settings()

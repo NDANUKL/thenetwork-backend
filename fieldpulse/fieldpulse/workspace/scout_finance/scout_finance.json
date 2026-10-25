@@ -1,0 +1,82 @@
+{
+  "doctype": "Workspace",
+  "name": "Scout Finance",
+  "label": "Scout Finance",
+  "title": "Scout Finance",
+  "module": "FieldPulse",
+  "public": 1,
+  "is_hidden": 0,
+  "icon": "money-coins",
+  "roles": [
+    {
+      "role": "Finance"
+    },
+    {
+      "role": "System Manager"
+    }
+  ],
+  "content": "[{\"id\": \"finance-shortcuts\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Finance overview\", \"col\": 4}}]",
+  "shortcuts": [
+    {
+      "label": "Finance overview",
+      "type": "URL",
+      "url": "/app/dd-finance",
+      "color": "Green"
+    },
+    {
+      "label": "Task Budget",
+      "type": "DocType",
+      "link_to": "DD Task Budget",
+      "doc_view": "List"
+    },
+    {
+      "label": "Scout Offer",
+      "type": "DocType",
+      "link_to": "DD Scout Offer",
+      "doc_view": "List"
+    },
+    {
+      "label": "Scout Payout",
+      "type": "DocType",
+      "link_to": "DD Scout Payout",
+      "doc_view": "List"
+    },
+    {
+      "label": "Scout Expense",
+      "type": "DocType",
+      "link_to": "DD Scout Expense",
+      "doc_view": "List"
+    },
+    {
+      "label": "Payout Beneficiary",
+      "type": "DocType",
+      "link_to": "DD Payout Beneficiary",
+      "doc_view": "List"
+    },
+    {
+      "label": "Finance Cost",
+      "type": "DocType",
+      "link_to": "DD Finance Cost",
+      "doc_view": "List"
+    },
+    {
+      "label": "Customer Refund",
+      "type": "DocType",
+      "link_to": "DD Customer Refund",
+      "doc_view": "List"
+    },
+    {
+      "label": "Finance Case",
+      "type": "DocType",
+      "link_to": "DD Finance Case",
+      "doc_view": "List"
+    },
+    {
+      "label": "Finance Audit",
+      "type": "DocType",
+      "link_to": "DD Finance Audit",
+      "doc_view": "List"
+    }
+  ],
+  "links": []
+}

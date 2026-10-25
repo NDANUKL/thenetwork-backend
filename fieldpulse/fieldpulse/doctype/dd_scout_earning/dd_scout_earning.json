@@ -1,0 +1,131 @@
+{
+  "doctype": "DocType",
+  "name": "DD Scout Earning",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "offer",
+      "label": "Agreed arrangement",
+      "fieldtype": "Link",
+      "options": "DD Scout Offer",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "task",
+      "label": "Assignment",
+      "fieldtype": "Link",
+      "options": "Field Task",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "source_response",
+      "label": "Approved work submission",
+      "fieldtype": "Link",
+      "options": "FP Task Response"
+    },
+    {
+      "fieldname": "financial_case",
+      "label": "Approved compensation decision",
+      "fieldtype": "Link",
+      "options": "DD Finance Case"
+    },
+    {
+      "fieldname": "currency",
+      "label": "Currency",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "base_fee",
+      "label": "Approved fee entitlement",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "read_only": 1
+    },
+    {
+      "fieldname": "travel_entitlement",
+      "label": "Approved travel entitlement override",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "read_only": 1
+    },
+    {
+      "fieldname": "work_approved_by",
+      "label": "Work approved by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_at",
+      "label": "Work approved at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "due_date",
+      "label": "Payout due date",
+      "fieldtype": "Date",
+      "read_only": 1
+    },
+    {
+      "fieldname": "on_hold",
+      "label": "Payment on hold",
+      "fieldtype": "Check",
+      "read_only": 1
+    },
+    {
+      "fieldname": "hold_reason",
+      "label": "Hold reason",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    }
+  ],
+  "field_order": [
+    "offer",
+    "task",
+    "source_response",
+    "financial_case",
+    "currency",
+    "base_fee",
+    "travel_entitlement",
+    "work_approved_by",
+    "approved_at",
+    "due_date",
+    "on_hold",
+    "hold_reason"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Field Agent",
+      "read": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DSE-{#####}",
+  "title_field": "name"
+}

@@ -1,0 +1,35 @@
+{
+  "doctype": "DocType",
+  "name": "DD Answer Evidence Link",
+  "module": "FieldPulse",
+  "istable": 1,
+  "fields": [
+    {
+      "fieldname": "evidence",
+      "label": "Verified evidence",
+      "fieldtype": "Link",
+      "options": "Field Evidence",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "requirement_id",
+      "label": "Requirement",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "support_note",
+      "label": "Required subject shown",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    }
+  ],
+  "field_order": [
+    "evidence",
+    "requirement_id",
+    "support_note"
+  ],
+  "permissions": []
+}

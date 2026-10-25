@@ -32,7 +32,7 @@ class ClientEvidenceTests(unittest.TestCase):
         self.report = Record(name='report', request='request', report_evidence=[self.row], review_sources_json=json.dumps([{'response':'response'}]))
         self.evidence = Record(name='evidence', field_task='task', question_response='answer', upload_status='Uploaded', evidence_type='Photo')
         self.task = Record(name='task', field_request='project', status='Approved')
-        self.api.get_doc.side_effect = [self.evidence, self.task]
+        self.api.get_doc.side_effect = lambda dt, name: self.evidence if dt == 'Field Evidence' else self.task if dt == 'Field Task' else Record(name=name, task='task', agent='scout')
         self.api.db.get_value.side_effect = lambda dt,*args,**kw: 'request' if dt=='Field Request' else 'response'
         self.api.db.exists.return_value = True
 

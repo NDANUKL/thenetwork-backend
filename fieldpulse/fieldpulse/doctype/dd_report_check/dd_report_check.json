@@ -1,0 +1,115 @@
+{
+  "doctype": "DocType",
+  "name": "DD Report Check",
+  "module": "FieldPulse",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "check_id",
+      "label": "Check reference",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "project",
+      "label": "Project",
+      "fieldtype": "Link",
+      "options": "Field Request",
+      "read_only": 1
+    },
+    {
+      "fieldname": "task",
+      "label": "Site assignment",
+      "fieldtype": "Link",
+      "options": "Field Task",
+      "read_only": 1
+    },
+    {
+      "fieldname": "customer_question",
+      "label": "Assigned question",
+      "fieldtype": "Small Text",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "assessment",
+      "label": "Assessment",
+      "fieldtype": "Select",
+      "options": "Supported finding\nNot verified",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "findings",
+      "label": "Reviewed finding",
+      "fieldtype": "Long Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "basis",
+      "label": "Source basis",
+      "fieldtype": "Select",
+      "options": "Not recorded\nDirectly observed\nReported by others\nIndependently checked\nMixed sources",
+      "reqd": 1
+    },
+    {
+      "fieldname": "basis_detail",
+      "label": "How the source basis was established",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "limitations",
+      "label": "Limitations / why not verified",
+      "fieldtype": "Long Text"
+    },
+    {
+      "fieldname": "limitation_acknowledged",
+      "label": "I acknowledge this Not verified limitation",
+      "fieldtype": "Check",
+      "default": "0"
+    },
+    {
+      "fieldname": "answer_refs_json",
+      "label": "Source answers",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "evidence_ids_json",
+      "label": "Verified evidence",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "recorded_gaps_json",
+      "label": "Recorded gaps",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1,
+      "hidden": 1
+    }
+  ],
+  "field_order": [
+    "check_id",
+    "project",
+    "task",
+    "customer_question",
+    "assessment",
+    "findings",
+    "basis",
+    "basis_detail",
+    "limitations",
+    "limitation_acknowledged",
+    "answer_refs_json",
+    "evidence_ids_json",
+    "recorded_gaps_json"
+  ],
+  "permissions": [],
+  "istable": 1,
+  "editable_grid": 1
+}

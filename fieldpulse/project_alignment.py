@@ -320,7 +320,7 @@ def rollup_tasks(doc, method=None):
             status = "Assigned"
             if all(task.status == "Approved" for task in tasks):
                 status = "Completed"
-            elif any(task.status in ["In Progress", "Submitted", "Rejected", "Approved"] for task in tasks):
+            elif any(task.status in ["In Progress", "Submitted", "Rejected", "Approved", "Awaiting authorization"] for task in tasks):
                 status = "In Progress"
             if request.status != status:
                 # Derived status only: a scout task update must not require

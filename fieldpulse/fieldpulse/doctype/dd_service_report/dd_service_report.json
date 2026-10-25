@@ -370,7 +370,9 @@
     {
       "fieldname": "findings",
       "label": "Reviewed findings",
-      "fieldtype": "Long Text"
+      "fieldtype": "Long Text",
+      "hidden": 1,
+      "read_only": 1
     },
     {
       "fieldname": "limitations",
@@ -416,6 +418,60 @@
       "label": "I have reviewed which evidence is appropriate for this client",
       "fieldtype": "Check",
       "default": "0"
+    },
+    {
+      "fieldname": "scope_coverage_section",
+      "label": "Approved questionnaire findings",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "report_checks",
+      "label": "Approved questions and findings",
+      "fieldtype": "Table",
+      "options": "DD Report Check"
+    },
+    {
+      "fieldname": "scope_coverage_reviewed",
+      "label": "I reviewed the approved findings, source basis, evidence and limitations",
+      "fieldtype": "Check",
+      "default": "0"
+    },
+    {
+      "fieldname": "coverage_snapshot_json",
+      "label": "Coverage snapshot",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "scope_snapshot_json",
+      "label": "Accepted scope snapshot",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "visit_snapshot_json",
+      "label": "Recorded visits",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "review_signatory",
+      "label": "Report reviewer",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "review_signed_at",
+      "label": "Report review recorded at",
+      "fieldtype": "Datetime",
+      "read_only": 1
     }
   ],
   "links": [],

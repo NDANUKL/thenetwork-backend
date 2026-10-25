@@ -1,0 +1,127 @@
+{
+  "doctype": "DocType",
+  "name": "DD Scout Notification",
+  "module": "FieldPulse",
+  "autoname": "field:event_key",
+  "engine": "InnoDB",
+  "field_order": [
+    "event_key",
+    "task",
+    "source_response",
+    "scout",
+    "recipient",
+    "subject",
+    "message",
+    "status",
+    "attempts",
+    "next_attempt_at",
+    "first_attempt_at",
+    "sent_at",
+    "payload",
+    "last_error"
+  ],
+  "fields": [
+    {
+      "fieldname": "event_key",
+      "fieldtype": "Data",
+      "label": "Event Key",
+      "read_only": 1,
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "task",
+      "fieldtype": "Link",
+      "label": "Task",
+      "read_only": 1,
+      "options": "Field Task"
+    },
+    {
+      "fieldname": "source_response",
+      "fieldtype": "Link",
+      "label": "Source Response",
+      "read_only": 1,
+      "options": "FP Task Response"
+    },
+    {
+      "fieldname": "scout",
+      "fieldtype": "Link",
+      "label": "Scout",
+      "read_only": 1,
+      "options": "Scout Profile"
+    },
+    {
+      "fieldname": "recipient",
+      "fieldtype": "Link",
+      "label": "Recipient",
+      "read_only": 1,
+      "options": "User"
+    },
+    {
+      "fieldname": "subject",
+      "fieldtype": "Data",
+      "label": "Subject",
+      "read_only": 1
+    },
+    {
+      "fieldname": "message",
+      "fieldtype": "Long Text",
+      "label": "Message",
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "read_only": 1,
+      "options": "Pending\nSent\nSkipped\nNeeds review"
+    },
+    {
+      "fieldname": "attempts",
+      "fieldtype": "Int",
+      "label": "Attempts",
+      "read_only": 1
+    },
+    {
+      "fieldname": "next_attempt_at",
+      "fieldtype": "Datetime",
+      "label": "Next Attempt At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "first_attempt_at",
+      "fieldtype": "Datetime",
+      "label": "First Attempt At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "sent_at",
+      "fieldtype": "Datetime",
+      "label": "Sent At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "payload",
+      "fieldtype": "Long Text",
+      "label": "Payload",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "last_error",
+      "fieldtype": "Small Text",
+      "label": "Last Error",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1
+    }
+  ]
+}

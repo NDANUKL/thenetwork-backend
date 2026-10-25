@@ -17,7 +17,7 @@ fixtures = [{'dt': 'Role',
                 'Supervisor',
                 'Admin',
                 'Diaspora Website Integration',
-                'Field Operations Coordinator']]]}]
+                'Field Operations Coordinator', 'Finance']]]}]
 
 after_install = 'fieldpulse.install.after_install'
 
@@ -65,4 +65,23 @@ permission_query_conditions = {
 # Customer-facing milestones share one durable, preference-aware delivery queue.
 for _notification_doctype in ("DD Request Details", "DD Quotation", "DD Payment", "DD Service Report", "DD Dispute"):
     doc_events.setdefault(_notification_doctype, {})["on_update"] = "fieldpulse.customer_notifications.capture"
-scheduler_events["cron"]["*/5 * * * *"].append("fieldpulse.customer_notifications.retry_pending")
+scheduler_events["cron"]["*/5 * * * *"].extend(["fieldpulse.customer_notifications.retry_pending", "fieldpulse.scout_notifications.retry_pending"])
+
+# Finance tracks task obligations/manual settlement; it does not replace Pesapal.
+app_include_js = globals().get('app_include_js', []) + ['/assets/fieldpulse/js/finance_forms.js']
+doc_events['Field Task']['before_save'].append('fieldpulse.finance.dispatch_guard')
+_finance_existing_insert = doc_events['Field Task'].get('after_insert', [])
+doc_events['Field Task']['after_insert'] = ([_finance_existing_insert] if isinstance(_finance_existing_insert,str) else _finance_existing_insert) + ['fieldpulse.finance.bind_offer']
+doc_events['Field Task'].setdefault('on_update', []).append('fieldpulse.finance.work_approved')
+for _finance_doctype, _finance_query in {
+    'DD Task Budget':'budget', 'DD Scout Offer':'offer', 'DD Scout Expense':'expense',
+    'DD Scout Earning':'earning', 'DD Earning Adjustment':'adjustment',
+    'DD Payout Beneficiary':'beneficiary', 'DD Scout Payout':'payout',
+    'DD Finance Cost':'cost', 'DD Customer Refund':'refund', 'DD Finance Case':'case',
+    'DD Finance Audit':'audit',
+}.items():
+    has_permission[_finance_doctype]='fieldpulse.finance_documents.record_permission'
+    permission_query_conditions[_finance_doctype]='fieldpulse.finance_permissions.'+_finance_query
+
+for _finance_child in ('DD Payout Allocation','DD Budget Line'):
+    has_permission[_finance_child]='fieldpulse.finance_documents.child_permission'

@@ -1,0 +1,140 @@
+{
+  "doctype": "DocType",
+  "name": "DD Payout Beneficiary",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "scout",
+      "label": "Scout",
+      "fieldtype": "Link",
+      "options": "Scout Profile",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Pending verification\nVerified\nReplaced\nRejected",
+      "default": "Pending verification",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "method",
+      "label": "Payment method",
+      "fieldtype": "Select",
+      "options": "M-Pesa\nBank",
+      "reqd": 1
+    },
+    {
+      "fieldname": "account_holder",
+      "label": "Verified account holder",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "institution",
+      "label": "Bank / mobile network",
+      "fieldtype": "Data",
+      "reqd": 1
+    },
+    {
+      "fieldname": "account_number",
+      "label": "Recipient number / account",
+      "fieldtype": "Password",
+      "reqd": 1
+    },
+    {
+      "fieldname": "masked_account",
+      "label": "Masked account",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "classification",
+      "label": "Supplier / employment classification",
+      "fieldtype": "Select",
+      "options": "Not yet confirmed\nSupplier\nEmployee\nOther reviewed arrangement",
+      "default": "Not yet confirmed"
+    },
+    {
+      "fieldname": "tax_notes",
+      "label": "Reviewed invoicing / withholding requirements",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "ownership_reference",
+      "label": "Recipient ownership verification reference",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "evidence",
+      "label": "Private supporting evidence",
+      "fieldtype": "Attach"
+    },
+    {
+      "fieldname": "alternative_evidence",
+      "label": "Authorised alternative evidence / reference",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "reauthenticated_at",
+      "label": "Change requester re-authenticated at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "verified_by",
+      "label": "Verified by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "verified_at",
+      "label": "Verified at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    }
+  ],
+  "field_order": [
+    "scout",
+    "status",
+    "method",
+    "account_holder",
+    "institution",
+    "account_number",
+    "masked_account",
+    "classification",
+    "tax_notes",
+    "ownership_reference",
+    "evidence",
+    "alternative_evidence",
+    "reauthenticated_at",
+    "verified_by",
+    "verified_at"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DPB-{#####}",
+  "title_field": "name",
+  "protect_attached_files": 1,
+  "make_attachments_public": 0
+}

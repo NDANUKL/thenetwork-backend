@@ -13,6 +13,7 @@ the scope decision goes the other way.
 """
 
 ROLES = [
+    "Finance",
     "Field Agent",
     "Supervisor",
     "Admin",

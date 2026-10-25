@@ -21,20 +21,22 @@ class Record(dict):
 class FakeSite:
     def __init__(self):
         self.rows = {}
+        self.session = types.SimpleNamespace(user='reviewer')
+        self.get_roles = lambda: ['Field Operations Coordinator']
         self.db = types.SimpleNamespace(exists=self.exists, get_value=self.value)
         self.utils = types.SimpleNamespace(now_datetime=lambda: '2026-10-20 09:00:00')
     def throw(self, message): raise ValueError(message)
     def matching(self, dt, filters=None):
         rows = [row for (kind, name), row in self.rows.items() if kind == dt]
         if isinstance(filters, str): return [row for row in rows if row.name == filters]
-        return [row for row in rows if all(row.get(k) == v for k, v in (filters or {}).items())]
+        return [row for row in rows if all((row.get(k) in (None,'') if v == ['is','not set'] else row.get(k) == v) for k, v in (filters or {}).items())]
     def exists(self, dt, filters):
         rows = self.matching(dt, filters)
         return rows[0].name if rows else None
     def value(self, dt, filters, field, **kwargs):
         rows = self.matching(dt, filters)
         rows.sort(key=lambda row: row.get('version') or 0, reverse=True)
-        return rows[0].get(field) if rows else None
+        return (Record({key:rows[0].get(key) for key in field}) if isinstance(field,list) else rows[0].get(field)) if rows else None
     def get_all(self, dt, filters=None, pluck=None, **kwargs):
         rows = self.matching(dt, filters)
         return [row.get(pluck) for row in rows] if pluck else rows
@@ -110,6 +112,8 @@ class TemplateInstallTests(unittest.TestCase):
 
     def test_dispatch_pins_scope_and_refuses_unconfirmed_checks(self):
         project = self.project()
+        project.diaspora_request='customer-request'
+        self.site.rows[('Diaspora Request','customer-request')]=Record(original_brief=project.field_brief)
         self.site.rows[('Field Request', 'request')] = project
         task = Record(field_request='request', scout_profile='scout')
         with self.assertRaisesRegex(ValueError, 'confirm'): self.module.apply_to_task(task)
@@ -117,9 +121,18 @@ class TemplateInstallTests(unittest.TestCase):
         project.scout_checks = [Record(question=evidence.name)]
         project.scout_checks_confirmed = 1
         self.module.apply_to_task(task)
+        self.assertIn('questionnaire_review',json.loads(task.client_request_snapshot))
+        self.assertNotIn('customer_coverage',json.loads(task.client_request_snapshot))
         self.assertEqual(task.questionnaire, 'DD-land-v1')
         self.assertEqual(set(json.loads(task.questionnaire_scope)), {'S1','S2','S3','S4','1.4','S_EXTRA'})
         self.assertEqual(json.loads(task.client_request_snapshot)['task_scope'], project.field_brief)
+
+    def test_manual_noncustomer_project_does_not_require_a_customer_quotation_mapping(self):
+        project=self.project();project.scout_checks_confirmed=1
+        self.site.rows[('Field Request','request')]=project
+        task=Record(field_request='request',scout_profile='scout')
+        self.module.apply_to_task(task)
+        self.assertEqual(task.questionnaire,'DD-land-v1')
 
     def test_publishing_a_new_version_does_not_change_an_existing_projects_pin(self):
         project = self.project()

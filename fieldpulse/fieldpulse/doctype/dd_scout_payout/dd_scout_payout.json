@@ -1,0 +1,200 @@
+{
+  "doctype": "DocType",
+  "name": "DD Scout Payout",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "scout",
+      "label": "Scout",
+      "fieldtype": "Link",
+      "options": "Scout Profile",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "beneficiary",
+      "label": "Verified recipient version",
+      "fieldtype": "Link",
+      "options": "DD Payout Beneficiary",
+      "reqd": 1
+    },
+    {
+      "fieldname": "beneficiary_snapshot",
+      "label": "Frozen masked recipient",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Draft\nApproved\nProcessing\nPaid\nFailed\nOn hold",
+      "default": "Draft",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "currency",
+      "label": "Currency",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "default": "KES"
+    },
+    {
+      "fieldname": "allocations",
+      "label": "Task allocations",
+      "fieldtype": "Table",
+      "options": "DD Payout Allocation",
+      "reqd": 1
+    },
+    {
+      "fieldname": "total",
+      "label": "Total to pay",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "read_only": 1
+    },
+    {
+      "fieldname": "channel",
+      "label": "Execution channel",
+      "fieldtype": "Select",
+      "options": "Pesapal / Openfloat\nBusiness M-Pesa\nBank transfer",
+      "reqd": 1
+    },
+    {
+      "fieldname": "reference",
+      "label": "Actual transaction reference",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reference_key",
+      "label": "Duplicate transaction protection",
+      "fieldtype": "Data",
+      "unique": 1,
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "confirmation_evidence",
+      "label": "Success/failure/reconciliation evidence",
+      "fieldtype": "Attach",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reconciliation_notes",
+      "label": "Actual recipient, amount and reconciliation notes",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "hold_reason",
+      "label": "Hold or uncertain outcome reason",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "independent_reviewer",
+      "label": "Independent release reviewer",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "independent_review_at",
+      "label": "Independent review at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "independent_review_notes",
+      "label": "Independent review notes",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reversal_of",
+      "label": "Reversal of confirmed payout",
+      "fieldtype": "Link",
+      "options": "DD Scout Payout"
+    },
+    {
+      "fieldname": "approved_by",
+      "label": "Approved by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_at",
+      "label": "Approved at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "processing_at",
+      "label": "Processing started",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "confirmed_at",
+      "label": "Actual outcome confirmed",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "independent_review_hash",
+      "label": "Independently reviewed terms",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    }
+  ],
+  "field_order": [
+    "scout",
+    "beneficiary",
+    "beneficiary_snapshot",
+    "status",
+    "currency",
+    "allocations",
+    "total",
+    "channel",
+    "reference",
+    "reference_key",
+    "confirmation_evidence",
+    "reconciliation_notes",
+    "hold_reason",
+    "independent_reviewer",
+    "independent_review_at",
+    "independent_review_notes",
+    "reversal_of",
+    "approved_by",
+    "approved_at",
+    "processing_at",
+    "confirmed_at",
+    "independent_review_hash"
+  ],
+  "permissions": [
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "create": 1,
+      "write": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "format:DSP-{#####}",
+  "title_field": "name",
+  "protect_attached_files": 1,
+  "make_attachments_public": 0
+}

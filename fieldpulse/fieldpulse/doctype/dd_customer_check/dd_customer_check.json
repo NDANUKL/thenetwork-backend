@@ -1,0 +1,50 @@
+{
+  "doctype": "DocType",
+  "name": "DD Customer Check",
+  "module": "FieldPulse",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "check_id",
+      "label": "Check reference",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "customer_question",
+      "label": "Agreed customer question",
+      "fieldtype": "Small Text",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "question_codes",
+      "label": "Linked checks",
+      "fieldtype": "Data",
+      "hidden": 1
+    },
+    {
+      "fieldname": "linked_checks",
+      "label": "Assigned scout checks",
+      "fieldtype": "Small Text",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "configure_links",
+      "label": "Link selected scout checks",
+      "fieldtype": "Button"
+    }
+  ],
+  "field_order": [
+    "check_id",
+    "customer_question",
+    "question_codes",
+    "linked_checks",
+    "configure_links"
+  ],
+  "permissions": [],
+  "istable": 1,
+  "editable_grid": 1
+}

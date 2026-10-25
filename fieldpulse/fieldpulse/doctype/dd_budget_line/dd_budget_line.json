@@ -1,0 +1,75 @@
+{
+  "doctype": "DocType",
+  "name": "DD Budget Line",
+  "module": "FieldPulse",
+  "fields": [
+    {
+      "fieldname": "project",
+      "label": "Project",
+      "fieldtype": "Link",
+      "options": "Field Request",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "revisit",
+      "label": "Rework / revisit",
+      "fieldtype": "Link",
+      "options": "DD Revisit Request"
+    },
+    {
+      "fieldname": "category",
+      "label": "Cost category",
+      "fieldtype": "Select",
+      "options": "Scout fee\nTravel\nLogistics\nGateway fee\nRework\nOther operating cost",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "description",
+      "label": "Planned basis",
+      "fieldtype": "Small Text",
+      "reqd": 1
+    },
+    {
+      "fieldname": "currency",
+      "label": "Currency",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "default": "KES",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "amount",
+      "label": "Planned amount",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "conversion_rate",
+      "label": "Units of budget currency per unit",
+      "fieldtype": "Float",
+      "precision": "8"
+    },
+    {
+      "fieldname": "rate_date",
+      "label": "Conversion-rate date",
+      "fieldtype": "Date"
+    }
+  ],
+  "field_order": [
+    "project",
+    "revisit",
+    "category",
+    "description",
+    "currency",
+    "amount",
+    "conversion_rate",
+    "rate_date"
+  ],
+  "permissions": [],
+  "track_changes": 1,
+  "istable": 1,
+  "editable_grid": 1
+}

@@ -1,0 +1,207 @@
+{
+  "doctype": "DocType",
+  "name": "DD Revisit Request",
+  "module": "FieldPulse",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "source_response",
+      "label": "Original submission",
+      "fieldtype": "Link",
+      "options": "FP Task Response",
+      "read_only": 1,
+      "unique": 1,
+      "reqd": 1
+    },
+    {
+      "fieldname": "task",
+      "label": "Original task",
+      "fieldtype": "Link",
+      "options": "Field Task",
+      "read_only": 1,
+      "reqd": 1
+    },
+    {
+      "fieldname": "request",
+      "label": "Customer request",
+      "fieldtype": "Link",
+      "options": "Diaspora Request",
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Awaiting authorization\nAuthorized\nDispatched\nDeclined\nCancelled",
+      "read_only": 1,
+      "default": "Awaiting authorization",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "instructions",
+      "label": "Required revisit work",
+      "fieldtype": "Long Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "rework_questions_json",
+      "label": "Questions requiring a revisit",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "assignment_choice",
+      "label": "Revisit assignment",
+      "fieldtype": "Select",
+      "options": "Same scout\nAssign another scout",
+      "read_only": 0
+    },
+    {
+      "fieldname": "replacement_scout",
+      "label": "Proposed replacement scout",
+      "fieldtype": "Link",
+      "options": "Scout Profile",
+      "read_only": 0,
+      "depends_on": "eval:doc.assignment_choice === 'Assign another scout'"
+    },
+    {
+      "fieldname": "reassignment_reason",
+      "label": "Reassignment reason",
+      "fieldtype": "Small Text",
+      "read_only": 0,
+      "depends_on": "eval:doc.assignment_choice === 'Assign another scout'"
+    },
+    {
+      "fieldname": "commercial_section",
+      "label": "Authorization and cost responsibility",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "scope_category",
+      "label": "Scope category",
+      "fieldtype": "Select",
+      "options": "Existing agreed scope\nAdditional scope",
+      "default": "Existing agreed scope"
+    },
+    {
+      "fieldname": "cost_arrangement",
+      "label": "Who funds the revisit?",
+      "fieldtype": "Select",
+      "options": "Pending decision\nExisting agreement\nBusiness-funded\nAdditional client charge",
+      "default": "Pending decision"
+    },
+    {
+      "fieldname": "contract_reference",
+      "label": "Contract / approved arrangement reference",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "client_acceptance_reference",
+      "label": "Client acceptance reference",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "scout_compensation_reference",
+      "label": "Scout compensation agreement reference",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "authorization_notes",
+      "label": "Authorization notes",
+      "fieldtype": "Long Text"
+    },
+    {
+      "fieldname": "authorized_by",
+      "label": "Authorized by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "authorized_at",
+      "label": "Authorized at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "authorized_terms_hash",
+      "label": "Authorized terms hash",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "dispatched_task",
+      "label": "Dispatched task",
+      "fieldtype": "Link",
+      "options": "Field Task",
+      "read_only": 1
+    },
+    {
+      "fieldname": "dispatched_by",
+      "label": "Dispatched by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "dispatched_at",
+      "label": "Dispatched at",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    },
+    {
+      "fieldname": "decision_notes",
+      "label": "Closure reason",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    }
+  ],
+  "field_order": [
+    "source_response",
+    "task",
+    "request",
+    "status",
+    "instructions",
+    "rework_questions_json",
+    "assignment_choice",
+    "replacement_scout",
+    "reassignment_reason",
+    "commercial_section",
+    "scope_category",
+    "cost_arrangement",
+    "contract_reference",
+    "client_acceptance_reference",
+    "scout_compensation_reference",
+    "authorization_notes",
+    "authorized_by",
+    "authorized_at",
+    "authorized_terms_hash",
+    "dispatched_task",
+    "dispatched_by",
+    "dispatched_at",
+    "decision_notes"
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 0
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "write": 1,
+      "create": 0
+    },
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1
+    }
+  ],
+  "autoname": "format:REV-{YYYY}-{#####}",
+  "track_changes": 1
+}

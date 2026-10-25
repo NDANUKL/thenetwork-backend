@@ -9,13 +9,14 @@ def parsed(value, fallback=None):
     except (TypeError, ValueError): return fallback
 
 
-def arrival_result(arrival, location):
+def arrival_result(arrival, location, *, strict=False):
     arrival = parsed(arrival, {}) or {}
     try:
         lat, lng, accuracy = [float(arrival[key]) for key in ("latitude", "longitude", "accuracy_m")]
         site_lat, site_lng = float(location.get("latitude")), float(location.get("longitude"))
-        site_radius = float(location.get("geofence_radius_m") or 50)
-        radius = effective_geofence_radius(site_radius)
+        configured_radius = location.get('geofence_radius_m')
+        site_radius = float(configured_radius if strict and configured_radius is not None else configured_radius or 50)
+        radius = site_radius if strict else effective_geofence_radius(site_radius)
         if not all(math.isfinite(v) for v in [lat, lng, accuracy, site_lat, site_lng, radius]) or abs(lat) > 90 or abs(lng) > 180 or accuracy < 0 or site_radius <= 0:
             raise ValueError()
         radians = math.pi / 180
@@ -23,6 +24,11 @@ def arrival_result(arrival, location):
         distance = 6371000 * 2 * math.asin(min(1, math.sqrt(a)))
         status = "Inside" if distance <= radius and accuracy <= site_radius else "Outside" if distance > radius else "Insufficient accuracy"
         if not arrival.get("captured_at"): status = "Invalid GPS"
+        if strict:
+            from datetime import datetime
+            try: datetime.fromisoformat(str(arrival.get('captured_at')).replace('Z', '+00:00'))
+            except (ValueError, TypeError): status = 'Invalid GPS'
+            if abs(site_lat) > 90 or abs(site_lng) > 180: status = 'Invalid GPS'
         return dict(status=status, distance_m=round(distance, 2), site_latitude=site_lat, site_longitude=site_lng,
             radius_m=radius, latitude=lat, longitude=lng, accuracy_m=accuracy, captured_at=arrival.get("captured_at"))
     except (ValueError, TypeError, KeyError):

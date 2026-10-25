@@ -25,7 +25,7 @@ def _get_scout_profile_for_user(user=None):
 
 
 @frappe.whitelist()
-def sync_pull_assignments(since=None):
+def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version=0, rework_version=0, questionnaire_editor_version=0):
     """Return tasks (and referenced locations/questionnaires/questions)
     assigned to the calling scout, changed since the given timestamp."""
     scout_profile = _get_scout_profile_for_user()
@@ -40,8 +40,20 @@ def sync_pull_assignments(since=None):
 
     server_time = now_datetime().isoformat()
     tasks = frappe.get_all("Field Task", filters=filters, fields=["*"])
+    if int(visit_workflow_version or 0) < 2 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('visit_workflow_version') == 2 for task in tasks):
+        frappe.throw('Update the app to use the verified-arrival visit workflow. Saved work remains on this device.')
+    if int(protocol_version or 1) < 2 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('protocol_version') == 2 for task in tasks):
+        frappe.throw('Update the DiasporaDesk app to open the streamlined questionnaires. Saved work remains on your device.')
+    if int(rework_version or 0) < 1 and any(task.get('rework_response') and task.status in ('Assigned', 'Accepted', 'In Progress') for task in tasks):
+        frappe.throw('Update the scout app to open response revisions. Your saved work remains on this device.')
+    if int(rework_version or 0) < 2 and any(task.status == 'Awaiting authorization' for task in tasks):
+        frappe.throw('Update the scout app to view revisit authorization holds. Do not start held work.')
+    if int(questionnaire_editor_version or 0) < 1 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('project_questionnaire') for task in tasks):
+        frappe.throw('Update the scout app to use the project-specific questionnaire. Saved work remains on this device.')
     for task in tasks:
         task["server_updated_at"] = task.get("modified")
+        from fieldpulse.scout_rework import revision_payload
+        task['rework_draft'] = revision_payload(task)
 
     location_names = list({t["location"] for t in tasks if t.get("location")})
     questionnaire_names = list({t["questionnaire"] for t in tasks if t.get("questionnaire")})
@@ -129,14 +141,25 @@ def _upsert_task_response(item):
         frappe.throw("Task responses can only be submitted by the assigned scout")
 
     field_task = frappe.get_doc("Field Task", item.get("task"))
+    visit_snapshot = frappe.parse_json(getattr(field_task, 'client_request_snapshot', None) or '{}') or {}
+    if visit_snapshot.get('visit_workflow_version') == 2 and item.get('visit_workflow_version') != 2:
+        frappe.throw('This assignment requires the verified-arrival visit workflow')
+    if (frappe.parse_json(getattr(field_task, 'client_request_snapshot', None) or '{}') or {}).get('protocol_version') == 2 and item.get('protocol_version') != 2:
+        frappe.throw('This assignment requires the version 2 mobile questionnaire protocol')
     if field_task.scout_profile != current_scout.name:
         frappe.throw("This Field Task is not assigned to the current scout")
 
+    if field_task.status == 'Awaiting authorization':
+        frappe.throw('This revisit is awaiting authorization; do not start or submit fieldwork', frappe.PermissionError)
     if item.get("location") != field_task.location:
         frappe.throw("Response location must match the assigned task", frappe.PermissionError)
     if item.get("status", "Draft") not in ("Draft", "Submitted"):
         frappe.throw("Scouts may only save drafts or submit responses", frappe.PermissionError)
 
+    if getattr(field_task, 'rework_response', None):
+        expected = frappe.db.get_value('FP Task Response', field_task.rework_response, 'client_uuid')
+        if client_uuid != expected:
+            frappe.throw('Sync and open the coordinator-created rework revision before resubmitting')
     existing = frappe.db.exists("FP Task Response", {"client_uuid": client_uuid})
     if existing:
         doc = frappe.get_doc("FP Task Response", existing)
@@ -145,7 +168,7 @@ def _upsert_task_response(item):
         if doc.status == "Submitted":
             if item.get("status") == "Submitted":
                 return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
-            frappe.throw("Submitted responses cannot be changed", frappe.PermissionError)
+            return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
         incoming_ts = mobile_datetime(item.get("client_updated_at"))
         if item.get("status") != "Submitted" and incoming_ts and doc.client_updated_at and incoming_ts <= mobile_datetime(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
@@ -153,7 +176,7 @@ def _upsert_task_response(item):
         doc = frappe.new_doc("FP Task Response")
         doc.client_uuid = client_uuid
 
-    if field_task.status in ("Cancelled", "Approved", "Submitted"):
+    if field_task.status in ("Cancelled", "Approved", "Submitted", "Awaiting authorization"):
         frappe.throw("This Field Task is no longer open for responses", frappe.PermissionError)
 
     for field in (
@@ -191,7 +214,7 @@ def _upsert_question_response(item):
     task = frappe.get_doc("Field Task", parent.task)
     if parent.agent != current_scout.name or task.scout_profile != current_scout.name:
         frappe.throw("This response does not belong to the current scout", frappe.PermissionError)
-    if parent.status != "Draft" or task.status in ("Cancelled", "Approved", "Submitted"):
+    if parent.status != "Draft" or task.status in ("Cancelled", "Approved", "Submitted", "Awaiting authorization"):
         frappe.throw("Only open draft responses can be edited", frappe.PermissionError)
     question = frappe.get_doc("FP Question", item.get("question"))
     if question.questionnaire != task.questionnaire or item.get("question_type") != question.question_type:

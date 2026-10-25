@@ -1,0 +1,10 @@
+{
+  "site":{"latitude":-1.3,"longitude":36.8,"geofence_radius_m":50},
+  "arrival_cases":[
+    {"name":"at site","point":{"latitude":-1.3,"longitude":36.8,"accuracy_m":5,"captured_at":"2026-10-24T08:00:00Z"},"status":"Inside"},
+    {"name":"outside site despite legacy testing radius","point":{"latitude":-4.05,"longitude":39.67,"accuracy_m":5,"captured_at":"2026-10-24T08:00:00Z","status":"Inside"},"status":"Outside"},
+    {"name":"poor accuracy indoors","point":{"latitude":-1.3,"longitude":36.8,"accuracy_m":100,"captured_at":"2026-10-24T08:00:00Z"},"status":"Insufficient accuracy"},
+    {"name":"missing position","point":{"latitude":null,"longitude":null,"accuracy_m":null,"captured_at":"2026-10-24T08:00:00Z"},"status":"Invalid GPS"},
+    {"name":"invalid time","point":{"latitude":-1.3,"longitude":36.8,"accuracy_m":5,"captured_at":"not-a-date"},"status":"Invalid GPS"}
+  ]
+}

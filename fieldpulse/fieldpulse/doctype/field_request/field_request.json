@@ -27,7 +27,20 @@
     "scout_service",
     "scout_questionnaire",
     "scout_checks",
-    "scout_checks_confirmed"
+    "scout_checks_confirmed",
+    "scout_reference_material",
+    "scout_contact_access",
+    "scout_authorisation",
+    "scout_restrictions",
+    "customer_coverage_section",
+    "customer_scope_reference",
+    "customer_scope_version",
+    "customer_checks",
+    "customer_checks_confirmed",
+    "customer_checks_reviewed_by",
+    "customer_checks_reviewed_at",
+    "scout_checks_reviewed_by",
+    "scout_checks_reviewed_at"
   ],
   "fields": [
     {
@@ -215,7 +228,8 @@
       "fieldname": "customer_target_date",
       "label": "Customer Target Date",
       "fieldtype": "Date",
-      "read_only": 1
+      "read_only": 1,
+      "hidden": 1
     },
     {
       "fieldname": "alignment_review",
@@ -371,7 +385,7 @@
       "label": "Scout checklist",
       "fieldtype": "Table",
       "options": "DD Scout Check",
-      "description": "Choose what the scout must inspect. Photo/video evidence and common questions remain required."
+      "description": "Edit, add or remove service questions for this request. Required visit and evidence safeguards remain protected."
     },
     {
       "fieldname": "scout_checks_confirmed",
@@ -379,6 +393,92 @@
       "fieldtype": "Check",
       "default": "0",
       "description": "Confirm this checklist covers the agreed client request before assigning a scout."
+    },
+    {
+      "fieldname": "scout_reference_material",
+      "label": "Reference descriptions, documents and previous reports",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "scout_contact_access",
+      "label": "Contact person and access arrangements",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "scout_authorisation",
+      "label": "Recorded authorisation and institutional arrangements",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "scout_restrictions",
+      "label": "Restrictions and permitted information",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "customer_coverage_section",
+      "label": "Customer-question coverage",
+      "fieldtype": "Section Break",
+      "hidden": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "customer_scope_reference",
+      "label": "Accepted scope quotation",
+      "fieldtype": "Link",
+      "options": "DD Quotation",
+      "hidden": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "customer_scope_version",
+      "label": "Accepted quotation version",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "customer_checks",
+      "label": "Agreed customer questions",
+      "fieldtype": "Table",
+      "options": "DD Customer Check",
+      "hidden": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "customer_checks_confirmed",
+      "label": "I checked every customer question against the accepted scope and selected scout checks",
+      "fieldtype": "Check",
+      "default": "0",
+      "hidden": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "customer_checks_reviewed_by",
+      "label": "Coverage reviewed by",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "customer_checks_reviewed_at",
+      "label": "Coverage reviewed at",
+      "fieldtype": "Datetime",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "scout_checks_reviewed_by",
+      "label": "Questionnaire reviewed by",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "User"
+    },
+    {
+      "fieldname": "scout_checks_reviewed_at",
+      "label": "Questionnaire reviewed at",
+      "fieldtype": "Datetime",
+      "read_only": 1
     }
   ],
   "index_web_pages_for_search": 1,
@@ -420,6 +520,11 @@
       "report": 1,
       "role": "Field Operations Coordinator",
       "write": 1
+    },
+    {
+      "role": "Finance",
+      "read": 1,
+      "report": 1
     }
   ],
   "sort_field": "modified",
