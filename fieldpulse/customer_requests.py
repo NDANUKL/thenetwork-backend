@@ -50,10 +50,10 @@ def requests(**kwargs):
         stage = customer_stage(frappe.get_doc("Diaspora Request", item.name)) if item.status != "Rejected" else item.status
         actions = {"New": "Our team will review your request.", "Fully assigned": "Scouts have been assigned to all projects.", "Partially assigned": "Scouts have been assigned to some projects. Assignment is pending for the remaining projects.", "Awaiting assignment": "Scout assignment is pending.", "In Progress": "Fieldwork is in progress.", "Completed": "The request has been completed.", "Rejected": "Our team will explain the next steps."}
         return {"name": item.name, "title": item.summary or item.category_label or "Verification request",
-            "status": "Details needed" if item.customer_action_required else stage, "modified": item.modified, "next_action": actions[stage] if stage in ("Partially assigned", "Awaiting assignment") else item.customer_next_action or actions.get(stage, "Our team will update you here.")}
+            "status": "Details needed" if item.customer_action_required else stage, "modified": item.modified, "next_action": "Please complete the details needed form in your request." if item.customer_action_required else actions.get(stage, "Our team will update you here.")}
     
     action = frappe.form_dict.get("action")
-    fields = ["name", "summary", "category_label", "status", "modified", "customer_next_action", "customer_action_required"]
+    fields = ["name", "summary", "category_label", "status", "modified", "customer_action_required"]
     if action == "detail":
         reference = frappe.form_dict.get("reference") or ""
         name = frappe.db.exists("Diaspora Request", {"name": reference, "dd_customer_account": account_name})

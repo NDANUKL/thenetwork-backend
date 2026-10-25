@@ -413,7 +413,9 @@
     {
       "fieldname": "scout_contact_access",
       "label": "Contact person and access arrangements",
-      "fieldtype": "Small Text"
+      "fieldtype": "Small Text",
+      "read_only_depends_on": "eval:!!doc.diaspora_request",
+      "description": "For customer requests, generated from contact and access details in Project locations. Update the relevant location row to change these arrangements."
     },
     {
       "fieldname": "scout_authorisation",

@@ -120,6 +120,13 @@ class NativeSourceTests(unittest.TestCase):
                 self.assertIn('frm.set_value("source", "Manual")', content)
                 self.assertIn('"diaspora_request", "request_type", "county", "field_brief"', content)
                 self.assertIn('Add the project county.', content)
+            elif record.get('enabled') and record['name'] == 'DD Alignment Forms':
+                # Check behavior while allowing updated form guidance text.
+                self.assertIn('frm.set_df_property("status", "hidden", 1)', content)
+                self.assertIn('frm.set_df_property("status", "read_only", 1)', content)
+                self.assertIn('frm.set_df_property("customer_sites", "read_only", 0)', content)
+                self.assertIn('"Project field requests"', content)
+                self.assertIn('frappe.set_route("List", "Field Request", { diaspora_request: frm.doc.name })', content)
             elif record.get('enabled'):
                 self.assertIn('\n'.join(line.strip() for line in record['script'].splitlines() if line.strip()), '\n'.join(line.strip() for line in content.splitlines() if line.strip()))
             else:

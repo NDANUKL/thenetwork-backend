@@ -84,6 +84,6 @@ def validate(doc, method=None):
 @owned_event('DD Details Next Action')
 def update_next_action(doc, method=None):
     if doc.status == "Details needed":
-        frappe.db.set_value("Diaspora Request", doc.request, {"customer_action_required": 1, "customer_next_action": "Please complete the details needed form in your request."})
+        frappe.db.set_value("Diaspora Request", doc.request, {"customer_action_required": 1})
     elif doc.status == "Ready for review":
-        frappe.db.set_value("Diaspora Request", doc.request, {"customer_action_required": 0, "customer_next_action": "Your details have been received. Our coordinator will review them."})
+        frappe.db.set_value("Diaspora Request", doc.request, {"customer_action_required": 0})

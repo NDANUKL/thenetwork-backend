@@ -4,6 +4,30 @@ import frappe
 
 LOCATION_FIELDS = ["site_label", "location_mode", "county", "area", "map_url", "latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes"]
 
+
+def contact_access_summary(sites):
+    """Keep each destination's arrangements together; never mix project contacts."""
+    blocks = []
+    for index, site in enumerate(sites or [], 1):
+        name = str(site.get("contact_name") or "").strip()
+        phone = str(site.get("contact_phone") or "").strip()
+        notes = str(site.get("access_notes") or "").strip()
+        if not any((name, phone, notes)):
+            continue
+        lines = [str(site.get("site_label") or f"Location {index}").strip()]
+        if name or phone:
+            lines.append("Contact: " + " - ".join(value for value in (name, phone) if value))
+        if notes:
+            lines.append("Access: " + notes)
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+def sync_contact_access(doc):
+    if doc.get("diaspora_request"):
+        doc.scout_contact_access = contact_access_summary(doc.get("project_locations"))
+
+
 def sync_locations(target, source, project):
     sites = source.get("customer_sites") or []
     if not sites:
@@ -23,21 +47,33 @@ def sync_locations(target, source, project):
         if not member:
             continue
         values = {field: original.get(field) for field in LOCATION_FIELDS}
-        snapshot = json.dumps(values, sort_keys=True)
+        source_verified = bool(original.get("location_verified"))
+        snapshot = json.dumps({**values, "_source_verified": source_verified}, sort_keys=True)
         existing = next((row for row in target.get("project_locations") or [] if row.get("source_site_id") == original.name or (not row.get("source_site_id") and row.site_label == original.site_label)), None)
-        if not existing:
-            existing = target.append("project_locations", {**values, "original_location": original.get("original_location"), "confirmation_status": "Needs confirmation"})
+        previous_verified = None
+        new_row = not existing
+        if new_row:
+            existing = target.append("project_locations", {**values, "original_location": original.get("original_location"), "confirmation_status": "Needs confirmation", "location_verified": 0})
         elif existing.get("source_location_snapshot"):
             previous = json.loads(existing.source_location_snapshot)
+            previous_verified = previous.pop("_source_verified", None)
             if previous != values:
                 existing.update(values)
                 existing.confirmation_status = "Needs confirmation"
+                existing.location_verified = 0
+        # Only a source confirmation change should override a project's own review.
+        # Never apply confirmation to a different destination corrected on that project.
+        verification_changed = (previous_verified is not None and previous_verified != source_verified) or (previous_verified is None and source_verified) or new_row
+        if verification_changed and all(existing.get(key) == value for key, value in values.items()):
+            existing.location_verified = int(source_verified)
+            existing.confirmation_status = "Confirmed for dispatch" if source_verified else "Needs confirmation"
         existing.source_site_id = original.name
         existing.source_location_snapshot = snapshot
 
 def validate_locations(doc):
     if not doc.diaspora_request:
         return
+    sync_contact_access(doc)
     if not doc.get("project_locations"):
         doc.dd_site_locations = "[]"
         return
@@ -78,7 +114,7 @@ def validate_locations(doc):
 def map_task_navigation(doc, request):
     sites = request.get("project_locations") or []
     if doc.is_new() and request.get("requires_verified_location") and (not sites or any(site.confirmation_status != "Confirmed for dispatch" for site in sites)):
-        frappe.throw("Open the Field Request's Project locations table, confirm each precise destination, tick Location verified on every row and save before assigning a scout.")
+        frappe.throw("Tick Location verified for each site on the customer request and save before assigning a scout.")
     doc.dd_site_locations = request.get("dd_site_locations")
     if not doc.location and len(sites) == 1 and sites[0].confirmation_status == "Confirmed for dispatch":
         site = sites[0]

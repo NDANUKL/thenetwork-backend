@@ -333,8 +333,7 @@ def prepare_occurrence(plan, visit):
     values.update(doctype='Diaspora Request',status='New',submission_id='recurring:'+visit.name,
         email=customer.user,dd_customer_account=plan.customer_account,
         recurring_plan=plan.name,recurring_occurrence=visit.name,recurring_source=plan.source_request,
-        deadline_preference='specific',deadline_date=str(visit.window_end),customer_action_required=0,
-        customer_next_action='Review your quotation when issued; each visit has its own deposit and balance.')
+        deadline_preference='specific',deadline_date=str(visit.window_end),customer_action_required=0)
     for site in values['customer_sites']:
         if visit.get('access_notes'): site['access_notes']=(site.get('access_notes') or '')+'\nFor this visit: '+visit.access_notes
         site['confirmation_status']='Needs confirmation';site['location_verified']=0

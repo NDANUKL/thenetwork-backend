@@ -197,9 +197,9 @@
       "reqd": 0,
       "unique": 0,
       "is_virtual": 0,
-      "read_only": 0,
+      "read_only": 1,
       "ignore_user_permissions": 0,
-      "hidden": 0,
+      "hidden": 1,
       "print_hide": 0,
       "print_hide_if_no_value": 0,
       "no_copy": 0,
@@ -217,7 +217,8 @@
       "hide_border": 0,
       "show_dashboard": 0,
       "permlevel": 0,
-      "columns": 0
+      "columns": 0,
+      "description": "Retired manual message. Customer next steps are derived from workflow state."
     },
     {
       "label": "Customer Response Required",
