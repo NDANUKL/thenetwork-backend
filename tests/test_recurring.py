@@ -215,3 +215,24 @@ class RuntimeTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class SiteSnapshotTests(unittest.TestCase):
+    setUp=RuntimeTests.setUp
+    act=RuntimeTests.act
+    def test_scope_copies_verified_site_inputs_but_not_dispatch_approval(self):
+        source=Record(name='source-site',site_label='Field',project_ids='["project-1"]',latitude=None,longitude=None,access_notes='Old instructions')
+        operational=Record(source_site_id='source-site',site_label='Field',latitude=-1.2,longitude=36.8,access_notes='Verified gate',confirmation_status='Confirmed for dispatch')
+        result=self.m.snapshot_sites([source],[operational])[0]
+        self.assertEqual(result['latitude'],-1.2)
+        self.assertEqual(result['project_ids'],'["project-1"]')
+        self.assertEqual(result['access_notes'],'Verified gate')
+        self.assertNotIn('confirmation_status',result)
+        self.assertIsNone(source.latitude)
+        with self.assertRaisesRegex(ValueError,'conflicting'):
+            self.m.snapshot_sites([source],[operational,Record(**{**operational,'longitude':37.0})])
+
+    def test_skipping_the_last_date_finishes_the_plan(self):
+        self.f.get_all.return_value=['Skipped']
+        self.act('Skip','visit-1','No visit required')
+        self.assertEqual(self.plan.status,'Completed')

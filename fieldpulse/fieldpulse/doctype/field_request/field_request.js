@@ -63,7 +63,8 @@ frappe.ui.form.on("Field Request", {
             },
             { fieldname: "scout_name", label: __("Full name"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
             { fieldname: "base_county", label: __("County"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
-            { fieldname: "questionnaire", label: __("Questionnaire"), fieldtype: "Link", options: "FP Questionnaire" },
+            { fieldname: "questionnaire", label: __("Questionnaire"), fieldtype: "Link", options: "FP Questionnaire",
+              get_query: () => ({filters: frm.doc.scout_questionnaire ? {name:frm.doc.scout_questionnaire} : {status:"Published",title:["not like","%University fee payment confirmation%"],project:["is","not set"]}}) },
           ] }],
         primary_action_label: __("Assign"),
         async primary_action(values) {

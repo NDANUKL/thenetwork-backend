@@ -14,6 +14,8 @@ class SchoolFeePolicyTests(unittest.TestCase):
             updated = apply_policy(original)
             fee = next(s for s in updated['services'] if s['service_code'] == 'university_fees')
             self.assertEqual(fee['title'], 'School fee payment confirmation')
+            self.assertEqual(sum(service['service_code'] == 'university_fees' for service in updated['services']), 1)
+            self.assertNotIn('University fee payment confirmation', [service['title'] for service in updated['services']])
             self.assertEqual(fee['questionnaire_version'], original['version'] + 3)
             self.assertIn('all ages', fee['description'])
             self.assertIn('no student contact', fee['description'])

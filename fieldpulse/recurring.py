@@ -94,6 +94,7 @@ def source_snapshot(source):
     if plan['issues'] or not plan['projects'] or any(p['scope_status'] != 'supported' for p in plan['projects']):
         reject('Resolve the project scope before setting up recurring checks')
     projects = []
+    operational_sites = []
     for item in plan['projects']:
         names = frappe.get_all('Field Request', filters={'diaspora_request': source.name, 'project_id': item['id'], 'status': ['!=','Cancelled']}, pluck='name')
         if len(names) != 1: reject('Every project needs one confirmed questionnaire')
@@ -104,19 +105,40 @@ def source_snapshot(source):
             reject('Confirm project locations before setting up recurring checks')
         if frappe.db.get_value('FP Questionnaire', doc.scout_questionnaire, 'status') != 'Published':
             reject('The confirmed questionnaire must be published')
+        operational_sites.extend(doc.project_locations)
         projects.append(dict(project_id=item['id'], **{key: doc.get(key) for key in CONTEXT},
             checks=[{key: row.get(key) for key in EDIT_FIELDS} for row in doc.scout_checks],
             fingerprint=fingerprint(doc), reviewed_by=doc.get('scout_checks_reviewed_by'),
             reviewed_at=str(doc.get('scout_checks_reviewed_at') or '')))
     # Only scope inputs are copied. No task, answer, approval, invoice or payment is reused.
     values = {key: source.get(key) for key in SOURCE_FIELDS}
-    sites = [{key: row.get(key) for key in SITE_FIELDS} for row in source.get('customer_sites') or []]
+    sites = snapshot_sites(source.get('customer_sites') or [],operational_sites)
     if not sites: reject('Record the request locations before setting up recurring checks')
     values['customer_sites'] = sites
     for field, keys in [('evidence_checklist',('evidence_item','county','project_number')),
         ('risk_flags',('risk_flag',)), ('clarification_history',('question','answer'))]:
         values[field] = [{key: row.get(key) for key in keys} for row in source.get(field) or []]
     return dict(source=values, projects=projects, quote=dict(quote))
+
+
+def snapshot_sites(source_sites, operational_sites):
+    result=[]
+    for original in source_sites:
+        values={key:original.get(key) for key in SITE_FIELDS}
+        matches=[row for row in operational_sites if row.get('source_site_id')==original.get('name')
+            or (not row.get('source_site_id') and row.get('site_label')==original.get('site_label'))]
+        overrides=[{key:row.get(key) for key in SITE_FIELDS if key!='project_ids'} for row in matches]
+        if overrides and any(digest(row)!=digest(overrides[0]) for row in overrides):
+            reject('A shared site has conflicting confirmed locations; resolve it before creating this plan')
+        if overrides: values.update(overrides[0])
+        result.append(values)
+    return result
+
+
+def finish_plan(doc):
+    statuses=frappe.get_all(OCCURRENCE,filters={'plan':doc.name},pluck='status')
+    if doc.status in ('Active','Paused') and statuses and all(status in TERMINAL for status in statuses):
+        doc.status='Completed';record(doc,'Schedule finished')
 
 
 def summary(doc):
@@ -196,16 +218,16 @@ def create(reference, frequency, submission_id, start_date=None, visits=None, da
     if frappe.db.exists(PLAN, {'source_request': source.name, 'status': ['in',list(OPEN_PLANS)]}):
         reject('This request already has an open recurring plan; open Recurring checks to manage it')
     snapshot = source_snapshot(source)
-    doc = frappe.get_doc(dict(doctype=PLAN, source_request=source.name, customer_account=customer,
-        title=(source.summary or source.name)[:140], service_category=source.category, frequency=frequency, status='Pending review',
+    doc = frappe.get_doc(dict(doctype=PLAN, plan_key=name, source_request=source.name, customer_account=customer,
+        title=(source.summary or source.name)[:140], service_category=source.get('category_label') or source.category, frequency=frequency, status='Pending review',
         scope_snapshot=json.dumps(snapshot,default=str), scope_hash=digest(snapshot), creation_hash=payload_hash,
         submission_id=submission_id, first_visit=rows[0]['due_date'], last_visit=rows[-1]['window_end'],
         visit_count=len(rows), window_days=window_days, history='[]'))
     with writing():
         doc.insert(ignore_permissions=True, set_name=name)
         for row in rows:
-            frappe.get_doc(dict(doctype=OCCURRENCE, plan=doc.name, source_request=source.name,
-                customer_account=customer, service_category=source.category, status='Scheduled', history='[]', **row)).insert(ignore_permissions=True,
+            frappe.get_doc(dict(doctype=OCCURRENCE, occurrence_key=occurrence_name(doc.name,row['sequence']), plan=doc.name, source_request=source.name,
+                customer_account=customer, service_category=source.get('category_label') or source.category, status='Scheduled', history='[]', **row)).insert(ignore_permissions=True,
                     set_name=occurrence_name(doc.name,row['sequence']))
     return {'success': True, 'plan': summary(doc)}
 
@@ -275,6 +297,7 @@ def action_impl(plan, action, expected_modified, submission_id, occurrence=None,
                 visit.access_confirmed_by=frappe.session.user; visit.status='Access confirmed'
         else: reject('Invalid recurring visit action')
         record(visit,action,notes,submission_id,digest(payload))
+        if action=='Skip': finish_plan(doc)
     else:
         if retry(doc,submission_id,payload): return {'success':True}
         check_version(doc,expected_modified)
@@ -344,16 +367,6 @@ def guard_request(doc, method=None):
         reject('Recurring visit provenance cannot be changed')
 
 
-def template_for(project):
-    if not project.get('recurring_plan'): return None
-    plan=frappe.get_doc(PLAN,project.recurring_plan)
-    spec=next((p for p in json.loads(plan.scope_snapshot)['projects'] if p['project_id']==project.project_id),None)
-    if not spec or project.recurring_template!=spec['scout_questionnaire']: reject('Keep the approved recurring questionnaire version')
-    if frappe.db.get_value('FP Questionnaire',project.recurring_template,'status')!='Published':
-        reject('The recurring questionnaire is no longer available; coordinator review is required')
-    return project.recurring_template
-
-
 def guard_project(doc, method=None):
     previous=doc.get_doc_before_save() if not doc.is_new() else None
     if previous and previous.get('recurring_plan') and any(doc.get(k)!=previous.get(k) for k in ('recurring_plan','recurring_template')):
@@ -401,9 +414,7 @@ def process_due():
                         from fieldpulse.customer_notifications import queue_event
                         queue_event('recurring',visit)
                     if can_prepare(plan.status,visit,today()): prepare_occurrence(plan,visit)
-            statuses=frappe.get_all(OCCURRENCE,filters={'plan':plan.name},pluck='status')
-            if plan.status in ('Active','Paused') and statuses and all(status in TERMINAL for status in statuses):
-                plan.status='Completed';record(plan,'Schedule finished')
+            finish_plan(plan)
             frappe.db.commit()
         except Exception:
             frappe.db.rollback(save_point='recurring_visit')

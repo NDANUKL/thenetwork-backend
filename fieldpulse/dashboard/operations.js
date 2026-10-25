@@ -11,6 +11,8 @@
   const counties = "Mombasa|Kwale|Kilifi|Tana River|Lamu|Taita Taveta|Garissa|Wajir|Mandera|Marsabit|Isiolo|Meru|Tharaka Nithi|Embu|Kitui|Machakos|Makueni|Nyandarua|Nyeri|Kirinyaga|Murang'a|Kiambu|Turkana|West Pokot|Samburu|Trans Nzoia|Uasin Gishu|Elgeyo Marakwet|Nandi|Baringo|Laikipia|Nakuru|Narok|Kajiado|Kericho|Bomet|Kakamega|Vihiga|Bungoma|Busia|Siaya|Kisumu|Homa Bay|Migori|Kisii|Nyamira|Nairobi".split("|").sort();
   $("#ops-county").insertAdjacentHTML("beforeend", counties.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(""));
   function filters(kind) {
+    if (kind === 'recurring_review') return {type:'DD Recurring Plan',f:[['status','=','Pending review']]};
+    if (kind === 'recurring_visits') return {type:'DD Recurring Occurrence',f:[['status','in',['Awaiting access','Access confirmed']],['due_date','<=',frappe.datetime.add_days(frappe.datetime.get_today(),14)]]};
     const globalLists = { quotations: "DD Quotation", scout_submissions: "FP Task Response", client_reports: "DD Service Report" };
     if (globalLists[kind]) return { type: globalLists[kind], f: [] };
     const county = $("#ops-county").value;
@@ -107,6 +109,7 @@
     if (!button) return;
     if (button.dataset.list) openList(button.dataset.list);
     if (button.dataset.action === "refresh") load();
+    if (button.dataset.action === "recurring_report") frappe.set_route("query-report", "Recurring Check Schedule");
     if (button.dataset.action === "create") frappe.new_doc("Field Request", {source:"Manual"});
     if (button.dataset.tab) {
       tab = button.dataset.tab;

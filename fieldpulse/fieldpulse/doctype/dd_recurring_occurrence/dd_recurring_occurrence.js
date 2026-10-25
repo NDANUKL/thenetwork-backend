@@ -8,7 +8,7 @@ frappe.ui.form.on('DD Recurring Occurrence', {
       for (const action of actions) frm.add_custom_button(__(action), () => {
         const dialog=new frappe.ui.Dialog({ title:__(action+' recurring visit'),fields:[{fieldname:'notes',fieldtype:'Small Text',label:__('Notes / skip reason'),reqd:action==='Skip'}],primary_action_label:__(action),primary_action:async values => {
           dialog.disable_primary_action();
-          try { await frappe.call({method:'fieldpulse.recurring.review',args:{plan:frm.doc.plan,occurrence:frm.doc.name,action,notes:values.notes||'',expected_modified:frm.doc.modified,submission_id:dialog.action_id}});dialog.hide();await frm.reload_doc(); }
+          try { const result=await frappe.call({method:'fieldpulse.recurring.review',args:{plan:frm.doc.plan,occurrence:frm.doc.name,action,notes:values.notes||'',expected_modified:frm.doc.modified,submission_id:dialog.action_id}});if(result.message?.success===false) { frappe.msgprint(result.message.error); return; } dialog.hide();await frm.reload_doc(); }
           finally { dialog.enable_primary_action(); }
         }});dialog.action_id=crypto.randomUUID();dialog.show();
       },__('Visit actions'));
