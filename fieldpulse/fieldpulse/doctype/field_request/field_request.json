@@ -11,6 +11,7 @@
     "diaspora_request",
     "request_type",
     "county",
+    "project_locations",
     "field_brief",
     "deadline",
     "priority",
@@ -54,6 +55,14 @@
       "options": "Diaspora Desk\nManual",
       "reqd": 1,
       "read_only": 1
+    },
+    {
+      "fieldname": "project_locations",
+      "label": "Project locations",
+      "fieldtype": "Table",
+      "options": "DD Request Site",
+      "read_only": 0,
+      "description": "Confirm each precise destination and any meeting arrangements, tick Location verified for every row, then save before assigning scouts."
     },
     {
       "fieldname": "source_reference",

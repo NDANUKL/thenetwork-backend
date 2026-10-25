@@ -78,7 +78,7 @@ def validate_locations(doc):
 def map_task_navigation(doc, request):
     sites = request.get("project_locations") or []
     if doc.is_new() and request.get("requires_verified_location") and (not sites or any(site.confirmation_status != "Confirmed for dispatch" for site in sites)):
-        frappe.throw("Verify all project locations before assigning a scout.")
+        frappe.throw("Open the Field Request's Project locations table, confirm each precise destination, tick Location verified on every row and save before assigning a scout.")
     doc.dd_site_locations = request.get("dd_site_locations")
     if not doc.location and len(sites) == 1 and sites[0].confirmation_status == "Confirmed for dispatch":
         site = sites[0]

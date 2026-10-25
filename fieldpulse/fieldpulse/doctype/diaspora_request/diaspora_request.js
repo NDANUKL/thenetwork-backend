@@ -6,6 +6,7 @@ frappe.ui.form.on("Diaspora Request", {
     frm.set_df_property("status", "hidden", 1);
     frm.set_df_property("status", "read_only", 1);
     frm.set_df_property("customer_sites", "read_only", 1);
+    frm.set_df_property("customer_sites", "description", __("Customer-submitted locations. Verify destinations on each linked Field Request under Project locations, then save before assigning scouts."));
     if (!frm.is_new()) frm.add_custom_button(__("Project field requests"), () => frappe.set_route("List", "Field Request", { diaspora_request: frm.doc.name }));
   },
 });
