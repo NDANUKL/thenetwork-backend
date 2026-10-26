@@ -1,5 +1,4 @@
-// Old publications remain available to pinned visits and through explicit history filters.
-// New work uses the single School fee payment confirmation service (all institutions).
+// The standard library uses streamlined templates; remove filters to inspect history.
 frappe.listview_settings['FP Questionnaire'] = {
-  filters: [['title', 'not like', '%University fee payment confirmation%']],
+  filters: [['version', 'not in', [1, 4]], ['title', 'not like', '%University fee payment confirmation%']],
 };

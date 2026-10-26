@@ -19,7 +19,8 @@ def workflow_enabled():
 
 
 def enabled():
-    return bool(getattr(frappe, 'conf', {}).get('dd_questionnaire_v2_enabled'))
+    """Streamlined questionnaires are standard; the former opt-in is ignored."""
+    return True
 
 
 @frappe.whitelist()
@@ -30,8 +31,7 @@ def library_options():
 
 
 def install_templates(preserve_published=False):
-    """Opt-in installation only; never changes existing project/task pins."""
-    if not enabled(): return
+    """Install the standard library without requiring site configuration."""
     for service in catalogue()['services']: install_service([service], preserve_published=preserve_published)
 
 
@@ -79,7 +79,6 @@ def install_service(services, preserve_published=False):
 def select_services(project, services):
     from fieldpulse.scout_submissions import require_reviewer
     require_reviewer()
-    if not enabled(): frappe.throw('Enable dd_questionnaire_v2_enabled after staging and compatible mobile rollout')
     doc = frappe.get_doc('Field Request', project)
     doc.check_permission('write')
     if frappe.db.exists('Field Task', {'field_request': doc.name, 'status': ['not in', ['Cancelled', 'Approved']]}):

@@ -24,10 +24,10 @@ class InstallationTests(unittest.TestCase):
         self.site.whitelist = lambda **kw: lambda fn: fn
         self.module = load(self.site)
 
-    def test_opt_in_installation_and_immutable_idempotent_catalogue(self):
-        self.module.install_templates()
-        self.assertEqual(len(self.site.rows), 0)
-        self.site.conf['dd_questionnaire_v2_enabled'] = True
+    def test_default_installation_and_immutable_idempotent_catalogue(self):
+        self.assertTrue(self.module.enabled())
+        self.site.conf['dd_questionnaire_v2_enabled'] = False
+        self.assertTrue(self.module.enabled())
         self.module.install_templates()
         self.assertEqual(len(self.site.get_all('FP Questionnaire')), 15)
         self.assertEqual(len(self.site.get_all('FP Question')), 88)
@@ -35,6 +35,21 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(len(self.site.get_all('FP Question')), 88)
         self.site.get_doc('FP Questionnaire','DD-land-v2').schema_hash = 'changed'
         with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_templates()
+
+    def test_normal_installer_publishes_v2_and_selects_it_without_flags(self):
+        spec = importlib.util.spec_from_file_location('default_templates_test', ROOT/'fieldpulse/scout_templates.py')
+        templates = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {'frappe': self.site}): spec.loader.exec_module(templates)
+        templates.install_legacy_templates()
+        with patch.dict(sys.modules, {'fieldpulse.scout_v2': self.module}):
+            templates.install_templates()
+            templates.install_templates()
+            for title, name in [('Plot check', 'DD-land-v2'), ('School fees paid', 'DD-university_fees-v5')]:
+                project = Record(doctype='Field Request', project_title=title)
+                templates.prepare_project(project)
+                self.assertEqual(project.scout_questionnaire, name)
+        self.assertEqual(len(self.site.get_all('FP Questionnaire')), 30)
+        self.assertEqual(len(self.site.get_all('FP Question', {'questionnaire':'DD-land-v2'})), 6)
 
     def test_migration_preserves_published_v2_and_visit_versions(self):
         self.site.conf['dd_questionnaire_v2_enabled'] = True

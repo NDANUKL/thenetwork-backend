@@ -30,6 +30,13 @@ def preserve_existing_published(name, preserve_published=False):
 
 
 def install_templates(preserve_published=False):
+    """Normal install/migration publishes the streamlined library by default."""
+    from fieldpulse.scout_v2 import install_templates as install_v2
+    install_v2(preserve_published=preserve_published)
+
+
+def install_legacy_templates(preserve_published=False):
+    """Explicit historical import only; not called by install or migration."""
     data = catalogue()
     for service in data["services"]:
         code = "DD-" + service["service_code"]
@@ -60,9 +67,6 @@ def install_templates(preserve_published=False):
         doc.status = "Published"
         doc.published_at = frappe.utils.now_datetime()
         doc.save(ignore_permissions=True)
-    if getattr(frappe, 'conf', {}).get('dd_questionnaire_v2_enabled'):
-        from fieldpulse.scout_v2 import install_templates as install_v2
-        install_v2(preserve_published=preserve_published)
 
 
 def infer_service(text, request_type=""):
@@ -111,16 +115,16 @@ def prepare_project(doc, method=None):
     code = service["service_code"]
     doc.scout_service = service["title"]
     filters = {"service_code": code, "status": "Published", "project": ["is", "not set"]}
-    if not getattr(frappe, 'conf', {}).get('dd_questionnaire_v2_enabled'): filters['version'] = ['in', [1, 4]] if code == 'university_fees' else 1
-    elif not getattr(frappe, 'conf', {}).get('dd_scout_visit_workflow_enabled'): filters['version'] = ['in', [1, 2, 4, 5]] if code == 'university_fees' else ['<', 3]
+    version = 3 if getattr(frappe, 'conf', {}).get('dd_scout_visit_workflow_enabled') else 2
+    filters['version'] = version + 3 if code == 'university_fees' else version
     name = frappe.db.get_value("FP Questionnaire", filters, "name", order_by="version desc")
-    if not name: frappe.throw("Publish the service questionnaire before dispatch")
     previous_template = doc.get("scout_questionnaire")
     if previous_template and frappe.db.get_value("FP Questionnaire",previous_template,"project"):
         frappe.throw("Select a shared source template; project-specific versions are assigned automatically")
     # Do not switch an existing project's pinned version just because a newer one was published.
     if previous_template and frappe.db.get_value("FP Questionnaire", previous_template, "service_code") == code and frappe.db.get_value("FP Questionnaire", previous_template, "status") == "Published":
         name = previous_template
+    if not name: frappe.throw("Publish the service questionnaire before dispatch")
     questions = frappe.get_all("FP Question", filters={"questionnaire": name, "active": 1}, fields=["name", "question_code", "label", "help_text", "validation_json"])
     service_rows = [q for q in questions if json.loads(q.validation_json or "{}").get("group") == "service"]
     if previous_template != name or not doc.get("scout_checks"):

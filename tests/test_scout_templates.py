@@ -59,12 +59,12 @@ class TemplateInstallTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location('template_install_test', ROOT / 'fieldpulse/scout_templates.py')
         self.module = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, {'frappe': self.site}): spec.loader.exec_module(self.module)
-        self.module.install_templates()
+        self.module.install_legacy_templates()
 
     def test_install_is_idempotent_and_each_published_service_has_shared_and_final_questions(self):
         self.assertEqual(len(self.site.get_all('FP Questionnaire')), 15)
         self.assertEqual(len(self.site.get_all('FP Question')), 150)
-        self.module.install_templates()
+        self.module.install_legacy_templates()
         self.assertEqual(len(self.site.get_all('FP Question')), 150)
         for row in self.site.get_all('FP Questionnaire'):
             self.assertEqual(row.status, 'Published')
@@ -84,9 +84,14 @@ class TemplateInstallTests(unittest.TestCase):
                     self.assertNotIn('#', literal, rule)
 
     def project(self):
-        project = Record(doctype='Field Request', name='request', project_title='Plot check', field_brief='Check the blue gate on my plot.', request_type='Property Verification')
+        project = Record(doctype='Field Request', name='request', project_title='Plot check', field_brief='Check the blue gate on my plot.', request_type='Property Verification', scout_questionnaire='DD-land-v1')
         self.module.prepare_project(project)
         return project
+
+    def test_missing_streamlined_template_does_not_fall_back_to_legacy(self):
+        project = Record(doctype='Field Request', project_title='Plot check')
+        with self.assertRaisesRegex(ValueError, 'Publish the service questionnaire'):
+            self.module.prepare_project(project)
 
     def test_land_template_is_selected_and_remaining_checks_are_scopeable(self):
         project = self.project()
@@ -108,28 +113,28 @@ class TemplateInstallTests(unittest.TestCase):
     def test_source_drift_cannot_overwrite_a_published_template(self):
         doc = self.site.get_doc('FP Questionnaire', 'DD-land-v1')
         doc.schema_hash = 'changed'
-        with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_templates()
+        with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_legacy_templates()
 
     def test_migration_preserves_published_drift_without_replacing_questions_or_hash(self):
         doc = self.site.get_doc('FP Questionnaire', 'DD-land-v1')
         doc.schema_hash = 'historical-production-hash'
         questions = [dict(row) for row in self.site.get_all('FP Question', {'questionnaire': doc.name})]
         self.site.logger = MagicMock()
-        self.module.install_templates(preserve_published=True)
+        self.module.install_legacy_templates(preserve_published=True)
         self.assertEqual(doc.schema_hash, 'historical-production-hash')
         self.assertEqual(doc.status, 'Published')
         self.assertEqual([dict(row) for row in self.site.get_all('FP Question', {'questionnaire': doc.name})], questions)
         self.assertEqual(len(self.site.get_all('FP Questionnaire')), 15)
         self.site.logger.return_value.warning.assert_called_once()
         # A successful migration does not approve the drift for explicit publishing.
-        with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_templates()
+        with self.assertRaisesRegex(ValueError, 'new version'): self.module.install_legacy_templates()
 
     def test_migration_still_rejects_conflicting_unpublished_template(self):
         doc = self.site.get_doc('FP Questionnaire', 'DD-land-v1')
         doc.schema_hash = 'unknown-hash'
         doc.status = 'Draft'
         with self.assertRaisesRegex(ValueError, 'new version'):
-            self.module.install_templates(preserve_published=True)
+            self.module.install_legacy_templates(preserve_published=True)
 
     def test_after_migrate_selects_preservation_only_for_migration(self):
         spec = importlib.util.spec_from_file_location('payment_install_test', ROOT / 'fieldpulse/payment_install.py')

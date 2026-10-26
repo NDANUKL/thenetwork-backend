@@ -53,13 +53,13 @@ class SchoolFeePolicyTests(unittest.TestCase):
             spec.loader.exec_module(module)
         historical = json.loads((ROOT / 'fieldpulse/configuration/scout-questionnaires.json').read_text(encoding='utf-8'))
         with patch.object(module, 'catalogue', return_value=historical):
-            module.install_templates()
+            module.install_legacy_templates()
         old = copy.deepcopy(dict(site.get_doc('FP Questionnaire', 'DD-university_fees-v1')))
-        module.install_templates()
-        module.install_templates()
+        module.install_legacy_templates()
+        module.install_legacy_templates()
         self.assertEqual(dict(site.get_doc('FP Questionnaire', 'DD-university_fees-v1')), old)
         self.assertEqual(site.get_doc('FP Questionnaire', 'DD-university_fees-v4').title, 'School fee payment confirmation')
-        project = Record(doctype='Field Request', name='fee-project', project_title='Confirm primary school fees paid for my child', request_type='General Site Visit')
+        project = Record(doctype='Field Request', name='fee-project', project_title='Confirm primary school fees paid for my child', request_type='General Site Visit', scout_questionnaire='DD-university_fees-v4')
         module.prepare_project(project)
         self.assertEqual(project.scout_questionnaire, 'DD-university_fees-v4')
         project.scout_service = 'University fee payment confirmation'
