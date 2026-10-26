@@ -90,3 +90,29 @@ class TestFieldRequest(FrappeTestCase):
         with patch('fieldpulse.integrations.diaspora_request.ensure_field_requests',side_effect=RuntimeError('Conversion failed')):
             with self.assertRaisesRegex(RuntimeError,'Conversion failed'):
                 create_field_request(frappe._dict(name='synthetic-source'))
+
+    def test_location_children_are_inserted_once_and_keep_source_identity(self):
+        self.assertEqual(len([f for f in frappe.get_meta('Field Request').get_table_fields()
+                              if f.fieldname == 'project_locations']), 1)
+        project = dict(id='supplier-check', number=1, description='Check supplier stock',
+                       county='Kajiado', eligibility='supported', service_category='business_asset_check',
+                       evidence_tasks=['Photograph visible stock'])
+        source = self.source(project_details=json.dumps([project]), project_contract_version=1,
+            evidence_checklist=[], customer_sites=[dict(site_label='Project 1: Supplier',
+                project_ids=json.dumps(['supplier-check']), location_mode='contact', county='Kajiado',
+                area='Oloitoktok', contact_name='Supplier contact', contact_phone='0712345678',
+                access_notes='Meet at the market entrance', pin_type='Site entrance')])
+        target_name = frappe.db.get_value('Field Request', {'diaspora_request': source.name}, 'name')
+        target = frappe.get_doc('Field Request', target_name)
+        self.assertEqual(len(source.customer_sites), 1)
+        self.assertEqual(len(target.project_locations), 1)
+        original, copied = source.customer_sites[0], target.project_locations[0]
+        self.assertNotEqual(original.name, copied.name)
+        self.assertEqual(copied.source_site_id, original.name)
+        self.assertEqual(copied.area, 'Oloitoktok')
+        self.assertEqual(copied.contact_phone, '0712345678')
+        source.save()
+        target.reload()
+        self.assertEqual([row.name for row in target.project_locations], [copied.name])
+        self.assertEqual(frappe.db.count('DD Request Site', {'parent': target.name,
+            'parenttype': 'Field Request', 'parentfield': 'project_locations'}), 1)

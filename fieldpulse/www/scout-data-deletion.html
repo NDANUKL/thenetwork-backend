@@ -1,0 +1,21 @@
+{% extends "templates/web.html" %}
+{% block title %}Ground Scouts account deletion{% endblock %}
+{% block page_content %}
+<div style="max-width:650px;margin:2rem auto;padding:1.5rem">
+<h1>Request account and data deletion</h1>
+<p>Use this page even if you cannot sign in to the mobile app. Enter your scout account email. We will send a confirmation link to verify that you own it.</p>
+<p>A request does not immediately delete your account, active assignments, unpaid earnings or unsent files on your phone. Privacy administrators review the request, arrange any handover, and explain what was removed and which evidence, payment or audit records must be retained. Signing out is not account deletion.</p>
+<form id="deletion-form"><label for="scout-email">Scout account email</label><input id="scout-email" class="form-control" type="email" maxlength="140" required autocomplete="email"><label for="reason">Reason (optional)</label><textarea id="reason" class="form-control" maxlength="1000"></textarea><button class="btn btn-primary mt-3" type="submit">Email confirmation link</button></form>
+<div id="confirm" hidden><p>Confirm that you want privacy administrators to process your account deletion request. This submits a request; it does not erase work automatically.</p><button id="confirm-button" class="btn btn-primary">Confirm deletion request</button></div>
+<p id="result" role="status" style="margin-top:1rem"></p>
+</div>
+<script>
+frappe.ready(function(){
+  const token=new URLSearchParams(location.hash.slice(1)).get('token');
+  if(token){document.getElementById('confirm').hidden=false;document.getElementById('deletion-form').hidden=true;history.replaceState(null,'',location.pathname);}
+  async function send(method,args,button){button.disabled=true;try{const response=await frappe.call({method:'fieldpulse.scout_privacy.'+method,type:'POST',args});const value=response.message;document.getElementById('result').textContent=value.reference?'Request received. Reference: '+value.reference+'. Status: '+value.status:value.message;return true;}catch(e){document.getElementById('result').textContent='Could not complete this request. The confirmation link may have expired. Request a new link or contact your coordinator.';return false;}finally{button.disabled=false;}}
+  document.getElementById('deletion-form').addEventListener('submit',function(event){event.preventDefault();void send('email_deletion_link',{email:document.getElementById('scout-email').value,reason:document.getElementById('reason').value},this.querySelector('button'));});
+  document.getElementById('confirm-button').addEventListener('click',async function(){if(await send('confirm_email_deletion',{token},this))document.getElementById('confirm').hidden=true;});
+});
+</script>
+{% endblock %}

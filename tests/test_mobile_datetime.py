@@ -1,6 +1,6 @@
 from datetime import datetime
 import unittest
-from fieldpulse.mobile_datetime import mobile_datetime
+from fieldpulse.mobile_datetime import mobile_datetime, site_datetime_iso
 
 
 class MobileDatetimeTests(unittest.TestCase):
@@ -20,3 +20,12 @@ class MobileDatetimeTests(unittest.TestCase):
         for value in ('invalid', '2026-13-23T15:00:00Z', 123):
             with self.assertRaisesRegex(ValueError, 'Invalid mobile timestamp'):
                 mobile_datetime(value, 'Africa/Nairobi')
+
+    def test_outbound_timestamp_labels_site_timezone(self):
+        self.assertEqual(site_datetime_iso('2026-10-26 09:30:00', 'Africa/Nairobi'), '2026-10-26T09:30:00+03:00')
+        self.assertEqual(site_datetime_iso('2026-10-26T06:30:00Z', 'Africa/Nairobi'), '2026-10-26T09:30:00+03:00')
+        self.assertIsNone(site_datetime_iso(None, 'Africa/Nairobi'))
+        self.assertEqual(site_datetime_iso('2026-07-26 09:30:00', 'America/New_York'), '2026-07-26T09:30:00-04:00')
+        self.assertEqual(site_datetime_iso('2026-01-26 09:30:00', 'America/New_York'), '2026-01-26T09:30:00-05:00')
+        with self.assertRaisesRegex(ValueError, 'Invalid site timestamp'):
+            site_datetime_iso('bad', 'Africa/Nairobi')

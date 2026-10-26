@@ -65,3 +65,21 @@ class MobileSyncSecurity(unittest.TestCase):
         self.assertEqual(result['response_status'], 'Submitted')
         self.assertEqual(result['server_id'], 'response')
         self.f.new_doc.assert_not_called()
+
+    def test_assignment_times_include_site_offset_but_cursor_stays_site_local(self):
+        from datetime import datetime
+        class Row(dict):
+            __getattr__ = dict.get
+        task = Row(name='task',status='Assigned',modified=datetime(2026,10,26,10),creation=datetime(2026,10,25,8),due_at=datetime(2026,10,27,17),assigned_at=datetime(2026,10,26,9))
+        self.f.get_all.return_value = [task]
+        self.api.now_datetime.return_value = datetime(2026,10,26,12)
+        utils = types.ModuleType('frappe.utils')
+        utils.get_system_timezone = lambda: 'Africa/Nairobi'
+        rework = types.ModuleType('fieldpulse.scout_rework')
+        rework.revision_payload = lambda task: None
+        with patch.dict(sys.modules, {'frappe.utils':utils,'fieldpulse.scout_rework':rework}):
+            result = self.api.sync_pull_assignments(protocol_version=2,visit_workflow_version=2,rework_version=2,questionnaire_editor_version=1)
+        self.assertEqual(result['tasks'][0]['due_at'],'2026-10-27T17:00:00+03:00')
+        self.assertEqual(result['tasks'][0]['assigned_at'],'2026-10-26T09:00:00+03:00')
+        self.assertEqual(result['tasks'][0]['server_updated_at'],'2026-10-26T10:00:00+03:00')
+        self.assertEqual(result['server_time'],'2026-10-26T12:00:00')

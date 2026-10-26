@@ -13,7 +13,7 @@ from frappe.utils import now_datetime
 
 from fieldpulse.utils import haversine_distance_m
 from fieldpulse.geofence import effective_geofence_radius
-from fieldpulse.mobile_datetime import mobile_datetime
+from fieldpulse.mobile_datetime import mobile_datetime, site_datetime_iso
 
 
 def _get_scout_profile_for_user(user=None):
@@ -58,7 +58,10 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
     if int(questionnaire_editor_version or 0) < 1 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('project_questionnaire') for task in tasks):
         frappe.throw('Update the scout app to use the project-specific questionnaire. Saved work remains on this device.')
     for task in tasks:
-        task["server_updated_at"] = task.get("modified")
+        task["server_updated_at"] = site_datetime_iso(task.get("modified"))
+        for field in ("due_at", "assigned_at", "creation", "created_at"):
+            if task.get(field):
+                task[field] = site_datetime_iso(task[field])
         from fieldpulse.scout_rework import revision_payload
         task['rework_draft'] = revision_payload(task)
 

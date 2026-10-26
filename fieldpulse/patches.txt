@@ -18,3 +18,4 @@ fieldpulse.patches.v1_0.refresh_diaspora_request_statuses
 fieldpulse.patches.v1_0.simplify_coordinator_checks
 
 fieldpulse.patches.v1_0.assign_readable_task_numbers
+fieldpulse.patches.v1_0.deduplicate_project_locations
