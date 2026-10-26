@@ -25,6 +25,27 @@ class EditorTests(unittest.TestCase):
                 Record(question=None,label='What proportion of maize appears harvested?',check_key='maize-check',answer_format='Single choice',
                     answer_options='Standing\nPartly harvested\nFully harvested\nUnable to establish',evidence_mode='Specify evidence',evidence_json='[]')])
 
+    def test_incomplete_template_settings_remain_editable(self):
+        source=Record(name='interview',questionnaire='base',label='What is offered?',
+            validation_json=json.dumps(dict(group='service',protocol_version=2,
+                answer_type='interview',result_options=['Confirmed'],confirmation=True,evidence=[])))
+        project=Record(scout_questionnaire='base',scout_checks=[Record(question='interview')])
+        project.check_permission=MagicMock()
+        fake=MagicMock()
+        fake.get_doc.side_effect=[project,source]
+        with patch.dict(sys.modules,{'frappe':fake}):
+            settings=editor.editor_settings('project','interview')
+        self.assertTrue(settings['configuration_template']['confirmation'])
+        self.assertEqual(settings['evidence'],[])
+        self.assertEqual(settings['options'],['Confirmed'])
+
+    def test_incomplete_check_error_identifies_the_question(self):
+        self.boundary.validation_json=json.dumps(dict(group='service',protocol_version=2,
+            answer_type='checklist',result_options=['Confirmed'],evidence=[]))
+        self.project.scout_checks.insert(0,Record(question='boundary',label='Which boundary markers exist?'))
+        with self.assertRaisesRegex(ValueError,'Which boundary markers exist.*Edit question and evidence'):
+            editor.build_specs(self.project,self.questions)
+
     def test_custom_question_and_wording_replace_irrelevant_template_questions(self):
         original=copy.deepcopy(self.questions)
         editor.validate_draft(self.project,self.questions)

@@ -27,7 +27,8 @@
       "label": "Assigned items and evidence settings",
       "fieldtype": "Code",
       "options": "JSON",
-      "description": "Use Configure checks on the Field Request."
+      "description": "Managed through Edit question and evidence.",
+      "hidden": 1
     },
     {
       "fieldname": "check_key",

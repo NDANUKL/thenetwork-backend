@@ -74,15 +74,37 @@ class FPTaskResponse(Document):
         answered_by_question = {a["question"]: a for a in answers}
         answered_by_code = {a["question_code"]: a for a in answers}
 
+        scope_raw = frappe.db.get_value('Field Task',self.task,'questionnaire_scope')
+        scope = frappe.parse_json(scope_raw) if scope_raw else None
         for q in questions:
-            if not q["required"] or not self._is_question_visible(q, answered_by_code):
+            if scope is not None and q['question_code'] not in scope:
+                continue
+            if not self._is_question_visible(q, answered_by_code) or not q['required'] and q['name'] not in answered_by_question:
                 continue
             self._require_answer(q, answered_by_question)
 
     def _require_answer(self, q, answered_by_question):
         answer = answered_by_question.get(q["name"])
-        if not answer or (not answer.get("answer_text") and not answer.get("answer_json")):
-            frappe.throw(f"Missing required answer: {q['label']}")
+        from fieldpulse.legacy_questionnaires import answer_issue
+        value = None
+        if answer:
+            raw = answer.get('answer_json')
+            if raw is not None and raw != '':
+                try:
+                    value = frappe.parse_json(raw) if isinstance(raw,str) else raw
+                except Exception:
+                    frappe.throw(f"Invalid answer format: {q['label']}")
+            else:
+                value = answer.get('answer_text')
+        options = ()
+        if q['question_type'] in ('single_select','multi_select','rating_scale','yes_no'):
+            rows = frappe.get_all('FP Question Option',filters={'question':q['name']},fields=['name','option_code','label'])
+            options = tuple(row.get('option_code') or row.get('label') or row['name'] for row in rows)
+        issue = answer_issue(q['question_type'],value,bool(q['required']),options)
+        if issue:
+            frappe.throw(f"{q['label']}: {issue}")
+        if not answer or value is None or value == '' or value == []:
+            return
 
         if q["question_type"] in ("photo", "file_attachment", "signature"):
             has_attachment = frappe.db.exists(
@@ -91,6 +113,7 @@ class FPTaskResponse(Document):
                     "field_task": self.task,
                     "question_response": answer["name"],
                     "upload_status": "Uploaded",
+                    "evidence_type": {'photo':'Photo','file_attachment':'Document','signature':'Signature'}[q['question_type']],
                 },
             )
             if not has_attachment:
@@ -111,8 +134,18 @@ class FPTaskResponse(Document):
         target_answer = answered_by_code.get(target_code)
         if not target_answer:
             return False  # controlling question wasn't answered yet
-        actual = target_answer.get("answer_text") or target_answer.get("answer_json")
-        return str(actual) == str(rule.get("equals"))
+        raw = target_answer.get('answer_json')
+        if raw is not None and raw != '':
+            try:
+                actual = frappe.parse_json(raw) if isinstance(raw,str) else raw
+            except Exception:
+                return False
+        else:
+            actual = target_answer.get('answer_text')
+        expected = rule.get('equals')
+        if isinstance(actual,bool) or isinstance(expected,bool):
+            return type(actual) is type(expected) and actual == expected
+        return actual == expected
 
     def _sync_task_status(self):
         # Pre-creating a blank replacement revision must not mark the new scout

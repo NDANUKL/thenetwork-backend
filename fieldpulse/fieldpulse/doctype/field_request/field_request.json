@@ -344,7 +344,8 @@
       "fieldname": "scout_service",
       "label": "Scout service",
       "fieldtype": "Select",
-      "options": "\nLand or plot check\nProperty or building check\nConstruction progress check\nBusiness or shop check\nVehicle check\nEquipment or funded asset check\nAdult student enrolment check\nSchool fee payment confirmation\nAdult student attendance check\nAdult clinic visit verification\nDocument comparison and issuer confirmation\nReceipt confirmation\nPurchase or delivery confirmation\nGeneral site visit\nMerchant survey and field interviews"
+      "options": "\nLand or plot check\nProperty or building check\nConstruction progress check\nBusiness or shop check\nVehicle check\nEquipment or funded asset check\nAdult student enrolment check\nSchool fee payment confirmation\nAdult student attendance check\nAdult clinic visit verification\nDocument comparison and issuer confirmation\nReceipt confirmation\nPurchase or delivery confirmation\nGeneral site visit\nMerchant survey and field interviews",
+      "description": "The service loads its checklist automatically. Change it only if the agreed work is different."
     },
     {
       "fieldname": "scout_questionnaire",
@@ -358,36 +359,39 @@
       "label": "Scout checklist",
       "fieldtype": "Table",
       "options": "DD Scout Check",
-      "description": "Edit, add or remove service questions for this request. Required visit and evidence safeguards remain protected."
+      "description": "Review these questions against the customer request. Use Edit question and evidence in a row to change its wording, items or attachments. Add or remove questions as needed, then tick Checklist reviewed and save."
     },
     {
       "fieldname": "scout_checks_confirmed",
       "label": "Checklist reviewed",
       "fieldtype": "Check",
       "default": "0",
-      "description": "Confirm this checklist covers the agreed client request before assigning a scout."
+      "description": "After reviewing the questions, evidence and visit details, tick this box and save. Then use Assign scouts."
     },
     {
       "fieldname": "scout_reference_material",
-      "label": "Reference descriptions, documents and previous reports",
-      "fieldtype": "Small Text"
+      "label": "Documents and details the scout should compare against",
+      "fieldtype": "Small Text",
+      "description": "Coordinator: add relevant descriptions or links to supplied documents and previous reports, when comparison is part of this visit. Leave blank otherwise."
     },
     {
       "fieldname": "scout_contact_access",
       "label": "Contact person and access arrangements",
       "fieldtype": "Small Text",
       "read_only_depends_on": "eval:!!doc.diaspora_request",
-      "description": "For customer requests, generated from contact and access details in Project locations. Update the relevant location row to change these arrangements."
+      "description": "Contact and access details copied from the customer request. To correct them, edit the contact details for that site in Project locations."
     },
     {
       "fieldname": "scout_authorisation",
-      "label": "Recorded authorisation and institutional arrangements",
-      "fieldtype": "Small Text"
+      "label": "Permission and visit arrangements",
+      "fieldtype": "Small Text",
+      "description": "Coordinator: record actual permission obtained, who granted it and any agreed visit arrangements. Required for services needing institutional permission."
     },
     {
       "fieldname": "scout_restrictions",
       "label": "Restrictions and permitted information",
-      "fieldtype": "Small Text"
+      "fieldtype": "Small Text",
+      "description": "State what the scout may ask, inspect or record, and any information or areas that are off limits."
     },
     {
       "fieldname": "customer_coverage_section",

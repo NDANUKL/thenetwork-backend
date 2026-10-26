@@ -1,4 +1,4 @@
-"""Durable rework email delivery; a failed sender never loses the rework request."""
+"""Durable assignment, withdrawal, authorization and rework email delivery."""
 from datetime import timedelta
 from hashlib import sha256
 from html import escape
@@ -24,7 +24,7 @@ def queue_rework(task, response, kind, codes, notes):
         type='Alert', subject=title, email_content=escape(body).replace('\n', '<br>'),
         document_type='Field Task', document_name=task.name)).insert(ignore_permissions=True)
     frappe.get_doc(dict(doctype=DOCTYPE, event_key=key, task=task.name, source_response=response.name,
-        scout=task.scout_profile, recipient=user, subject=title, message=body,
+        scout=task.scout_profile, recipient=user, subject=title, message=body, event_kind='Rework',
         status='Pending', attempts=0, next_attempt_at=frappe.utils.now_datetime())).insert(ignore_permissions=True)
     try: frappe.enqueue('fieldpulse.scout_notifications.send', notification=key, enqueue_after_commit=True)
     except Exception: pass  # The scheduler retries the durable row.
@@ -38,8 +38,7 @@ def send(notification):
     now = frappe.utils.now_datetime()
     if record.status != 'Pending' or (record.next_attempt_at and frappe.utils.get_datetime(record.next_attempt_at) > now): return
     task = frappe.get_doc('Field Task', record.task)
-    user = frappe.db.get_value('Scout Profile', task.scout_profile, 'user')
-    if task.scout_profile != record.scout or user != record.recipient or not frappe.db.get_value('User', user, 'enabled') or task.status in ('Approved', 'Cancelled'):
+    if not delivery_current(record, task):
         frappe.db.set_value(DOCTYPE, record.name, 'status', 'Skipped')
         return
     if record.first_attempt_at and now - frappe.utils.get_datetime(record.first_attempt_at) >= timedelta(hours=23):
@@ -48,7 +47,7 @@ def send(notification):
     attempts = int(record.attempts or 0) + 1
     try:
         key, sender, _ = delivery_config()
-        email = frappe.db.get_value('User', user, 'email') or user
+        email = frappe.db.get_value('User', record.recipient, 'email') or record.recipient
         payload = json.loads(record.payload) if record.get('payload') else dict(
             **{'from': sender}, to=[email], subject=record.subject,
             html='<p>' + escape(record.message).replace('\n', '<br>') + '</p>', text=record.message)
@@ -60,19 +59,83 @@ def send(notification):
         record.reload()
         task.reload()
         if record.status != 'Pending': return
-        if task.scout_profile != record.scout or task.status in ('Approved', 'Cancelled') or frappe.db.get_value('Scout Profile', task.scout_profile, 'user') != record.recipient:
+        if not delivery_current(record, task):
             frappe.db.set_value(DOCTYPE, record.name, 'status', 'Skipped')
             return
         result = requests.post('https://api.resend.com/emails', timeout=20,
             headers={'Authorization': 'Bearer ' + key, 'Idempotency-Key': 'dd-scout-' + record.name}, json=payload)
-        if not result.ok or not result.json().get('id'): raise ValueError('Email provider did not accept the rework notification')
+        if not result.ok or not result.json().get('id'): raise ValueError('Email provider did not accept the scout notification')
         frappe.db.set_value(DOCTYPE, record.name, dict(status='Sent', sent_at=frappe.utils.now_datetime(), last_error=''))
     except Exception:
         frappe.db.set_value(DOCTYPE, record.name, dict(attempts=attempts,
             next_attempt_at=now + timedelta(minutes=min(60, 2 ** min(attempts, 6))),
-            last_error='Rework email delivery failed; check the shared sender settings.'))
+            last_error='Scout email delivery failed; check the shared sender settings.'))
 
 
 def retry_pending():
     for name in frappe.get_all(DOCTYPE, filters={'status': 'Pending', 'next_attempt_at': ['<=', frappe.utils.now_datetime()]}, pluck='name', limit=100):
         frappe.enqueue('fieldpulse.scout_notifications.send', notification=name)
+
+
+def delivery_current(record, task):
+    user = frappe.db.get_value('Scout Profile', record.scout, 'user')
+    if user != record.recipient or not frappe.db.get_value('User', user, 'enabled'):
+        return False
+    kind = record.get('event_kind') or 'Rework'
+    if kind == 'Withdrawal':
+        # An old assignee must receive withdrawal even after ownership changes.
+        return task.scout_profile != record.scout or task.status == 'Cancelled'
+    if task.scout_profile != record.scout or task.status in ('Approved', 'Cancelled'):
+        return False
+    if kind == 'Authorization':
+        return task.status == record.get('assignment_status')
+    if kind == 'Assignment':
+        return task.status in ('Assigned', 'Accepted', 'In Progress')
+    return True
+
+
+def queue_task_event(task, scout, kind):
+    user = frappe.db.get_value('Scout Profile', scout, 'user') if scout else None
+    if not user or not frappe.db.get_value('User', user, 'enabled'):
+        return None
+    revision = str(task.get('modified') or task.get('creation') or '')
+    key = sha256(json.dumps([task.name, scout, kind, task.status, revision]).encode()).hexdigest()
+    if frappe.db.exists(DOCTYPE, key):
+        return key
+    reference = task.get('task_number') or task.name
+    title = {'Assignment':'New assignment', 'Withdrawal':'Assignment withdrawn', 'Authorization':'Revisit authorization updated'}[kind]
+    instruction = 'Open Ground Scouts and sync to read the current assignment.'
+    if kind == 'Withdrawal':
+        instruction = 'Stop work on this assignment. Keep unsent work on your device and contact your coordinator. Open Ground Scouts and sync.'
+    elif task.status == 'Awaiting authorization':
+        instruction = 'Do not revisit yet. Await coordinator authorization. Open Ground Scouts and sync for the current status.'
+    # No client names, findings, payment details or review notes in these alerts.
+    message = f'{title}: {reference}. {instruction}'
+    frappe.get_doc(dict(doctype=DOCTYPE,event_key=key,task=task.name,scout=scout,recipient=user,
+        event_kind=kind,assignment_status=task.status,subject=title,message=message,
+        status='Pending',attempts=0,next_attempt_at=frappe.utils.now_datetime())).insert(ignore_permissions=True)
+    frappe.get_doc(dict(doctype='Notification Log',for_user=user,from_user=frappe.session.user,
+        type='Alert',subject=title,email_content=escape(message),document_type='Field Task',
+        document_name=task.name)).insert(ignore_permissions=True)
+    try:
+        frappe.enqueue('fieldpulse.scout_notifications.send',notification=key,enqueue_after_commit=True)
+    except Exception:
+        pass  # Durable pending records are retried by the existing scheduler.
+    return key
+
+
+def capture_task(task, method=None):
+    if getattr(frappe.flags,'in_migrate',False) or getattr(frappe.flags,'in_install',False):
+        return
+    previous = task.get_doc_before_save()
+    old_scout = previous.get('scout_profile') if previous else None
+    changed_owner = bool(previous and old_scout != task.scout_profile)
+    if old_scout and (changed_owner or task.status == 'Cancelled' and previous.status != 'Cancelled'):
+        queue_task_event(task,old_scout,'Withdrawal')
+    if task.scout_profile and task.status in ('Assigned','Accepted','In Progress'):
+        if not previous or changed_owner:
+            queue_task_event(task,task.scout_profile,'Assignment')
+        elif previous.status == 'Awaiting authorization':
+            queue_task_event(task,task.scout_profile,'Authorization')
+    elif task.scout_profile and task.status == 'Awaiting authorization' and (not previous or changed_owner or previous.status != task.status):
+        queue_task_event(task,task.scout_profile,'Authorization')

@@ -98,3 +98,7 @@ doc_events['Field Request']['before_save'].append('fieldpulse.recurring.guard_pr
 scheduler_events['cron']['*/5 * * * *'].append('fieldpulse.recurring.process_due')
 
 doc_events.setdefault('DD Recurring Occurrence', {})['on_update']='fieldpulse.customer_notifications.capture'
+
+# Closed-app scout alerts share the existing durable email queue.
+doc_events['Field Task']['after_insert'].append('fieldpulse.scout_notifications.capture_task')
+doc_events['Field Task']['on_update'].append('fieldpulse.scout_notifications.capture_task')

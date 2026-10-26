@@ -82,7 +82,10 @@ def build_specs(project, questions):
             original=decode(source.validation_json,{}) or {}
             if original.get('group')!='service':raise ValueError('Opening and closing checks are protected; edit only service questions')
             if original.get('protocol_version')==2:
-                config=resolve_config(original,row.get('configuration_json'))
+                try:
+                    config=resolve_config(original,row.get('configuration_json'))
+                except ValueError as error:
+                    raise ValueError(f'Question ?{row.label or source.label}?: {error}. Open Edit question and evidence in the Scout checklist.') from error
                 if config is None:continue
             else:
                 config=dict(group='service',protocol_version=2,answer_type='single',
@@ -183,11 +186,16 @@ def editor_settings(project, question=None, configuration=None):
     row=next((row for row in doc.get('scout_checks') or [] if row.question==question),None)
     config=decode(source.validation_json,{})
     if config.get('protocol_version')==2:
-        config=resolve_config(config,configuration if configuration is not None else row.get('configuration_json') if row else None) or config
+        template=copy.deepcopy(config)
+        try:
+            config=resolve_config(config,configuration if configuration is not None else row.get('configuration_json') if row else None) or config
+        except ValueError:
+            # Drafts must remain editable before their required settings are complete.
+            config=template
     else:
         config=dict(result_options=config.get('result_options') or ['Observed','Confirmed','Partly confirmed','Not confirmed','Unable to check','Not applicable'],
             evidence=[dict(id='visit-'+kind.lower(),kind=kind,subject=config.get('evidence_prompt') or 'Show the agreed site condition.') for kind in ('Photo','Video')] if config.get('mandatory_evidence') else [])
-    return dict(template=True,evidence=config.get('evidence') or [],options=config.get('result_options') or [],
+    return dict(template=True,configuration_template=template if config.get('protocol_version')==2 else None,evidence=config.get('evidence') or [],options=config.get('result_options') or [],
         protected=bool((decode(source.validation_json,{}) or {}).get('mandatory_evidence') or (decode(source.validation_json,{}) or {}).get('mandatory_selection')))
 
 

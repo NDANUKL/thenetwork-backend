@@ -5,6 +5,8 @@
   "autoname": "field:event_key",
   "engine": "InnoDB",
   "field_order": [
+    "event_kind",
+    "assignment_status",
     "event_key",
     "task",
     "source_response",
@@ -21,6 +23,19 @@
     "last_error"
   ],
   "fields": [
+    {
+      "fieldname": "event_kind",
+      "fieldtype": "Select",
+      "label": "Event kind",
+      "options": "Rework\nAssignment\nWithdrawal\nAuthorization",
+      "read_only": 1
+    },
+    {
+      "fieldname": "assignment_status",
+      "fieldtype": "Data",
+      "label": "Status at notification",
+      "read_only": 1
+    },
     {
       "fieldname": "event_key",
       "fieldtype": "Data",

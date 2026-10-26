@@ -36,13 +36,13 @@ def validate_config(config, assigned=False):
     ids = []
     for rule in config['evidence']:
         if rule.get('kind') not in KINDS or not str(rule.get('subject', '')).strip() or not re.fullmatch(r'[a-zA-Z0-9_-]+', rule.get('id', '')):
-            raise ValueError('Every media requirement needs a unique ID, type and capture subject')
+            raise ValueError('Choose Photo, Video or Document and describe exactly what each attachment must show')
         if rule.get('when') and not set(rule['when']) <= set(options): raise ValueError('Evidence conditions must use allowed answers')
         ids.append(rule['id'])
     if len(ids) != len(set(ids)): raise ValueError('Media requirement IDs must be unique')
     if assigned and config['answer_type'] in {'checklist', 'interview', 'custom'}:
         items = config.get('items', [])
-        if not items: raise ValueError('Configure the assigned checklist or approved questions')
+        if not items: raise ValueError('Add at least one item or approved question to this checklist')
         item_ids = [item.get('id') for item in items]
         if any(not re.fullmatch(r'[a-zA-Z0-9_-]+', value or '') for value in item_ids) or len(item_ids) != len(set(item_ids)):
             raise ValueError('Assigned items need unique stable IDs')
@@ -73,9 +73,9 @@ def resolve_config(template, assignment):
         config['evidence'].append(dict(id='walkthrough', kind='Video', subject=config['walkthrough_subject'], once=True))
     if config.get('confirmation'):
         method = config.get('confirmation_method')
-        if method not in {'Verbal', 'Written', 'Authorised photo'}: raise ValueError('Select the permitted confirmation method')
+        if method not in {'Verbal', 'Written', 'Authorised photo'}: raise ValueError('Choose a confirmation method: Verbal, Written or Authorised photo')
         if method != 'Verbal':
-            if not str(config.get('confirmation_subject', '')).strip(): raise ValueError('Specify the permitted confirmation document or fields')
+            if not str(config.get('confirmation_subject', '')).strip(): raise ValueError('Describe the document or information the scout is permitted to collect')
             config['evidence'].append(dict(id='confirmation', kind='Document' if method == 'Written' else 'Photo', subject=config['confirmation_subject'], once=True))
     if config.get('inspection') and config.get('physical_inspection'):
         config['evidence'].append(dict(id='physical', kind='Photo', subject='Show only the specified physical document fields.', when=['Matches', 'Differs', 'Missing or unreadable']))

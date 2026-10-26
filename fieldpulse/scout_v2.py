@@ -103,7 +103,10 @@ def resolved_questions(project, questions):
         if config.get('protocol_version') != 2: continue
         if config['group'] == 'service' and question.name not in selected: continue
         assignment = selected[question.name].get('configuration_json') if question.name in selected else None
-        resolved = resolve_config(config, assignment)
+        try:
+            resolved = resolve_config(config, assignment)
+        except ValueError as error:
+            raise ValueError(f'Question ?{question.label}?: {error}. Open Edit question and evidence in the Scout checklist.') from error
         if resolved is None: continue
         if resolved.get('previous_required') and not project.get('scout_reference_material'):
             raise ValueError('Supply the previous report/reference material for a progress comparison')
