@@ -69,7 +69,9 @@ def validate_user(doc, method=None):
         return
     status = application_status(doc.name)
     inactive = frappe.db.get_value("Scout Profile", {"user": doc.name}, "access_status") == "Deactivated"
-    if (status in BLOCKED or inactive) and doc.enabled:
+    if (status == "Deactivated" or inactive) and doc.enabled:
+        frappe.throw("Use the Reactivate action on Scout Profile before enabling this user.")
+    if status in BLOCKED and doc.enabled:
         frappe.throw("Scout access must be approved through Scout Applications before enabling this user.")
     if status in BLOCKED and any(row.role == "Field Agent" for row in doc.get("roles") or []):
         # Deactivated scouts retain historical roles but cannot be enabled.
@@ -95,9 +97,10 @@ def validate_profile(doc):
     if previous and previous.user != doc.user:
         frappe.throw("A scout's linked user cannot be changed.")
     if not frappe.flags.dd_scout_admission_write:
-        for key in ("access_status", "deactivated_by", "deactivated_at", "deactivation_reason"):
+        for key in ("access_status", "deactivated_by", "deactivated_at", "deactivation_reason",
+                    "reactivated_by", "reactivated_at", "reactivation_reason"):
             if previous and previous.get(key) != doc.get(key):
-                frappe.throw("Use the Deactivate action to change scout access.")
+                frappe.throw("Use the Deactivate or Reactivate action to change scout access.")
         if doc.is_new() and doc.get("access_status") != "Active":
             frappe.throw("New approved scouts must have Active access.")
 
@@ -192,3 +195,39 @@ def deactivate_scout(scout_profile, reason):
         from frappe.sessions import clear_sessions
         frappe.db.after_commit.add(lambda: clear_sessions(user=profile.user, force=True))
     return {"status": "Deactivated"}
+
+
+@frappe.whitelist(methods=["POST"])
+def reactivate_scout(scout_profile, reason):
+    require_reviewer()
+    reason = (reason or "").strip()
+    if not reason:
+        frappe.throw("Enter a reason for reactivation.")
+    profile = frappe.get_doc("Scout Profile", scout_profile, for_update=True)
+    if not profile.user or profile.user in ("Administrator", "Guest", frappe.session.user):
+        frappe.throw("This scout account cannot be reactivated with this action.")
+    if profile.get("access_status") != "Deactivated":
+        frappe.throw("Only deactivated scouts can be reactivated. Refresh the form.")
+    app_name = frappe.db.exists("Scout Application", {"user": profile.user})
+    application = _locked_application(app_name) if app_name else None
+    if application and (application.status not in ("Approved", "Deactivated")
+                        or application.scout_profile != profile.name):
+        frappe.throw("Reactivation cannot bypass scout application approval.")
+    user = frappe.get_doc("User", profile.user, for_update=True)
+    if not any(row.role == "Field Agent" for row in user.get("roles") or []):
+        frappe.throw("This account no longer has the Field Agent role. Review its roles before reactivation.")
+    with admission_write():
+        profile.access_status = "Active"
+        profile.reactivated_by, profile.reactivated_at = frappe.session.user, now_datetime()
+        profile.reactivation_reason = reason
+        # Leave, workload and the original deactivation/approval audit are retained.
+        profile.save(ignore_permissions=True)
+        if application:
+            application.status = "Approved"
+            application.save(ignore_permissions=True)
+        for name in frappe.get_all("FP Agent", filters={"user": profile.user, "status": "Suspended"}, pluck="name"):
+            frappe.db.set_value("FP Agent", name, "status", "Active")
+        user.enabled = 1
+        user.save(ignore_permissions=True)
+        frappe.clear_cache(user=profile.user)
+    return {"status": "Active"}

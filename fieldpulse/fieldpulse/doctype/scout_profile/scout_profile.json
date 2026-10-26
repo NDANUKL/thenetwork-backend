@@ -5,7 +5,7 @@
   "creation": "2026-09-07 00:00:00.000000",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["scout_name", "user", "access_status", "deactivated_by", "deactivated_at", "deactivation_reason", "phone_number", "base_county", "legacy_fp_agent", "availability_status", "last_app_activity", "activity_status", "active_task_count", "completed_task_count"],
+  "field_order": ["scout_name", "user", "access_status", "deactivated_by", "deactivated_at", "deactivation_reason", "reactivated_by", "reactivated_at", "reactivation_reason", "phone_number", "base_county", "legacy_fp_agent", "availability_status", "last_app_activity", "activity_status", "active_task_count", "completed_task_count"],
   "fields": [
     {"fieldname": "scout_name", "fieldtype": "Data", "in_list_view": 1, "label": "Scout", "reqd": 1},
     {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "unique": 1},
@@ -13,6 +13,9 @@
     {"fieldname": "deactivated_by", "fieldtype": "Link", "options": "User", "label": "Deactivated By", "read_only": 1},
     {"fieldname": "deactivated_at", "fieldtype": "Datetime", "label": "Deactivated At", "read_only": 1},
     {"fieldname": "deactivation_reason", "fieldtype": "Small Text", "label": "Deactivation Reason", "read_only": 1},
+    {"fieldname": "reactivated_by", "fieldtype": "Link", "options": "User", "label": "Reactivated By", "read_only": 1},
+    {"fieldname": "reactivated_at", "fieldtype": "Datetime", "label": "Reactivated At", "read_only": 1},
+    {"fieldname": "reactivation_reason", "fieldtype": "Small Text", "label": "Reactivation Reason", "read_only": 1},
     {"fieldname": "phone_number", "fieldtype": "Data", "label": "Phone Number"},
     {"fieldname": "base_county", "fieldtype": "Data", "in_list_view": 1, "label": "County"},
     {"fieldname": "legacy_fp_agent", "fieldtype": "Link", "label": "Legacy FP Agent", "options": "FP Agent", "read_only": 1, "hidden": 1, "unique": 1},

@@ -5,7 +5,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from fieldpulse.auth import register_field_agent, mobile_login
-from fieldpulse.scout_access import check_access, review_application, deactivate_scout
+from fieldpulse.scout_access import check_access, review_application, deactivate_scout, reactivate_scout
 
 
 class TestScoutApplication(FrappeTestCase):
@@ -48,6 +48,11 @@ class TestScoutApplication(FrappeTestCase):
         user = frappe.get_doc("User", self.email)
         user.enabled = 1
         with self.assertRaises(frappe.ValidationError): user.save(ignore_permissions=True)
+        reactivate_scout(profile.name, "Returned to the team")
+        check_access(self.email)
+        self.assertTrue(frappe.db.get_value("User", self.email, "enabled"))
+        self.assertEqual(frappe.db.count("Scout Profile", {"user": self.email}), 1)
+        self.assertEqual(frappe.db.get_value("Scout Application", application, "status"), "Approved")
 
     def test_rejected_application_never_gets_a_profile(self):
         application = self.apply()

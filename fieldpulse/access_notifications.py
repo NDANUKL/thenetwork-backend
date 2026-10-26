@@ -20,9 +20,8 @@ def render_approval(origin):
 
 def send_approval(account_name):
     # Serialize delivery and approval/rejection updates on this account.
-    frappe.db.sql("SELECT name FROM `tabDD Customer Account` WHERE name=%s FOR UPDATE", [account_name])
-    account = frappe.get_doc("DD Customer Account", account_name)
-    if account.get("beta_access") != "Approved" or not account.get("approval_email_id") or account.get("approval_email_sent_at") or not account.email_verified:
+    account = frappe.get_doc("DD Customer Account", account_name, for_update=True)
+    if account.get("account_access") == "Deactivated" or account.get("beta_access") != "Approved" or not account.get("approval_email_id") or account.get("approval_email_sent_at") or not account.email_verified:
         return
     settings = frappe.get_doc("DD Access Settings")
     key = settings.get_password("resend_api_key", raise_exception=False)

@@ -25,6 +25,13 @@ def registration(**kwargs):
         for row in user.roles:
             if frappe.db.get_value("Role", row.role, "desk_access"):
                 eligible = False
+
+    # A retained deactivated identity cannot be re-enabled by repeat signup,
+    # an old verification link, recovery, or the server-side profile bridge.
+    if profile and profile.get("account_access") == "Deactivated":
+        if action in ("register", "recover"):
+            return {"eligible": False}
+        frappe.throw("This account has been deactivated. Contact Diaspora Desk.", frappe.PermissionError)
     
     if action == "register":
         if user:

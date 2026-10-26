@@ -27,7 +27,7 @@ def allocations(offer,exclude=None):
     for row in rows:
         if row.parent==exclude:continue
         payout=frappe.get_doc('DD Scout Payout',row.parent)
-        result.append(dict(kind=row.kind,amount=row.amount,status=payout.status,currency=payout.currency,reversal_of=payout.get('reversal_of'),payout=payout.name,reference=payout.get('reference'),channel=payout.channel))
+        result.append(dict(kind=row.kind,amount=row.amount,status=payout.status,currency=payout.currency,reversal_of=payout.get('reversal_of'),payout=payout.name,reference=payout.get('reference'),channel=payout.channel,payment_date=payout.get('payment_date') or payout.get('confirmed_at')))
     return result
 def position(offer,exclude=None):
     return earning_position(offer,earning(offer),
@@ -38,7 +38,9 @@ def budget_for(reference):
     if not name:frappe.throw('Create the request cost budget before committing scout costs')
     return frappe.get_doc('DD Task Budget',name)
 def validate_offer_fx(offer):
-    budget=budget_for(request_for_offer(offer))
+    name=frappe.db.exists('DD Task Budget',{'request':request_for_offer(offer)})
+    if not name:return None  # Cost reporting is optional; agreements do not require a budget.
+    budget=frappe.get_doc('DD Task Budget',name)
     return conversion(money(offer.fee)+money(offer.get('travel_amount') or 0),offer.currency,budget.currency,offer.get('conversion_rate'),offer.get('rate_date'))
 def require_notes(data):
     if not str(data.get('notes') or '').strip():frappe.throw('Record the decision and supporting reason')
@@ -76,7 +78,7 @@ def scout_earnings(start=0):
             **p,due_date=entitlement.get('due_date') if entitlement else None,
             hold_reason=entitlement.get('hold_reason') if entitlement and entitlement.on_hold else next((frappe.db.get_value('DD Scout Payout',a['payout'],'hold_reason') for a in allocations(offer) if a['status']=='On hold'),None),
             support=getattr(frappe,'conf',{}).get('dd_finance_support') or 'Contact your coordinator with the assignment and payment reference.',
-            beneficiary=recipient,payments=[{k:a.get(k) for k in ('payout','kind','amount','status','reference','channel','reversal_of')} for a in allocations(offer)],
+            beneficiary=recipient,payments=[{k:a.get(k) for k in ('payout','kind','amount','status','reference','channel','reversal_of','payment_date')} for a in allocations(offer)],
             entitlement_type='Compensation' if entitlement and entitlement.get('financial_case') else 'Work' if entitlement else None,
             compensation_terms=frappe.db.get_value('DD Finance Case',entitlement.financial_case,'scout_compensation') if entitlement and entitlement.get('financial_case') else None,
             expenses=frappe.get_all('DD Scout Expense',filters={'offer':offer.name},fields=['name','client_uuid','kind','amount','currency','status','description','alternative_evidence','review_notes']),
@@ -254,3 +256,67 @@ def overview(request=None):
             revisits=frappe.get_all('DD Revisit Request',filters={'request':budget.request},fields=['name','status','cost_arrangement','scout_compensation_reference']),
             cases=frappe.get_all('DD Finance Case',filters={'request':budget.request},fields=['name','kind','stage','status','pause_dispatch'])))
     return plain(dict(items=result,as_of=frappe.utils.now_datetime(),manual_execution=True))
+
+
+@frappe.whitelist()
+def scout_payments(request=None):
+    """Assignment obligations, independent of optional budgets and provider balances."""
+    require_enabled();require_finance()
+    projects=None
+    if request:
+        projects=frappe.get_all('Field Request',filters={'diaspora_request':request},pluck='name')
+    filters={'status':'Accepted'}
+    if projects is not None:filters['project']=['in',projects or ['__none__']]
+    rows=frappe.get_all('DD Scout Offer',filters=filters,fields=['name'],order_by='creation desc')
+    items=[]
+    for row in rows:
+        offer=frappe.get_doc('DD Scout Offer',row.name)
+        items.append(dict(offer=offer.name,scout=offer.scout,project=offer.project,task=offer.task,
+            due_date=earning(offer).due_date if earning(offer) else None,**position(offer)))
+    return plain(dict(items=items))
+
+
+@frappe.whitelist(methods=['POST'])
+def record_external_payment(offer,amount,channel,reference,payment_date,recipient,evidence,recipient_matches=False,kind='Earning'):
+    """Record an already successful bank/mobile transfer; never initiates a payment."""
+    require_enabled();require_finance()
+    if channel not in {'Business M-Pesa','Bank transfer','Pesapal / Openfloat'}:frappe.throw('Choose a business payment channel')
+    if kind not in {'Earning','Travel advance'}:frappe.throw('Choose earning or travel advance')
+    if recipient_matches not in (True,1,'1'):frappe.throw('Confirm the successful transfer belongs to this scout')
+    reference=str(reference or '').strip();recipient=str(recipient or '').strip()
+    if not reference or not recipient:frappe.throw('Record the transaction reference and masked actual recipient')
+    paid_on=frappe.utils.getdate(payment_date) if payment_date else None
+    if not paid_on or paid_on>frappe.utils.getdate():frappe.throw('Choose the actual payment date, not a future date')
+    amount=positive(amount)
+    selected=frappe.get_doc('DD Scout Offer',offer)
+    lock('Scout Profile',selected.scout);lock('Diaspora Request',request_for_offer(selected));lock('DD Scout Offer',offer)
+    selected.reload()
+    if selected.status!='Accepted':frappe.throw('Record payment against an accepted arrangement')
+    key=hashlib.sha256(reference.upper().encode()).hexdigest()
+    existing=frappe.db.exists('DD Scout Payout',{'reference_key':key})
+    if existing:
+        previous=frappe.get_doc('DD Scout Payout',existing)
+        if (previous.status=='Paid' and previous.get('external_record') and previous.channel==channel
+            and money(previous.total)==amount and len(previous.allocations)==1
+            and previous.allocations[0].offer==offer and previous.allocations[0].kind==kind
+            and str(previous.payment_date)==str(paid_on) and previous.beneficiary_snapshot==recipient):
+            return {'name':previous.name,'status':'Paid'}
+        frappe.throw('This transaction reference is already recorded; review the existing payment')
+    p=position(selected)
+    if p['status']=='On hold':frappe.throw('Resolve the payment hold before recording settlement')
+    if kind=='Earning' and not earning(selected):frappe.throw('Approve the work before recording an earning payment')
+    available=min(p['advance_available'],p['available']) if kind=='Travel advance' and earning(selected) else p['advance_available'] if kind=='Travel advance' else p['available']
+    if amount>available:frappe.throw('Payment exceeds the unreserved amount owed; review existing payments first')
+    doc=frappe.get_doc(dict(doctype='DD Scout Payout',scout=selected.scout,currency=selected.currency,
+        external_record=1,status='Paid',channel=channel,reference=reference,reference_key=key,
+        payment_date=paid_on,beneficiary_snapshot=recipient,confirmation_evidence=evidence,
+        reconciliation_notes='Successful external payment recorded; recipient and amount checked by '+frappe.session.user,
+        confirmed_at=frappe.utils.now_datetime(),allocations=[dict(offer=offer,kind=kind,amount=float(amount))]))
+    private_proof(doc,evidence)
+    insert(doc)
+    file=frappe.get_doc('File',frappe.db.exists('File',{'file_url':evidence,'is_private':1}))
+    if not file.attached_to_name:
+        file.attached_to_doctype=doc.doctype;file.attached_to_name=doc.name;file.save(ignore_permissions=True)
+    audit(doc,'External payment recorded',{'offer':offer,'reference':reference,'amount':str(amount),'payment_date':str(paid_on)})
+    notify(selected.scout,'Scout payment recorded',str(amount)+' '+selected.currency+' paid. Reference: '+reference+'. Open Earnings for details.',doc)
+    return {'name':doc.name,'status':'Paid'}

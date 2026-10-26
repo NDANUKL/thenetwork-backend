@@ -16,7 +16,7 @@
       "label": "Verified recipient version",
       "fieldtype": "Link",
       "options": "DD Payout Beneficiary",
-      "reqd": 1
+      "reqd": 0
     },
     {
       "fieldname": "beneficiary_snapshot",
@@ -150,6 +150,18 @@
       "fieldtype": "Data",
       "read_only": 1,
       "hidden": 1
+    },
+    {
+      "fieldname": "external_record",
+      "label": "Recorded external payment",
+      "fieldtype": "Check",
+      "read_only": 1
+    },
+    {
+      "fieldname": "payment_date",
+      "label": "Actual payment date",
+      "fieldtype": "Date",
+      "read_only": 1
     }
   ],
   "field_order": [
@@ -174,7 +186,9 @@
     "approved_at",
     "processing_at",
     "confirmed_at",
-    "independent_review_hash"
+    "independent_review_hash",
+    "external_record",
+    "payment_date"
   ],
   "permissions": [
     {

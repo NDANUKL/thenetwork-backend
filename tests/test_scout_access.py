@@ -33,7 +33,8 @@ class ScoutAccessTests(unittest.TestCase):
             self.f.get_roles.return_value = roles
             for action in (lambda: self.api.review_application('SAPP-1', 'Approved'),
                            lambda: self.api.review_application('SAPP-1', 'Rejected', 'Reason'),
-                           lambda: self.api.deactivate_scout('SCT-1', 'Reason')):
+                           lambda: self.api.deactivate_scout('SCT-1', 'Reason'),
+                           lambda: self.api.reactivate_scout('SCT-1', 'Reason')):
                 with self.subTest(roles=roles), self.assertRaises(PermissionError):
                     action()
         self.f.get_doc.assert_not_called()
@@ -143,6 +144,60 @@ class ScoutAccessTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): self.api.review_application('SAPP-1', 'Approved')
         self.assertFalse(self.f.flags.dd_scout_admission_write)
         self.f.db.commit.assert_not_called()
+
+    def test_reactivation_restores_same_approved_profile_and_preserves_leave_and_audit(self):
+        profile = record(name='SCT-1', user=self.app.user, access_status='Deactivated',
+                         availability_status='On Leave', deactivation_reason='Left the team')
+        user = record(name=self.app.user, enabled=0, roles=[types.SimpleNamespace(role='Field Agent')],
+                      api_key=None, api_secret=None)
+        self.app.status, self.app.scout_profile = 'Deactivated', 'SCT-1'
+        self.f.db.exists.return_value = 'SAPP-1'
+        self.f.get_doc.side_effect = [profile, self.app, user]
+        self.f.get_all.return_value = ['AGT-1']
+        self.assertEqual(self.api.reactivate_scout('SCT-1', 'Returned to the team'), {'status': 'Active'})
+        self.assertEqual(profile.access_status, 'Active')
+        self.assertEqual(profile.reactivated_by, 'coordinator@example.test')
+        self.assertEqual(profile.reactivation_reason, 'Returned to the team')
+        self.assertEqual(profile.deactivation_reason, 'Left the team')
+        self.assertEqual(profile.availability_status, 'On Leave')
+        self.assertEqual(self.app.status, 'Approved')
+        self.assertEqual(user.enabled, 1)
+        self.assertIsNone(user.api_key)
+        self.assertIsNone(user.api_secret)
+        user.append_roles.assert_not_called()
+        self.f.db.set_value.assert_called_once_with('FP Agent', 'AGT-1', 'status', 'Active')
+        self.f.db.after_commit.add.assert_not_called()
+        self.f.db.commit.assert_not_called()
+
+    def test_legacy_scout_can_be_reactivated_without_creating_an_application(self):
+        profile = record(name='SCT-old', user=self.app.user, access_status='Deactivated')
+        user = record(roles=[types.SimpleNamespace(role='Field Agent')])
+        self.f.get_doc.side_effect = [profile, user]
+        self.api.reactivate_scout('SCT-old', 'Returned')
+        self.assertEqual(user.enabled, 1)
+        self.assertEqual(self.f.get_doc.call_count, 2)
+
+    def test_reactivation_cannot_approve_pending_rejected_or_unlinked_applications(self):
+        profile = record(name='SCT-1', user=self.app.user, access_status='Deactivated')
+        self.f.db.exists.return_value = 'SAPP-1'
+        for status, link in [('Pending', 'SCT-1'), ('Rejected', 'SCT-1'), ('Approved', 'SCT-other')]:
+            self.app.status, self.app.scout_profile = status, link
+            self.f.get_doc.side_effect = [profile, self.app]
+            with self.subTest(status=status, link=link), self.assertRaisesRegex(ValueError, 'approval'):
+                self.api.reactivate_scout('SCT-1', 'Return')
+        profile.save.assert_not_called()
+
+    def test_reactivation_requires_reason_inactive_profile_and_existing_scout_role(self):
+        with self.assertRaises(ValueError): self.api.reactivate_scout('SCT-1', '')
+        profile = record(name='SCT-1', user=self.app.user, access_status='Active')
+        self.f.get_doc.return_value = profile
+        with self.assertRaises(ValueError): self.api.reactivate_scout('SCT-1', 'Return')
+        profile.access_status = 'Deactivated'
+        user = record(roles=[])
+        self.f.get_doc.side_effect = [profile, user]
+        with self.assertRaisesRegex(ValueError, 'Field Agent role'):
+            self.api.reactivate_scout('SCT-1', 'Return')
+        profile.save.assert_not_called()
 
     def test_deactivated_scout_cannot_receive_a_new_assignment(self):
         module = load('scout_access_task_test', 'fieldpulse/fieldpulse/doctype/field_task/field_task.py', {

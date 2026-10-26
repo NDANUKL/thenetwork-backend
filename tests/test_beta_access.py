@@ -39,6 +39,19 @@ class AccessTests(unittest.TestCase):
                 self.policy.require_access({"beta_access": status})
         self.policy.require_access({})
 
+    def test_deactivation_overrides_public_registration_without_changing_approval(self):
+        self.api.db.get_single_value.return_value = "Open to everyone"
+        for approval in ('Approved', 'Pending', 'Rejected', ''):
+            account = {'beta_access': approval, 'account_access': 'Deactivated'}
+            self.assertEqual(self.policy.access_status(account), 'Deactivated')
+            with self.assertRaises(PermissionError): self.policy.require_access(account)
+            self.assertEqual(account['beta_access'], approval)
+
+    def test_reactivation_restores_original_approval_policy(self):
+        for approval in ('Pending', 'Rejected', 'Approved'):
+            account = {'beta_access': approval, 'account_access': 'Active'}
+            self.assertEqual(self.policy.access_status(account), approval)
+
     def test_approval_mail_is_not_sent_to_rejected_pending_unverified_or_notified(self):
         notifications = load("fieldpulse/access_notifications.py", self.api)
         for status, verified, sent in [("Pending",1,None),("Rejected",1,None),("Approved",0,None),("Approved",1,"today")]:
@@ -50,6 +63,16 @@ class AccessTests(unittest.TestCase):
             with patch.object(notifications.requests, "post") as post:
                 notifications.send_approval("account")
                 post.assert_not_called()
+
+    def test_approval_email_is_not_sent_to_deactivated_account(self):
+        notifications = load('fieldpulse/access_notifications.py', self.api)
+        account = MagicMock()
+        account.get.side_effect = dict(beta_access='Approved', account_access='Deactivated', approval_email_id='id').get
+        account.email_verified = 1
+        self.api.get_doc.return_value = account
+        with patch.object(notifications.requests, 'post') as post:
+            notifications.send_approval('account')
+            post.assert_not_called()
 
     def test_approval_mail_uses_stable_key_and_records_success_only(self):
         notifications = load("fieldpulse/access_notifications.py", self.api)

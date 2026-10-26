@@ -8,6 +8,8 @@ def registration_access():
     return "Open to everyone" if value == "Open to everyone" else INVITE_ONLY
 
 def access_status(account):
+    if account.get("account_access") == "Deactivated":
+        return "Deactivated"
     status = account.get("beta_access") or "Approved"
     if status == "Pending" and registration_access() == "Open to everyone":
         return "Approved"

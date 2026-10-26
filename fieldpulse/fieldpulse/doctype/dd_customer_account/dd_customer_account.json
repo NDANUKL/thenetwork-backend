@@ -115,6 +115,55 @@
       "doctype": "DocField"
     },
     {
+      "fieldname": "account_access",
+      "fieldtype": "Select",
+      "label": "Account Activation",
+      "options": "Active\nDeactivated",
+      "default": "Active",
+      "read_only": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "description": "Separate from beta approval. Deactivated accounts remain blocked even when registration is open."
+    },
+    {
+      "fieldname": "deactivated_by",
+      "fieldtype": "Link",
+      "options": "User",
+      "label": "Deactivated By",
+      "read_only": 1
+    },
+    {
+      "fieldname": "deactivated_at",
+      "fieldtype": "Datetime",
+      "label": "Deactivated At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "deactivation_reason",
+      "fieldtype": "Small Text",
+      "label": "Deactivation Reason",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reactivated_by",
+      "fieldtype": "Link",
+      "options": "User",
+      "label": "Reactivated By",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reactivated_at",
+      "fieldtype": "Datetime",
+      "label": "Reactivated At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reactivation_reason",
+      "fieldtype": "Small Text",
+      "label": "Reactivation Reason",
+      "read_only": 1
+    },
+    {
       "fieldname": "email_verified",
       "label": "Email Verified",
       "fieldtype": "Check",

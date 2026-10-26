@@ -41,6 +41,58 @@ class FinanceControlsTests(unittest.TestCase):
 
     def act(self,action,data=None):return self.actions.act(self.doc.doctype,self.doc.name,action,data or {})
 
+    def external(self, **changes):
+        args=dict(offer='OFFER-1',amount='1000',channel='Bank transfer',reference='BANK123',payment_date='2026-10-20',recipient='Mary account ending 1234',evidence='/private/files/receipt.pdf',recipient_matches=True)
+        args.update(changes)
+        return self.finance.record_external_payment(**args)
+
+    def prepare_external(self):
+        from datetime import date
+        from decimal import Decimal
+        self.f.utils.getdate.side_effect=lambda value=None:date.fromisoformat(value) if value else date(2026,10,26)
+        self.f.db.exists.return_value=None
+        self.offer=Record(name='OFFER-1',scout='scout',project='PROJECT',status='Accepted',currency='KES',reload=MagicMock())
+        self.f.get_doc.side_effect=lambda dt,*args:self.offer if dt=='DD Scout Offer' else Record(save=MagicMock()) if dt=='File' else Record(dt if isinstance(dt,dict) else {},name='PAY-NEW')
+        self.finance.earning=MagicMock(return_value=Record(name="EARN-1"))
+        self.finance.position=MagicMock(return_value=dict(status='Approved awaiting payment',available=Decimal('1000'),advance_available=Decimal('0')))
+        self.finance.insert=MagicMock(side_effect=lambda doc:doc)
+        self.finance.private_proof=MagicMock()
+        self.finance.audit=MagicMock();self.finance.notify=MagicMock()
+
+    def test_external_record_requires_finance(self):
+        self.f.get_roles.return_value=['Field Operations Coordinator']
+        with self.assertRaises(PermissionError):self.external()
+
+    def test_external_record_does_not_require_budget_or_beneficiary(self):
+        self.prepare_external()
+        self.assertEqual(self.external()['status'],'Paid')
+        doc=self.finance.insert.call_args.args[0]
+        self.assertTrue(doc.external_record)
+        self.assertIsNone(doc.beneficiary)
+        self.finance.private_proof.assert_called_once()
+
+    def test_external_record_rejects_overpayment(self):
+        self.prepare_external()
+        with self.assertRaisesRegex(ValueError,'exceeds'):self.external(amount='1001')
+        self.finance.insert.assert_not_called()
+
+    def test_external_record_requires_work_approval(self):
+        self.prepare_external();self.finance.earning.return_value=None
+        with self.assertRaisesRegex(ValueError,'Approve the work'):self.external()
+
+    def test_external_record_rejects_duplicate_reference(self):
+        self.prepare_external();self.f.db.exists.return_value='PAY-OLD'
+        with self.assertRaisesRegex(ValueError,'already recorded'):self.external()
+        self.finance.insert.assert_not_called()
+
+    def test_external_record_requires_recipient_check(self):
+        self.prepare_external()
+        with self.assertRaisesRegex(ValueError,'Confirm'):self.external(recipient_matches=False)
+
+    def test_external_record_rejects_future_date(self):
+        self.prepare_external()
+        with self.assertRaisesRegex(ValueError,'future'):self.external(payment_date='2026-10-27')
+
     def test_non_finance_cannot_release_money(self):
         self.f.get_roles.return_value=['Field Operations Coordinator']
         with self.assertRaises(PermissionError):self.act('Confirm paid')

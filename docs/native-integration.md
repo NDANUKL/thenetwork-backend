@@ -8,7 +8,7 @@ All 29 DD Server Scripts and all eight DD Client Scripts are disabled recovery r
 
 | Concern | Backend source |
 | --- | --- |
-| Customer registration and recovery bridge | `fieldpulse/customer_accounts.py` |
+| Customer registration, recovery and activation | `fieldpulse/customer_accounts.py`, `customer_access.py`, `beta_access.py` and DD Customer Account |
 | Customer request listing, details submission, ownership and source locations | `fieldpulse/customer_requests.py` |
 | Details publication, validation, next actions and notifications | `fieldpulse/request_details.py` |
 | Scout registration, admission and access | `fieldpulse/auth.py`, `scout_access.py`, `scout_registration.py` and Scout Application/Profile DocTypes |
@@ -41,6 +41,8 @@ Do not update or re-enable retired site scripts, recreate website installers, ru
 `fieldpulse/configuration/native-ownership.json` maps the historical script definitions to their native owners. `docs/production-snapshots/2026-10-16.json` retains the dated audit. They are recovery/audit inputs, not instructions to restore script ownership. Historical handover patches retain their approval and parity guards for migration history; completed production patches are not a deployment checklist for new features.
 
 The one-off `dd_amend_00028_currency` repair remains excluded from native API aliases and must never be replayed automatically. Compatibility aliases and guarded legacy delegation remain in code for transition/recovery; their presence does not mean the disabled scripts currently own production.
+
+`docs/scout-visit-workflow.md` is a checksum-pinned input to the published questionnaire catalogue, not an operational deployment guide. Preserve its exact UTF-8/LF contents for existing versions. Update current ownership/deployment wording in this guide and the controlling production policy; a change to questionnaire policy requires a reviewed new catalogue/template version.
 
 The simplified assignment dialog omits Responsibility and Location inputs. Assignment requires the verified 50% deposit. Customers may review the complete approved report before paying the balance. Preserve those rules when changing integrations.
 

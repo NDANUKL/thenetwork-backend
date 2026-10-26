@@ -32,7 +32,7 @@ doc_events = {'Diaspora Request': {'before_save': ['fieldpulse.customer_requests
  'Field Task': {'before_save': ['fieldpulse.native_events.map_task',
                                 'fieldpulse.native_events.require_deposit', 'fieldpulse.scout_templates.apply_to_task']},
  'User': {'on_update': 'fieldpulse.scout_registration.sync_user',
-          'validate': 'fieldpulse.scout_access.validate_user',
+          'validate': ['fieldpulse.scout_access.validate_user', 'fieldpulse.customer_access.validate_user'],
           'on_trash': 'fieldpulse.scout_access.protect_identity',
           'before_rename': 'fieldpulse.scout_access.protect_identity'},
  'FP Agent': {'on_update': 'fieldpulse.scout_registration.sync_agent'}}
@@ -53,8 +53,8 @@ override_whitelisted_methods = {'dd_assign_project_scouts': 'fieldpulse.scout_as
 
 extend_bootinfo = "fieldpulse.native_ownership.extend_bootinfo"
 
-auth_hooks = ["fieldpulse.scout_access.validate_auth"]
-on_login = "fieldpulse.scout_access.on_login"
+auth_hooks = ["fieldpulse.scout_access.validate_auth", "fieldpulse.customer_access.validate_auth"]
+on_login = ["fieldpulse.scout_access.on_login", "fieldpulse.customer_access.on_login"]
 
 has_permission = {"Scout Profile": "fieldpulse.scout_self_service.profile_permission"}
 

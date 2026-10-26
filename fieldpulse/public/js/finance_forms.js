@@ -3,6 +3,7 @@ window.fieldpulse_finance_form = function (frm) {
   const allowed = ['Finance', 'System Manager'].some(role => frappe.user.has_role(role));
   if (!allowed || frm.is_new()) return;
   const dt=frm.doctype, state=frm.doc.status;
+  if(dt==='DD Scout Payout' && frm.doc.external_record){frm.set_intro(__('Successful external payment recorded. No transfer is initiated by Frappe.'));return;}
   if(dt==='DD Payout Beneficiary') ['scout','method','account_holder','institution','account_number'].forEach(field=>frm.set_df_property(field,'read_only',1));
   // Financial evidence always uploads privately; do not offer a public-file toggle.
   for(const field of Object.values(frm.fields_dict))if(field.df.fieldtype==='Attach'&&!field.df.read_only){

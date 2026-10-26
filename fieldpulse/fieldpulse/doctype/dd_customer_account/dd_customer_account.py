@@ -8,6 +8,8 @@ class DDCustomerAccount(Document):
             self.beta_access = "Pending" if registration_access() == "Invite only" else "Approved"
 
     def validate(self):
+        from fieldpulse.customer_access import validate_account
+        validate_account(self)
         if self.get("beta_access") not in (None, "", "Pending", "Approved", "Rejected"):
             frappe.throw("Choose a valid beta access status")
         if not self.is_new() and self.has_value_changed("beta_access"):
@@ -21,6 +23,7 @@ class DDCustomerAccount(Document):
                 self.approval_email_sent_at = None
 
     def on_update(self):
-        if self.get("approval_email_id") and not self.get("approval_email_sent_at"):
+        if (self.get("account_access") != "Deactivated"
+                and self.get("approval_email_id") and not self.get("approval_email_sent_at")):
             frappe.enqueue("fieldpulse.access_notifications.send_approval", account_name=self.name,
                            enqueue_after_commit=True)

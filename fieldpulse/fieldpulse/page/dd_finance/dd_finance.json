@@ -2,8 +2,15 @@
   "doctype": "Page",
   "name": "dd-finance",
   "page_name": "dd-finance",
-  "title": "Scout Finance",
+  "title": "Scout payments",
   "module": "FieldPulse",
   "standard": "Yes",
-  "roles": [{"role": "Finance"}, {"role": "System Manager"}]
+  "roles": [
+    {
+      "role": "Finance"
+    },
+    {
+      "role": "System Manager"
+    }
+  ]
 }

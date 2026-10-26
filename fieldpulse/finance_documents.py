@@ -120,8 +120,13 @@ def validate(doc):
         if not number or len(number)<4:frappe.throw('Enter the actual recipient number/account')
         doc.masked_account='•••• '+number[-4:]
     elif doc.doctype=='DD Scout Payout':
-        recipient=frappe.get_doc('DD Payout Beneficiary',doc.beneficiary)
-        if recipient.scout!=doc.scout:frappe.throw('Recipient belongs to another scout')
+        if doc.get('external_record'):
+            if not managed:frappe.throw('Use Record payment for successful external transfers')
+            if not doc.beneficiary_snapshot or not doc.reference or not doc.confirmation_evidence:frappe.throw('Record actual recipient, reference and evidence')
+        else:
+            if not doc.beneficiary:frappe.throw('Select a verified recipient for a planned payout')
+            recipient=frappe.get_doc('DD Payout Beneficiary',doc.beneficiary)
+            if recipient.scout!=doc.scout:frappe.throw('Recipient belongs to another scout')
         total=money(0);seen=set()
         for row in doc.get('allocations') or []:
             offer=frappe.get_doc('DD Scout Offer',row.offer)

@@ -1,10 +1,47 @@
-# Scout finance: manual execution and reconciled records
+# Scout pay and mobile Earnings
 
-This adds native source in thenetwork-backend and the Earnings tab in
-DiasporaDesk/mobile. It has not been migrated, enabled or deployed to production.
-Production uses the native backend after the completed 16 October 2026 handover.
-Retired site scripts remain disabled recovery references. No existing payment,
-quotation, evidence or report history is rewritten.
+## Simplified source workflow ? 26 October 2026
+
+Production ownership is governed by [production-script-ownership.md](production-script-ownership.md).
+Native handover is complete; that does not establish deployment or activation of
+this finance feature or this simplification. These changes require normal native
+deployment, schema migration and mobile release verification. No live changes were
+made as part of this source update.
+
+The daily workflow is: issue a scout agreement, obtain acceptance in mobile,
+approve the submitted work, then record the successful external payment.
+A task budget is optional. Work approval creates the earning automatically.
+The Scout payments page lists accepted arrangements independently of budgets,
+showing paid and remaining amounts and a Record payment action.
+
+Customers continue paying through the existing Pesapal integration. Funds settle
+into the business bank account, or an optionally linked Openfloat account. Staff
+execute scout payments using their authorized business bank/M-Pesa access; no bank
+login or balance is exposed in Frappe. Openfloat is not required.
+
+Finance/System Manager records amount, channel, actual payment date, successful
+transaction reference, masked recipient, recipient/amount confirmation and a
+private receipt. This creates a confirmed payout with its allocation and audit
+in one action. It does not repeat bank approvals or initiate a transfer. Duplicate
+references, overpayments, unapproved earnings, held arrangements and reservations
+from existing pending payouts are checked. Travel advances remain limited to the
+accepted terms. The same work approver may record an already completed transfer;
+this record is not authorization to release bank funds.
+
+Mobile leads with agreed fee, travel, amount paid and remaining amount. The fuller
+calculation is under View breakdown. Claims and recipient requests are optional.
+Existing payment, refund, adjustment, budget, recipient and case records remain;
+advanced workflows remain accessible through More/records for exceptions. Nothing
+is deleted, and already pending transfers still require their original outcome
+workflow. There is no automatic bank/Openfloat payout synchronization.
+
+Verify staging with separate coordinator, Finance and scout accounts: agreement
+without budget, accepted-offer/deposit gates, reviewed work, partial payments,
+travel advance, duplicate retries, concurrent payouts, private receipt upload,
+payment history and account-specific offline mobile snapshots. Confirm no retired
+scripts are enabled and no payment is sent by Record payment.
+
+## Retained advanced records and controls
 
 The site flag `dd_finance_enabled` defaults off. Create the Finance role through
 normal installation/migration; this does not assign any users. The owner chooses
@@ -20,7 +57,7 @@ Finance. Scouts see only their own issued arrangements and earnings.
    Plan scout fees, travel, logistics, gateway fees, rework and other costs in
    separate rows, linked to projects/revisits where relevant. Mixed currencies
    require a recorded conversion rate and date; the system invents no FX rate.
-2. Create DD Scout Offer for each scout/project. Record fee, fixed travel allowance
+2. Optionally alongside a budget, create DD Scout Offer for each scout/project. Record fee, fixed travel allowance
    or capped reimbursement, advance limit, expense conditions, payout terms,
    acceptance deadline and days due after approval. Issue it. The scout reads and
    accepts the exact hashed terms in Earnings while online, before dispatch.
