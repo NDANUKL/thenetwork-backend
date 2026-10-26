@@ -77,7 +77,7 @@ class MobileSyncSecurity(unittest.TestCase):
         utils.get_system_timezone = lambda: 'Africa/Nairobi'
         rework = types.ModuleType('fieldpulse.scout_rework')
         rework.revision_payload = lambda task: None
-        with patch.dict(sys.modules, {'frappe.utils':utils,'fieldpulse.scout_rework':rework}):
+        with patch.dict(sys.modules, {'frappe.utils':utils,'fieldpulse.scout_rework':rework,'fieldpulse.scout_inbox':types.SimpleNamespace(notification_payload=lambda:[])}):
             result = self.api.sync_pull_assignments(protocol_version=2,visit_workflow_version=2,rework_version=2,questionnaire_editor_version=1)
         self.assertEqual(result['tasks'][0]['due_at'],'2026-10-27T17:00:00+03:00')
         self.assertEqual(result['tasks'][0]['assigned_at'],'2026-10-26T09:00:00+03:00')

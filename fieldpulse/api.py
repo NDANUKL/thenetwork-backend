@@ -92,7 +92,9 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
     # Older mobile builds pull with GET, so explicitly persist the activity stamp.
     frappe.db.commit()
 
+    from fieldpulse.scout_inbox import notification_payload
     return {
+        "notifications": notification_payload(),
         "capabilities": _mobile_capabilities(),
         "full_snapshot": not bool(since),
         "assigned_task_ids": [task["name"] for task in tasks] if not since else None,

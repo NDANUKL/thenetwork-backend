@@ -109,6 +109,8 @@ def act(doctype,name,action,data=None):
         if doc.status!='Submitted' or action not in {'Approve','Reject'}:frappe.throw('Review a submitted expense')
         if action=='Approve':evidence_or_alternative(doc,data);approve_stamp(doc)
         doc.status='Approved' if action=='Approve' else 'Rejected';doc.review_notes=data['notes']
+        offer=frappe.get_doc('DD Scout Offer',doc.offer)
+        notify(offer.scout,'Expense claim '+doc.status.lower(),'Your expense claim was '+doc.status.lower()+'. Open Earnings for its review details.',doc)
     elif doctype=='DD Earning Adjustment':
         if action!='Approve' or doc.status!='Draft':frappe.throw('Approve a draft adjustment; corrections use a new reversing adjustment')
         require_notes(data)
@@ -120,6 +122,8 @@ def act(doctype,name,action,data=None):
             reversed_total=sum((money(row.amount) for row in frappe.get_all(doctype,filters={'reversal_of':original.name,'status':'Approved'},fields=['amount'])),money(0))
             if money(doc.amount)+reversed_total>money(original.amount):frappe.throw('Adjustment reversals exceed the original approved amount')
         doc.status='Approved';approve_stamp(doc)
+        offer=frappe.get_doc('DD Scout Offer',doc.offer)
+        notify(offer.scout,'Earnings adjustment approved','An approved adjustment changed your earnings. Open Earnings for the breakdown.',doc)
     elif doctype=='DD Payout Beneficiary':
         if doc.status!='Pending verification' or action not in {'Verify','Reject'}:frappe.throw('Review a pending recipient')
         require_notes(data)
@@ -167,6 +171,8 @@ def act(doctype,name,action,data=None):
             if doc.status not in {'Draft','Approved'}:frappe.throw('Processing or uncertain payments need verified outcome confirmation, not cancellation/resending')
             doc.status='Failed';doc.reconciliation_notes='Cancelled before external execution: '+data['notes']
         else:frappe.throw('Choose a valid payout action')
+        if action in {'Begin processing','Confirm failed','Hold','Cancel before execution'}:
+            notify(doc.scout,'Payment '+doc.status.lower(),'Your payment status is '+doc.status.lower()+'. Open Earnings for details.',doc)
     elif doctype=='DD Finance Cost':
         if action!='Approve' or doc.status!='Draft':frappe.throw('Approve a draft actual cost')
         require_notes(data);evidence_or_alternative(doc,data);budget=budget_for(doc.request)

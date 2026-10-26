@@ -20,3 +20,10 @@ class ScoutDataRequest(Document):
             frappe.throw('Explain the outcome and any retained records before closing the request.')
         if len(self.reason or '') > 1000:
             frappe.throw('Reason must be at most 1000 characters.')
+
+    def on_update(self):
+        previous=self.get_doc_before_save()
+        if previous and (self.status!=previous.status or (self.public_reply or '')!=(previous.public_reply or '')):
+            frappe.get_doc(dict(doctype='Notification Log',for_user=self.user,from_user=frappe.session.user,
+                type='Alert',subject='Privacy request updated',email_content='Your privacy request has an update. Open Privacy for its status and response.',
+                document_type=self.doctype,document_name=self.name)).insert(ignore_permissions=True)
