@@ -1,0 +1,122 @@
+{
+  "doctype": "DocType",
+  "name": "Scout Application",
+  "module": "FieldPulse",
+  "autoname": "format:SAPP-{#####}",
+  "engine": "InnoDB",
+  "field_order": [
+    "full_name",
+    "email",
+    "user",
+    "phone",
+    "county",
+    "status",
+    "scout_profile",
+    "reviewed_by",
+    "reviewed_at",
+    "review_reason"
+  ],
+  "fields": [
+    {
+      "fieldname": "full_name",
+      "fieldtype": "Data",
+      "label": "Full Name",
+      "reqd": 1,
+      "in_list_view": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "email",
+      "fieldtype": "Data",
+      "options": "Email",
+      "label": "Email",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "user",
+      "fieldtype": "Link",
+      "options": "User",
+      "label": "User",
+      "reqd": 1,
+      "unique": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "phone",
+      "fieldtype": "Data",
+      "label": "Phone",
+      "read_only": 1
+    },
+    {
+      "fieldname": "county",
+      "fieldtype": "Data",
+      "label": "County",
+      "reqd": 1,
+      "in_list_view": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Pending\nApproved\nRejected\nDeactivated",
+      "default": "Pending",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "scout_profile",
+      "fieldtype": "Link",
+      "options": "Scout Profile",
+      "label": "Scout Profile",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reviewed_by",
+      "fieldtype": "Link",
+      "options": "User",
+      "label": "Reviewed By",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reviewed_at",
+      "fieldtype": "Datetime",
+      "label": "Reviewed At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "review_reason",
+      "fieldtype": "Small Text",
+      "label": "Review Reason",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Admin",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1
+    }
+  ],
+  "track_changes": 1,
+  "title_field": "full_name",
+  "search_fields": "full_name,email,county",
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "states": []
+}

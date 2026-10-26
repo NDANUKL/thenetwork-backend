@@ -49,3 +49,19 @@ class MobileSyncSecurity(unittest.TestCase):
         doc.set.assert_any_call('submitted_at', None)
         doc.set.assert_any_call('client_updated_at', datetime(2026, 10, 23, 18, 10))
         doc.save.assert_called_once()
+
+    def test_mobile_contract_advertises_recovery_and_authoritative_membership(self):
+        result = self.api._mobile_capabilities()
+        self.assertEqual(result['contract'], 1)
+        self.assertTrue(result['authoritative_assignments'])
+        self.assertTrue(result['resumable_submission'])
+        self.assertEqual(result['visit_workflow_version'], 2)
+
+    def test_retry_after_lost_submission_ack_returns_terminal_state(self):
+        task = types.SimpleNamespace(name='task', scout_profile='scout', location='location', status='Submitted')
+        response = types.SimpleNamespace(name='response', task='task', agent='scout', status='Submitted')
+        self.f.get_doc.side_effect = [task, response]
+        result = self.api._upsert_task_response({'client_uuid':'known', 'task':'task', 'location':'location', 'status':'Draft'})
+        self.assertEqual(result['response_status'], 'Submitted')
+        self.assertEqual(result['server_id'], 'response')
+        self.f.new_doc.assert_not_called()

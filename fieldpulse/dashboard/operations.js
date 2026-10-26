@@ -11,6 +11,7 @@
   const counties = "Mombasa|Kwale|Kilifi|Tana River|Lamu|Taita Taveta|Garissa|Wajir|Mandera|Marsabit|Isiolo|Meru|Tharaka Nithi|Embu|Kitui|Machakos|Makueni|Nyandarua|Nyeri|Kirinyaga|Murang'a|Kiambu|Turkana|West Pokot|Samburu|Trans Nzoia|Uasin Gishu|Elgeyo Marakwet|Nandi|Baringo|Laikipia|Nakuru|Narok|Kajiado|Kericho|Bomet|Kakamega|Vihiga|Bungoma|Busia|Siaya|Kisumu|Homa Bay|Migori|Kisii|Nyamira|Nairobi".split("|").sort();
   $("#ops-county").insertAdjacentHTML("beforeend", counties.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(""));
   function filters(kind) {
+    if (kind === "scout_applications") return {type: "Scout Application", f: [["status", "=", "Pending"]]};
     if (kind === 'recurring_review') return {type:'DD Recurring Plan',f:[['status','=','Pending review']]};
     if (kind === 'recurring_visits') return {type:'DD Recurring Occurrence',f:[['status','in',['Awaiting access','Access confirmed']],['due_date','<=',frappe.datetime.add_days(frappe.datetime.get_today(),14)]]};
     const globalLists = { quotations: "DD Quotation", scout_submissions: "FP Task Response", client_reports: "DD Service Report" };
@@ -19,6 +20,7 @@
     const scout = ["available", "busy", "leave", "inactive", "scouts"].includes(kind);
     const type = kind === "diaspora_requests" ? "Diaspora Request" : scout ? "Scout Profile" : ["waiting", "requests"].includes(kind) ? "Field Request" : "Field Task";
     const f = county ? [[scout ? "base_county" : "county", kind === "diaspora_requests" ? "like" : "=", kind === "diaspora_requests" ? `%${county}%` : county]] : [];
+    if (scout && kind !== "scouts") f.push(["access_status", "!=", "Deactivated"]);
     if (kind === "waiting") f.push(["status", "=", "Awaiting Assignment"]);
     if (kind === "active") f.push(["status", "in", active]);
     if (kind === "overdue") f.push(["status", "not in", unfinished], ["due_at", "<", frappe.datetime.now_datetime()]);

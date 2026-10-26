@@ -1,4 +1,6 @@
-# Production configuration audit - 14 October 2026
+# Historical production configuration audit ? 14 October 2026
+
+This is a dated pre-handover audit, not current deployment guidance. Native handover completed on 16 October 2026 and was verified on 26 October 2026. Follow [production ownership](production-script-ownership.md) and [native integration](native-integration.md). The counts below describe the 14 October capture only.
 
 Production was read directly using the authenticated Frappe API. Customer records and credentials are excluded from the checked-in configuration manifest.
 
@@ -21,16 +23,16 @@ Production was read directly using the authenticated Frappe API. Customer record
 - Customer request listing comparison: no script difference.
 - The live operations dashboard HTML, CSS and JavaScript match the native backend assets; no dashboard asset gap was found.
 - Quotation HTML matches the website source. The backend manifest includes the live quotation DocTypes, validation and print format.
-- Conversion scripts must stay active on production until the backend migration replaces them. Backend adoption skips those temporary scripts and retires their production versions after native code is installed.
+- At the audit date, conversion still used site scripts. The subsequent native handover replaced that ownership; the retired DD scripts are now disabled recovery references.
 - Native DocType identity fields replace their temporary Custom Field definitions without deleting physical data columns. The pre-model-sync migration preserves and removes only duplicate metadata definitions.
 
 ## Deployment boundary
 
-The current production implementation is site scripts. The prepared backend implementation is native Python. They implement the same project-ID contract but must not both own conversion after deployment. Deploy the backend and run migrations first, verify staging/production, then deploy the website. The website now supplies server-derived project IDs with location rows.
+At the audit date, site scripts owned production and native Python was prepared for adoption. That transition completed on 16 October 2026. Current changes use the normal native deployment workflow; do not repeat the historical handover or reinstall script definitions. The website supplies server-derived project IDs with location rows.
 
 ## Ownership
 
-Website installers retain the production runtime definitions and quote design. Backend migrations adopt non-overlapping managed configuration from the same manifest, while native project_alignment/project_locations own conversion and scout metadata. Manual production changes after this capture need a fresh audit/export before a later deployment.
+The native backend now owns runtime definitions, quote design, conversion and scout metadata. The website installers mentioned by this audit were removed. Preserve the historical manifest/snapshot for recovery; audit the current affected definitions when preparing a later deployment.
 
 ## Limits
 

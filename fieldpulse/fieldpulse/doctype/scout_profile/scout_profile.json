@@ -5,10 +5,14 @@
   "creation": "2026-09-07 00:00:00.000000",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["scout_name", "user", "phone_number", "base_county", "legacy_fp_agent", "availability_status", "last_app_activity", "activity_status", "active_task_count", "completed_task_count"],
+  "field_order": ["scout_name", "user", "access_status", "deactivated_by", "deactivated_at", "deactivation_reason", "phone_number", "base_county", "legacy_fp_agent", "availability_status", "last_app_activity", "activity_status", "active_task_count", "completed_task_count"],
   "fields": [
     {"fieldname": "scout_name", "fieldtype": "Data", "in_list_view": 1, "label": "Scout", "reqd": 1},
     {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "unique": 1},
+    {"fieldname": "access_status", "fieldtype": "Select", "label": "Account Access", "options": "Active\nDeactivated", "default": "Active", "read_only": 1, "in_list_view": 1, "in_standard_filter": 1},
+    {"fieldname": "deactivated_by", "fieldtype": "Link", "options": "User", "label": "Deactivated By", "read_only": 1},
+    {"fieldname": "deactivated_at", "fieldtype": "Datetime", "label": "Deactivated At", "read_only": 1},
+    {"fieldname": "deactivation_reason", "fieldtype": "Small Text", "label": "Deactivation Reason", "read_only": 1},
     {"fieldname": "phone_number", "fieldtype": "Data", "label": "Phone Number"},
     {"fieldname": "base_county", "fieldtype": "Data", "in_list_view": 1, "label": "County"},
     {"fieldname": "legacy_fp_agent", "fieldtype": "Link", "label": "Legacy FP Agent", "options": "FP Agent", "read_only": 1, "hidden": 1, "unique": 1},
@@ -29,7 +33,8 @@
     {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Supervisor", "share": 1, "write": 1},
     {"email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Field Operations Coordinator"},
     {"read": 1, "role": "Field Agent"},
-    {"role": "Finance", "read": 1, "report": 1}
+    {"role": "Finance", "read": 1, "report": 1},
+    {"role": "System Manager", "read": 1, "report": 1}
   ],
   "title_field": "scout_name",
   "search_fields": "scout_name,base_county,phone_number",

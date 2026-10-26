@@ -31,7 +31,7 @@ The scout flow should be: task information, two opening questions, applicable as
 
 Existing assets worth retaining: questionnaire version pinning, client-request snapshots, saved arrival records, per-file capture metadata, account-scoped SQLite, upload-before-finalisation sync, coordinator approval/rework and controlled client evidence release. Preserve their behaviour while extending the protocol.
 
-This is a local source review. It does not establish the deployed site's current behaviour or migration state. `docs/scout-questionnaires-and-reports.md` contains rollout language that differs from the explicit production ownership policy; use `docs/production-script-ownership.md`, `docs/native-integration.md` and the ownership registry as the controlling deployment guidance.
+This is a historical source review, not a live deployment inventory. Native handover completed on 16 October 2026 and was verified on 26 October 2026. Use [production ownership](production-script-ownership.md) for current policy and [implementation](questionnaire-streamlining-implementation.md) for the subsequent questionnaire changes.
 
 ## Proposed scout experience
 
@@ -135,11 +135,11 @@ Gate: approving one same-site service does not approve the others; rework preser
 
 Deploy additive backend/schema support first with version 2 assignment gated off. Verify existing clients and version 1 submissions. Distribute a compatible mobile build, verify protocol capability, then explicitly enable version 2 for new assignments. Existing pinned projects need an explicit reviewed upgrade for future tasks; do not force-upgrade their assigned/in-progress tasks.
 
-Follow `docs/production-script-ownership.md`, `docs/native-integration.md` and `fieldpulse/configuration/native-ownership.json`. Runtime source belongs in native Python/standard DocTypes. Temporary production script source remains in `diaspora-desk`; if a corresponding live script needs a change, back up and mirror the targeted definition there and in the backend, then verify it. Do not run old website generators over native source. Source implementation does not authorise native handover or retirement migrations.
+Follow [production ownership](production-script-ownership.md) and [native integration](native-integration.md). Change native Python, standard DocTypes and Desk assets directly. Retired DD scripts remain disabled recovery references; do not update them, recreate removed website installers or use old generators. Routine deployment does not require another handover.
 
 Stage real Frappe model sync, role permissions and physical-phone GPS/camera/video/document permissions. Exercise all service families, missing-site and denied-access visits, merchant refusal, same-site multi-service reuse, offline restart/retry, coordinator rework, report downloads and cross-client denial. Preserve the simplified assignment dialog without Responsibility or Location inputs, and the verified-deposit assignment gate.
 
-Rollback stops new version 2 assignments while retaining the server/client support needed for already pinned version 2 work. Do not roll back additive schemas or erase submissions. Native production handover remains a separate owner-approved operation.
+Rollback stops new version 2 assignments while retaining the server/client support needed for already pinned version 2 work. Do not roll back additive schemas or erase submissions. Native production handover is complete; feature rollback must not restore retired script ownership.
 
 ## Review outcome
 

@@ -2,8 +2,9 @@
 
 This adds native source in thenetwork-backend and the Earnings tab in
 DiasporaDesk/mobile. It has not been migrated, enabled or deployed to production.
-Existing live scripts remain owned by the production workflow. No existing
-payment, quotation, evidence or report history is rewritten.
+Production uses the native backend after the completed 16 October 2026 handover.
+Retired site scripts remain disabled recovery references. No existing payment,
+quotation, evidence or report history is rewritten.
 
 The site flag `dd_finance_enabled` defaults off. Create the Finance role through
 normal installation/migration; this does not assign any users. The owner chooses
@@ -139,8 +140,8 @@ Confirm the actual merchant account arrangements before using a payout channel.
 
 ## Staging acceptance before enabling
 
-Follow production-script-ownership.md and native-integration.md; source work does
-not authorise handover. Use a backed-up staging Frappe site, migrate standard
+Follow [production ownership](production-script-ownership.md) and
+[native integration](native-integration.md) for normal native deployment. Use a backed-up staging Frappe site, migrate standard
 DocTypes/Role/page/workspace and build assets, then enable the flag there only.
 Test with separate scout, coordinator and Finance users. Confirm assignment
 deposit/accepted-offer gates, same/replacement revisit, work approval, claim
@@ -151,4 +152,4 @@ Exercise mobile offline snapshots, account switching and a real private receipt
 upload on Android/iOS. Verify the actual Desk dialogs and encrypted Password
 field lifecycle on the installed Frappe version. Local unit and TypeScript checks
 do not replace these site/device checks. Production activation requires the
-owner's deployment/handover approval.
+owner's feature deployment/activation approval; native handover is already complete.

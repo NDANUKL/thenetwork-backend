@@ -10,10 +10,16 @@ class ScoutProfile(Document):
     """Operational profile for a field scout."""
 
     def validate(self):
+        from fieldpulse.scout_access import validate_profile
+        validate_profile(self)
         if (frappe.session.user != "Administrator"
                 and "Field Operations Coordinator" in frappe.get_roles()
-                and not self.flags.scout_self_service):
+                and not self.flags.scout_self_service
+                and not frappe.flags.dd_scout_admission_write):
             frappe.throw("Scout profiles are maintained by scouts in the mobile app.", frappe.PermissionError)
+
+    def on_trash(self):
+        frappe.throw("Scout profiles are retained for audit. Deactivate the scout instead.")
 
 
 def refresh_activity_statuses():

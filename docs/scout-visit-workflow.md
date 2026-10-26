@@ -12,4 +12,4 @@ Use an in-app camera for the new workflow. Sample foreground GPS immediately bef
 
 Generate editable captions from the assigned subject/item. Reusing a file requires selecting the checks it supports, not typing another caption. Require extra description only for unclear subjects or issues that are not already described in the linked finding. Preserve capture metadata when captions, links or findings are edited later. Client-facing captions remain coordinator-reviewable.
 
-No production handover, script retirement or automatic upgrade of assigned work is authorised by these source changes. Activate only after backend staging/model sync, compatible mobile rollout and physical-phone GPS/camera/offline acceptance.
+Production uses the native backend. Keep retired scripts disabled and preserve the pinned workflows of existing assigned work. Activate only after backend staging/model sync, compatible mobile rollout and physical-phone GPS/camera/offline acceptance.

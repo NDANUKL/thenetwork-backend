@@ -46,8 +46,9 @@ def task_team(**kwargs):
 
 @owned_event('DD Scout User Profile')
 def sync_user(doc, method=None):
-    # A Field Agent role is assigned by the trusted mobile registration endpoint.
-    # Never create scout profiles for customers or other ordinary website users.
+    from fieldpulse.scout_access import can_create_profile
+    if not can_create_profile(doc.name):
+        return
     is_scout = False
     for role in doc.get("roles") or []:
         if role.role == "Field Agent":
@@ -83,6 +84,9 @@ def sync_agent(doc, method=None):
     # Mobile registration inserts FP Agent after User. Complete the new profile's
     # legacy link and contact information without changing operational settings.
     if doc.user:
+        from fieldpulse.scout_access import can_create_profile
+        if not (can_create_profile(doc.user) or frappe.db.exists("Scout Profile", {"user": doc.user})):
+            return
         is_scout = frappe.db.exists("Has Role", {
             "parent": doc.user, "parenttype": "User", "role": "Field Agent"
         })

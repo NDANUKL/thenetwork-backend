@@ -23,23 +23,35 @@ class ScoutRegistrationTests(unittest.TestCase):
                 self.auth.register_field_agent(name, "scout@example.test", "password123", county=county)
         self.frappe.get_doc.assert_not_called()
 
-    def test_registration_updates_existing_profile_without_resetting_leave(self):
+    def test_registration_creates_disabled_applicant_without_profile_or_session(self):
         user = MagicMock(name="user")
         user.name = "scout@example.test"
-        agent = MagicMock(name="agent")
-        agent.name = "AGT-123"
-        profile = MagicMock(name="profile")
-        profile.availability_status = "On Leave"
-        self.frappe.db.exists.side_effect = [False, "SCT-00001"]
-        self.frappe.get_doc.side_effect = [user, agent, profile]
-        with patch.object(self.auth, "_login", return_value={"sid": "test"}):
-            self.auth.register_field_agent(" Pauline   Wanjiku ", "scout@example.test", "password123",
-                                           phone="0712345678", county=" Nairobi ")
-        self.assertEqual(profile.scout_name, "Pauline Wanjiku")
-        self.assertEqual(profile.base_county, "Nairobi")
-        self.assertEqual(profile.legacy_fp_agent, "AGT-123")
-        self.assertEqual(profile.availability_status, "On Leave")
-        profile.save.assert_called_once_with(ignore_permissions=True)
+        application = MagicMock()
+        self.frappe.db.exists.return_value = False
+        self.frappe.get_doc.side_effect = [user, application]
+        from contextlib import nullcontext
+        access = types.SimpleNamespace(admission_write=nullcontext)
+        with patch.dict('sys.modules', {'fieldpulse.scout_access': access}), patch.object(self.auth, '_login') as login:
+            result = self.auth.register_field_agent(" Pauline   Wanjiku ", "scout@example.test", "password123",
+                                                    phone="0712345678", county=" Nairobi ")
+        self.assertEqual(result['status'], 'Pending')
+        self.assertNotIn('sid', result)
+        login.assert_not_called()
+        values = [call.args[0] for call in self.frappe.get_doc.call_args_list]
+        self.assertEqual([v['doctype'] for v in values], ['User', 'Scout Application'])
+        self.assertEqual(values[0]['enabled'], 0)
+        self.assertEqual(values[0]['roles'], [])
+        self.assertEqual(values[1]['full_name'], 'Pauline Wanjiku')
+        self.assertEqual(values[1]['county'], 'Nairobi')
+        self.assertNotIn('password', values[1])
+        self.frappe.db.commit.assert_not_called()
+
+    def test_repeat_signup_never_recreates_an_existing_identity(self):
+        for existing in ([True], [False, True]):
+            self.frappe.db.exists.side_effect = existing
+            with self.assertRaises(ValueError):
+                self.auth.register_field_agent('Pauline Wanjiku', 'scout@example.test', 'password123', county='Nairobi')
+        self.frappe.get_doc.assert_not_called()
 
     def test_login_records_activity_after_authentication(self):
         self.frappe.db.exists.return_value = "SCT-00001"

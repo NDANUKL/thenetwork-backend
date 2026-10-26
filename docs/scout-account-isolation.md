@@ -2,9 +2,10 @@
 
 The Scout Profile `legacy_fp_agent` field is hidden in the native schema. Its
 unique link remains intact for registration, migration and contact synchronization.
-This source change has not been applied to production. Apply the matching hidden
-property on the live site's Scout Profile with a metadata backup; do not run the
-native handover or retirement migrations solely to hide this field.
+Deploy schema changes through normal native migration and verify the resulting
+metadata on the target site. The original 19 October source work did not establish
+feature deployment. Native handover is complete; do not repeat its migrations
+or edit retired scripts to change this field.
 
 Mobile source in `DiasporaDesk/mobile` used one `diaspora-desk.db` SQLite file for
 every login. Logout removed credentials but retained all cached tasks, and pulls

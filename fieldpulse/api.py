@@ -24,6 +24,13 @@ def _get_scout_profile_for_user(user=None):
     return frappe.get_doc("Scout Profile", scout_profile)
 
 
+def _mobile_capabilities():
+    # Increment the contract only for changes that require a coordinated mobile release.
+    return {"contract": 1, "protocol_version": 2, "visit_workflow_version": 2,
+            "rework_version": 2, "questionnaire_editor_version": 1,
+            "authoritative_assignments": True, "resumable_submission": True}
+
+
 @frappe.whitelist()
 def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version=0, rework_version=0, questionnaire_editor_version=0):
     """Return tasks (and referenced locations/questionnaires/questions)
@@ -83,6 +90,9 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
     frappe.db.commit()
 
     return {
+        "capabilities": _mobile_capabilities(),
+        "full_snapshot": not bool(since),
+        "assigned_task_ids": [task["name"] for task in tasks] if not since else None,
         "tasks": tasks,
         "locations": locations,
         "questionnaires": questionnaires,
@@ -167,8 +177,8 @@ def _upsert_task_response(item):
             frappe.throw("Response ID belongs to another task or scout", frappe.PermissionError)
         if doc.status == "Submitted":
             if item.get("status") == "Submitted":
-                return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
-            return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
+                return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists", "response_status": "Submitted"}
+            return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists", "response_status": "Submitted"}
         incoming_ts = mobile_datetime(item.get("client_updated_at"))
         if item.get("status") != "Submitted" and incoming_ts and doc.client_updated_at and incoming_ts <= mobile_datetime(doc.client_updated_at):
             return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}

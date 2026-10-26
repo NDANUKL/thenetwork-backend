@@ -18,7 +18,7 @@ this source change.
 
 For the subsequent verified-arrival and separate collection workspace changes (template version 3), see [scout-visit-release.md](scout-visit-release.md). The version 2 implementation below remains supported for existing assignments.
 
-Implemented locally on 24 October 2026 in `thenetwork-backend` and `DiasporaDesk/mobile`. Production has not been changed. Existing script ownership and the simplified assignment dialog are preserved.
+Implemented locally on 24 October 2026 in `thenetwork-backend` and `DiasporaDesk/mobile`. Production has not been changed. The native backend owns production; retired scripts remain disabled. The simplified assignment dialog is preserved.
 
 ## Delivered behaviour
 
@@ -44,7 +44,7 @@ Coordinator review shows item outcomes, evidence coverage and original limitatio
 
 - `fieldpulse/configuration/scout-questionnaires-v2.json`: version 2 source catalogue.
 - `fieldpulse/scout_library.py`: pure configuration, conditional requirements and answer/exception rules.
-- `fieldpulse/scout_v2.py`: opt-in installation, site bundles, pinned configuration and verified evidence-link sync.
+- `fieldpulse/scout_v2.py`: default V2 installation, optional V3 visit workflow, site bundles, pinned configuration and verified evidence-link sync.
 - `scout_templates.py`, `scout_submissions.py`, `evidence.py`, `scout_reports.py`, `api.py` and the affected standard DocTypes/Desk assets: integration with assignment, validation and reporting.
 - Mobile `components/StreamlinedQuestionnaire.tsx` and `utils/streamlinedProtocol.ts`: version 2 rendering and offline validation.
 - Mobile `db/database.ts`, `db/repository.ts`, `services/sync.ts`: additive SQLite migration, pinned form metadata, single-file links and staged sync.
@@ -52,18 +52,18 @@ Coordinator review shows item outcomes, evidence coverage and original limitatio
 
 `tools/build_scout_library_v2.py` reproduces the catalogue from the retained owner source and explicit declarative rules. Do not edit an installed published version in place; future changes require a new version.
 
-## Activation and acceptance
+## Current activation and acceptance
 
-Version 2 installation/new dispatch is disabled unless site configuration `dd_questionnaire_v2_enabled` is true. This setting does not approve native handover and must not be used to bypass the ownership policy.
+Version 2 is the default library in the current source. The former `dd_questionnaire_v2_enabled` flag is ignored. Optional V3 verified-visit dispatch remains controlled by `dd_scout_visit_workflow_enabled`. Follow normal native deployment; handover is complete.
 
-1. Deploy additive source/schema support to staging through the established approved deployment process. Keep version 2 disabled initially; verify version 1 tasks, drafts and uploads still work.
+1. Deploy additive source/schema support to staging through the established approved deployment process. Verify existing version 1 tasks, drafts and uploads still work with the default V2 library; keep optional V3 dispatch disabled until separately accepted.
 2. Build/distribute the compatible mobile binary. Check the new screen on a physical phone: arrival exception, actual camera/video/document permissions, evidence reuse, draft restart, unlink/removal, offline queue/retry and rework.
-3. On staging, enable `dd_questionnaire_v2_enabled`, then call `fieldpulse.scout_v2.install_templates` (also called by the normal template installer when enabled). Confirm 15 version 2 templates. The services selector also creates missing single/composite templates on demand.
+3. On staging, run normal installation/migration to install the default V2 templates. Confirm the 15 service templates and current service-specific revisions. The services selector also creates missing single/composite templates on demand.
 4. Verify coordinator role permissions and actual Frappe model sync. Configure a plot check, a property checklist, an authorised institution/issuer confirmation, a merchant refusal and a same-site service bundle. Verify unexplained gaps block submission, explained limitations stay flagged, and reference media is never demanded twice.
 5. Exercise coordinator approval/rework, private storage previews, report generation and authorised client downloads. Verify source limitations remain after approval and each released file appears once in the ZIP.
-6. Enable new version 2 assignments in production only after the compatible build and staging checks pass, following the production script ownership/handover policy. Existing project and task pins do not automatically upgrade.
+6. Enable new version 2 assignments in production only after the compatible build and staging checks pass, following the native production deployment policy. Existing project and task pins do not automatically upgrade.
 
-Disabling the feature flag stops new version 2 dispatch; it does not remove the support needed to finish existing version 2 work. Retain the additive schemas and compatible client. Do not run script retirement migrations or overwrite native code with historical website generators.
+The former V2 flag cannot disable default V2 dispatch. If the optional V3 workflow must be rolled back, disable its visit-workflow flag while retaining support for already pinned tasks. Retain the additive schemas and compatible client. Do not run script retirement migrations or overwrite native code with historical website generators.
 
 ## Local verification
 

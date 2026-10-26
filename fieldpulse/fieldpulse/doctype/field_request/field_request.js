@@ -46,6 +46,7 @@ frappe.ui.form.on("Field Request", {
           { fieldname: "assignments", label: __("Scout assignments"), fieldtype: "Table", reqd: 1, in_place_edit: true, data: [{}],
           fields: [
             { fieldname: "scout", label: __("Scout"), fieldtype: "Link", options: "Scout Profile", reqd: 1, in_list_view: 1,
+              get_query: () => ({ filters: { access_status: ["!=", "Deactivated"] } }),
               async onchange() {
                 const row = this.doc;
                 if (!row) return;

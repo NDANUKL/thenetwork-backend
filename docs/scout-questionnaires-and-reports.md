@@ -1,6 +1,6 @@
 # Scout questionnaires, review and client reporting
 
-For the streamlined version 2 implementation and its disabled-by-default rollout gate, see [questionnaire-streamlining-implementation.md](questionnaire-streamlining-implementation.md). The earlier questionnaire behaviour described below applies to version 1 assignments. Production script ownership remains governed by `production-script-ownership.md` and `native-integration.md`.
+For the current default V2 library and the separate optional V3 verified-visit workflow, see [questionnaire-streamlining-implementation.md](questionnaire-streamlining-implementation.md). The earlier questionnaire behaviour described below applies to version 1 assignments. Production is native-owned; follow [production ownership](production-script-ownership.md) and [native integration](native-integration.md).
 
 ## Source and installation
 

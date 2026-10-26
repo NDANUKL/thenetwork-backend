@@ -26,6 +26,10 @@ def mobile_login(email, password):
     email = (email or "").strip().lower()
     if not email or not password:
         frappe.throw("Email and password are required.")
+    from fieldpulse.scout_access import check_access
+    check_access(email)
+    if not frappe.db.exists("Scout Profile", {"user": email}):
+        frappe.throw("Your scout application must be approved before signing in.")
     if not frappe.db.exists("FP Agent", {"user": email, "status": "Active"}):
         frappe.throw("This account is not an active field agent.")
     return _login(email, password)
@@ -33,7 +37,7 @@ def mobile_login(email, password):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def register_field_agent(full_name, email, password, phone=None, county=None):
-    """Create a least-privilege Field Agent account for the mobile app."""
+    """Submit an application; no scout role, profile or session until staff approval."""
     email = validate_email_address((email or "").strip().lower(), throw=True)
     full_name = " ".join((full_name or "").split())
     county = " ".join((county or "").split())
@@ -45,8 +49,13 @@ def register_field_agent(full_name, email, password, phone=None, county=None):
         frappe.throw("Enter your county (up to 100 characters).")
     if not password or len(password) < 8:
         frappe.throw("Use a password with at least 8 characters.")
+    phone = (phone or "").strip()
+    if len(phone) > 40 or any(char not in "+0123456789 ()-" for char in phone):
+        frappe.throw("Enter a valid phone number (up to 40 characters).")
+    if frappe.db.exists("Scout Application", {"email": email}):
+        frappe.throw("An application already exists for this email. Contact Diaspora Desk for its status.")
     if frappe.db.exists("User", email):
-        frappe.throw("An account with this email already exists. Sign in instead.")
+        frappe.throw("An account with this email already exists. Sign in or contact Diaspora Desk.")
 
     user = frappe.get_doc({
         "doctype": "User",
@@ -54,31 +63,18 @@ def register_field_agent(full_name, email, password, phone=None, county=None):
         "first_name": full_name,
         "send_welcome_email": 0,
         "new_password": password,
-        "roles": [{"role": "Field Agent"}],
+        "enabled": 0,
+        "user_type": "Website User",
+        "roles": [],
     })
     user.insert(ignore_permissions=True)
-    agent = frappe.get_doc({
-        "doctype": "FP Agent",
-        "agent_code": f"AGT-{frappe.generate_hash(length=8).upper()}",
-        "user": user.name,
-        "full_name": full_name,
-        "phone": phone,
-        "status": "Active",
-    })
-    agent.insert(ignore_permissions=True)
-    # User/agent hooks may already have created this profile. Complete it in
-    # the same transaction so registration never loses the scout's county.
-    profile_name = frappe.db.exists("Scout Profile", {"user": user.name})
-    profile = frappe.get_doc("Scout Profile", profile_name) if profile_name else frappe.get_doc({
-        "doctype": "Scout Profile", "user": user.name, "availability_status": "Available",
-    })
-    profile.scout_name = full_name
-    profile.base_county = county
-    profile.phone_number = phone or ""
-    profile.legacy_fp_agent = agent.name
-    profile.save(ignore_permissions=True)
-    frappe.db.commit()
-    return _login(email, password)
+    from fieldpulse.scout_access import admission_write
+    with admission_write():
+        frappe.get_doc({
+            "doctype": "Scout Application", "user": user.name, "email": email,
+            "full_name": full_name, "phone": phone, "county": county, "status": "Pending",
+        }).insert(ignore_permissions=True)
+    return {"status": "Pending", "message": "Application submitted. You can sign in after Diaspora Desk approves your application."}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -88,6 +84,9 @@ def request_password_reset(email):
 
     if not frappe.db.exists("User", email):
         return {"message": "If this email is registered, reset instructions will be sent."}
+
+    from fieldpulse.scout_access import check_access
+    check_access(email)
 
     if not frappe.db.exists("FP Agent", {"user": email, "status": "Active"}):
         frappe.throw("This account is not an active field agent.")

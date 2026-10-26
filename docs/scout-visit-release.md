@@ -18,11 +18,11 @@ Implemented locally on 24 October 2026. This extends the streamlined questionnai
 
 Versions 1 and 2 remain immutable; existing assigned work/drafts keep their earlier workflow. A new version 3 task snapshot pins `visit_workflow_version: 2`, resolved questions and the assigned site reference/radius. Older clients receive an update requirement for these new assignments.
 
-Keep both `dd_questionnaire_v2_enabled` and `dd_scout_visit_workflow_enabled` off until the compatible backend/schema and mobile binary have passed staging. The new flag enables installation/selection of version 3 templates; it does not upgrade existing project pins. On an approved staging deployment, enable both flags and run `fieldpulse.scout_v2.install_templates`, or use the services selector to install the chosen templates on demand. Existing projects need a reviewed selection of the new service revision for future tasks.
+V2 is the default library; `dd_questionnaire_v2_enabled` is obsolete and ignored. Keep only `dd_scout_visit_workflow_enabled` off until the compatible backend/schema and mobile binary have passed staging. This flag enables installation/selection of version 3 templates without upgrading existing project pins. On an approved staging deployment, enable the visit-workflow flag and run `fieldpulse.scout_v2.install_templates`, or use the services selector to install the chosen templates on demand. Existing projects need a reviewed selection of the new service revision for future tasks.
 
 A **new native mobile binary is required** for `expo-camera` and its camera/microphone permissions. An Android JavaScript export is not a distributed native build. Disable new workflow dispatch for rollback while retaining the schemas/client support required to finish already pinned work. Do not retire live scripts or run handover migrations as part of this feature.
 
-Follow `production-script-ownership.md` and `native-integration.md` for any deployment. These source changes do not establish live-site parity or authorise production handover.
+Follow `production-script-ownership.md` and `native-integration.md` for any deployment. Native handover is complete; these source changes still require their own deployment and acceptance checks.
 
 ## Verification and physical acceptance
 

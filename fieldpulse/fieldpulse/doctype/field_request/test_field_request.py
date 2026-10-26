@@ -30,7 +30,15 @@ class TestFieldRequest(FrappeTestCase):
         self.assertNotIn('Project 2',rows[0].evidence_requirements)
         first=frappe.get_doc('Field Request',rows[0].name); first.save()
         self.assertEqual(frappe.db.count('Field Request',{'diaspora_request':source.name}),2)
-        scouts=[frappe.get_doc(dict(doctype='Scout Profile',scout_name='Alignment '+str(uuid4()),base_county='Garissa',availability_status='Available')).insert() for _ in range(3)]
+        from fieldpulse.auth import register_field_agent
+        from fieldpulse.scout_access import review_application
+        scouts = []
+        for _ in range(3):
+            email = f'alignment-{uuid4().hex}@example.test'
+            register_field_agent('Alignment Scout', email, f'Test!{uuid4().hex}', county='Garissa')
+            application = frappe.db.get_value('Scout Application', {'email': email}, 'name')
+            result = review_application(application, 'Approved')
+            scouts.append(frappe.get_doc('Scout Profile', result['scout_profile']))
         assignments=[dict(scout=scouts[0].name),dict(scout=scouts[1].name)]
         tasks=assign_project_scouts(first.name,json.dumps(assignments))['tasks']
         self.assertEqual(assign_project_scouts(first.name,assignments)['tasks'],tasks)
