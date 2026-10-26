@@ -103,9 +103,36 @@ class CustomerAccessTests(unittest.TestCase):
         self.profile.user = 'someone-else@example.test'
         with self.assertRaises(ValueError): self.api.validate_account(self.profile)
 
-    def test_existing_approval_edits_remain_allowed(self):
-        self.profile.beta_access = 'Rejected'
-        self.api.validate_account(self.profile)
+    def test_approved_clients_cannot_be_rejected_or_returned_to_pending(self):
+        for original in ('Approved', None, ''):
+            for target in ('Rejected', 'Pending'):
+                self.profile.get_doc_before_save = lambda: Record(user=self.profile.user, beta_access=original)
+                self.profile.beta_access = target
+                with self.subTest(original=original, target=target), self.assertRaisesRegex(ValueError, 'Use Deactivate'):
+                    self.api.validate_account(self.profile)
+
+    def test_pending_approval_and_rejection_and_reconsidering_rejection_remain_allowed(self):
+        for original, target in [('Pending', 'Approved'), ('Pending', 'Rejected'), ('Rejected', 'Approved')]:
+            previous = Record(user=self.profile.user, beta_access=original, account_access='Active')
+            self.profile.get_doc_before_save = lambda: previous
+            self.profile.beta_access = target
+            self.api.validate_account(self.profile)
+
+    def test_deactivated_accounts_cannot_change_approval_until_reactivated(self):
+        self.profile.account_access, self.profile.beta_access = 'Deactivated', 'Approved'
+        self.profile.get_doc_before_save = lambda: Record(user=self.profile.user, account_access='Deactivated', beta_access='Pending')
+        with self.assertRaisesRegex(ValueError, 'Reactivate'):
+            self.api.validate_account(self.profile)
+
+    def test_pending_and_rejected_clients_cannot_be_deactivated_even_in_public_mode(self):
+        self.f.db.get_single_value.return_value = 'Open to everyone'
+        for approval in ('Pending', 'Rejected'):
+            self.profile.beta_access = approval
+            self.f.get_doc.side_effect = [self.profile, self.user]
+            with self.subTest(approval=approval), self.assertRaisesRegex(ValueError, 'Only approved'):
+                self.api.set_account_access('CLIENT-1', 'Deactivate', 'Reason')
+        self.profile.save.assert_not_called()
+        self.user.save.assert_not_called()
 
     def test_staff_and_self_accounts_cannot_be_changed_by_client_action(self):
         for value in ('System User',):

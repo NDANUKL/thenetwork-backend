@@ -1,7 +1,9 @@
 frappe.ui.form.on("Scout Profile", {
   refresh(frm) {
+    ["Deactivate", "Reactivate"].forEach(label => frm.remove_custom_button(__(label)));
     const reviewer = frappe.session.user === "Administrator" ||
       ["System Manager", "Admin", "Field Operations Coordinator"].some(role => frappe.user_roles.includes(role));
+    const approved = (frm.doc.__onload?.scout_application_status || "Approved") === "Approved";
     if (!frm.is_new() && reviewer && frm.doc.user && frm.doc.access_status === "Deactivated") {
       frm.add_custom_button(__("Reactivate"), () => {
         if (frm.is_dirty()) return frappe.msgprint(__("Save or discard your changes before changing account access."));
@@ -16,7 +18,7 @@ frappe.ui.form.on("Scout Profile", {
         );
       });
     }
-    if (!frm.is_new() && reviewer && frm.doc.user && frm.doc.access_status !== "Deactivated") {
+    if (!frm.is_new() && reviewer && approved && frm.doc.user && frm.doc.access_status !== "Deactivated") {
       frm.add_custom_button(__("Deactivate"), () => {
         if (frm.is_dirty()) return frappe.msgprint(__("Save or discard your changes before changing account access."));
         frappe.prompt(

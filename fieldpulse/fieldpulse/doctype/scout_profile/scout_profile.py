@@ -9,6 +9,10 @@ ACTIVE_TASK_STATUSES = ("Assigned", "Accepted", "In Progress")
 class ScoutProfile(Document):
     """Operational profile for a field scout."""
 
+    def onload(self):
+        from fieldpulse.scout_access import application_status
+        self.set_onload("scout_application_status", application_status(self.user) or "Approved")
+
     def validate(self):
         from fieldpulse.scout_access import validate_profile
         validate_profile(self)

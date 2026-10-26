@@ -4,7 +4,7 @@ from uuid import uuid4
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from fieldpulse.customer_access import set_account_access, check_access
+from fieldpulse.customer_access import set_account_access, check_access, access_write
 from fieldpulse.beta_access import access_status
 
 
@@ -42,13 +42,25 @@ class TestDDCustomerAccount(FrappeTestCase):
     def test_reactivation_preserves_rejection_and_email_verification(self):
         for approval, verified in [("Rejected", 1), ("Pending", 0)]:
             account = self.account(approval, verified)
-            set_account_access(account.name, "Deactivate", "Paused")
+            # Historical accounts may have been deactivated before the approval-only guard.
+            with access_write():
+                account.account_access = "Deactivated"
+                account.save(ignore_permissions=True)
+            frappe.db.set_value("User", account.user, "enabled", 0)
             set_account_access(account.name, "Reactivate", "Returned")
             account.reload()
             self.assertEqual(account.beta_access, approval)
             self.assertEqual(account.email_verified, verified)
             self.assertEqual(frappe.db.get_value("User", account.user, "enabled"), verified)
             if approval == "Rejected": self.assertEqual(access_status(account), "Rejected")
+
+    def test_approved_client_cannot_be_rejected_and_pending_cannot_be_deactivated(self):
+        account = self.account()
+        account.beta_access = "Rejected"
+        with self.assertRaises(frappe.ValidationError): account.save(ignore_permissions=True)
+        pending = self.account("Pending")
+        with self.assertRaises(frappe.ValidationError):
+            set_account_access(pending.name, "Deactivate", "Reason")
 
     def test_client_cannot_manage_its_own_activation(self):
         account = self.account()

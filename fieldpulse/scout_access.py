@@ -171,14 +171,16 @@ def deactivate_scout(scout_profile, reason):
         frappe.throw("This scout account cannot be deactivated with this action.")
     if profile.get("access_status") == "Deactivated":
         return {"status": "Deactivated"}
+    app_name = frappe.db.exists("Scout Application", {"user": profile.user})
+    application = _locked_application(app_name) if app_name else None
+    if application and (application.status != "Approved" or application.scout_profile != profile.name):
+        frappe.throw("Only approved scouts can be deactivated. Review the application first.")
     with admission_write():
         profile.access_status = "Deactivated"
         profile.deactivated_by, profile.deactivated_at = frappe.session.user, now_datetime()
         profile.deactivation_reason = reason
         profile.save(ignore_permissions=True)
-        app_name = frappe.db.exists("Scout Application", {"user": profile.user})
-        if app_name:
-            application = _locked_application(app_name)
+        if application:
             application.status = "Deactivated"
             application.save(ignore_permissions=True)
         # Retain the User and profile so signup cannot recreate a blocked identity.

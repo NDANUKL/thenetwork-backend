@@ -21,17 +21,16 @@ The website continues to use its existing Resend environment variables for verif
 ## Manage accounts
 
 Search for DD Customer Account. Filter Beta access by Pending; Email Verified identifies completed signups.
-Open a user and choose Grant access, Remove access, or Reject, or edit the Beta access field and save.
+Pending accounts show **Approve** and **Reject**. Approved accounts (including legacy accounts with blank Beta access) show **Deactivate** only; their approval decision is read-only and cannot be changed to Rejected or Pending through a direct save. Rejected accounts can be reconsidered with **Approve**. Deactivated accounts show **Reactivate** only. **Remove access** has been removed; it previously returned approval to Pending and overlapped with account deactivation.
 Approval queues one branded email once the email address is verified. Approval before verification waits until verification.
 The approval email sent at field confirms provider acceptance, not inbox delivery.
 Failed deliveries are retried every five minutes with an idempotency key for that approval.
 Inspect failed background jobs if the sent timestamp remains empty; correct delivery configuration before retrying.
-Rejection/removal clears unsent approval work and sends no email. Status is shown after a successful password login.
-In invite-only mode, removal denies existing DD sessions on their next server check. Open registration admits Pending accounts under the existing launch policy; use **Deactivate** to block an account regardless of registration mode. Raw request/payment APIs also enforce the policy.
+Rejecting a Pending application clears unsent approval work and sends no email. Status is shown after a successful password login. Once an account is approved, use **Deactivate** to suspend access while retaining the approval decision. Open registration still admits Pending accounts under the existing launch policy; record approval before using Deactivate. Raw request/payment APIs enforce account activation and approval policy.
 
 ## Client deactivation and reactivation
 
-On **DD Customer Account**, a System Manager can use **Deactivate** or **Reactivate**, with a reason. **Account Activation** is independent from **Beta access**: both the approval workflow and email verification retain their existing rules. Deactivation blocks the account even when Registration access is Open to everyone. It disables the linked customer Website User, removes API/reset credentials and revokes Frappe sessions after commit. Repeat signup, verification links, recovery and ordinary User edits cannot reactivate it. Historical requests, payments and account data remain intact.
+On **DD Customer Account**, a System Manager can deactivate an **Approved** account or reactivate a previously deactivated account, with a reason. **Account Activation** is independent from **Beta access**: both the approval workflow and email verification retain their existing rules. Deactivation blocks the account even when Registration access is Open to everyone. It disables the linked customer Website User, removes API/reset credentials and revokes Frappe sessions after commit. Repeat signup, verification links, recovery and ordinary User edits cannot reactivate it. Historical requests, payments and account data remain intact.
 
 Reactivation restores the same account and records who performed it, when and why. A verified customer User is enabled; an unverified User stays disabled until normal email verification. The original Pending/Rejected/Approved decision is not changed, so reactivation cannot grant beta approval. Revoked credentials/sessions are not restored: the client must sign in again. These actions are restricted to customer Website Users and cannot be used to enable or disable staff accounts. The existing approval notification flow skips deactivated accounts; no separate reactivation email is introduced. Version history preserves repeated access changes.
 

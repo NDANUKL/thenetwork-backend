@@ -53,6 +53,13 @@ def validate_account(doc):
     previous = doc.get_doc_before_save() if not doc.is_new() else None
     if previous and previous.user != doc.user:
         frappe.throw("A client account's linked user cannot be changed.")
+    if previous:
+        old_approval = previous.get("beta_access") or "Approved"
+        new_approval = doc.get("beta_access") or "Approved"
+        if old_approval == "Approved" and new_approval != "Approved":
+            frappe.throw("Approved clients cannot be rejected or returned to Pending. Use Deactivate instead.")
+        if previous.get("account_access") == "Deactivated" and new_approval != old_approval:
+            frappe.throw("Reactivate the client account before changing its approval decision.")
     if frappe.flags.dd_customer_access_write:
         return
     if previous:
@@ -84,6 +91,8 @@ def set_account_access(account, action, reason):
     inactive = profile.get("account_access") == "Deactivated"
     if action == "Reactivate" and not inactive:
         frappe.throw("Only deactivated client accounts can be reactivated. Refresh the form.")
+    if action == "Deactivate" and (profile.get("beta_access") or "Approved") != "Approved":
+        frappe.throw("Only approved clients can be deactivated. Review the application first.")
     if action == "Deactivate" and inactive:
         return {"status": "Deactivated"}
     with access_write():

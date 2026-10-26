@@ -169,6 +169,16 @@ class ScoutAccessTests(unittest.TestCase):
         self.f.db.after_commit.add.assert_not_called()
         self.f.db.commit.assert_not_called()
 
+    def test_deactivation_cannot_be_used_for_pending_rejected_or_mismatched_applications(self):
+        profile = record(name='SCT-1', user=self.app.user, access_status='Active')
+        self.f.db.exists.return_value = 'SAPP-1'
+        for status, link in [('Pending', 'SCT-1'), ('Rejected', 'SCT-1'), ('Approved', 'SCT-other')]:
+            self.app.status, self.app.scout_profile = status, link
+            self.f.get_doc.side_effect = [profile, self.app]
+            with self.subTest(status=status, link=link), self.assertRaisesRegex(ValueError, 'Only approved'):
+                self.api.deactivate_scout('SCT-1', 'Reason')
+        profile.save.assert_not_called()
+
     def test_legacy_scout_can_be_reactivated_without_creating_an_application(self):
         profile = record(name='SCT-old', user=self.app.user, access_status='Deactivated')
         user = record(roles=[types.SimpleNamespace(role='Field Agent')])
