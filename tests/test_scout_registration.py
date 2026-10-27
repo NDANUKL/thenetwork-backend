@@ -14,6 +14,7 @@ class ScoutRegistrationTests(unittest.TestCase):
         self.utils.now_datetime = lambda: "2026-10-18 12:00:00"
         self.auth = load("scout_auth_test", "fieldpulse/auth.py", {
             "frappe": self.frappe, "frappe.utils": self.utils,
+            "frappe.rate_limiter": types.SimpleNamespace(rate_limit=lambda **kw: lambda fn: fn),
         })
 
     def test_single_name_and_missing_county_rejected_before_writes(self):
@@ -55,9 +56,18 @@ class ScoutRegistrationTests(unittest.TestCase):
 
     def test_login_records_activity_after_authentication(self):
         self.frappe.db.exists.return_value = "SCT-00001"
-        with patch.dict("sys.modules", {"frappe.utils": self.utils}):
+        outer=self
+        class Manager:
+            def login(self):
+                self.user='scout@example.test';self.post_login()
+            def post_login(self):
+                outer.frappe.session.user=self.user
+        self.frappe.auth.LoginManager=Manager
+        self.frappe.form_dict={}
+        self.frappe.flags=types.SimpleNamespace(dd_verified_mfa_user=None)
+        two=types.SimpleNamespace(get_cached_user_pass=lambda:(None,None),should_run_2fa=lambda user:False)
+        with patch.dict("sys.modules", {"frappe.utils":self.utils,"frappe.twofactor":two}):
             self.auth._login("scout@example.test", "password123")
-        self.frappe.auth.LoginManager.return_value.authenticate.assert_called_once()
         self.frappe.db.set_value.assert_called_once_with("Scout Profile", "SCT-00001", {
             "last_app_activity": "2026-10-18 12:00:00", "activity_status": "Active",
         }, update_modified=False)

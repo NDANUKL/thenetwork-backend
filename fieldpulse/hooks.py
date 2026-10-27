@@ -102,3 +102,6 @@ doc_events.setdefault('DD Recurring Occurrence', {})['on_update']='fieldpulse.cu
 # Closed-app scout alerts share the existing durable email queue.
 doc_events['Field Task']['after_insert'].append('fieldpulse.scout_notifications.capture_task')
 doc_events['Field Task']['on_update'].append('fieldpulse.scout_notifications.capture_task')
+
+# Native scout sessions have an absolute lifetime and a verified MFA marker.
+on_session_creation = ["fieldpulse.scout_sessions.session_created"]

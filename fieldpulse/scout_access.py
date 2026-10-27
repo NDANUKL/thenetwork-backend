@@ -58,10 +58,14 @@ def check_access(user):
 
 def validate_auth():
     check_access(frappe.session.user)
+    from fieldpulse.scout_sessions import validate_session
+    validate_session(frappe.session.user)
 
 
 def on_login(login_manager):
     check_access(login_manager.user)
+    from fieldpulse.scout_sessions import require_verified_login
+    require_verified_login(login_manager.user)
 
 
 def validate_user(doc, method=None):
