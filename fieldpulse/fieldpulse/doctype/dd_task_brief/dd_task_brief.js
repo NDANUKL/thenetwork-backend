@@ -39,6 +39,7 @@ function editTaskBrief(frm) {
     ...['objective','scope'].map(key=>({fieldname:key,label:__(frappe.utils.to_title_case(key)),fieldtype:'Small Text',reqd:1,default:content[key]})),
     ...['deliverables','instructions','review_reasons'].map(key=>({fieldname:key,label:__(key.replaceAll('_',' ')+' (one per line)'),fieldtype:'Small Text',default:(content[key]||[]).join('\n')})),
     {fieldname:'checks',label:__('Field checks — drag rows to reorder'),fieldtype:'Table',in_place_edit:true,
+      description:__('Photo and video captures use “What to observe or document” unless a separate capture instruction is supplied.'),
       data:(content.checks||[]).map(check=>({id:check.id,instruction:check.instruction,response_type:check.response_type,required:check.required,
         options:check.options.join('\n'),photos:check.evidence.find(r=>r.kind==='photo')?.minimum||0,
         photo_instruction:check.evidence.find(r=>r.kind==='photo')?.instruction||'',videos:check.evidence.find(r=>r.kind==='video')?.minimum||0,
@@ -59,10 +60,18 @@ function editTaskBrief(frm) {
       deliverables:lines(values.deliverables),instructions:lines(values.instructions),review_required:!!reasons.length,review_reasons:reasons,
       checks:(values.checks||[]).map(row=>({id:row.id||crypto.randomUUID(),instruction:row.instruction,response_type:row.response_type,
         required:!!row.required,options:lines(row.options),evidence:[
-          ...(row.photos>0?[{kind:'photo',minimum:row.photos,instruction:row.photo_instruction||''}]:[]),
-          ...(row.videos>0?[{kind:'video',minimum:row.videos,instruction:row.video_instruction||''}]:[])]}))};
+          ...(row.photos>0?[{kind:'photo',minimum:row.photos,instruction:captureInstruction(row.photo_instruction,row.instruction)}]:[]),
+          ...(row.videos>0?[{kind:'video',minimum:row.videos,instruction:captureInstruction(row.video_instruction,row.instruction)}]:[])]}))};
     await frm.set_value('content_json',JSON.stringify(content,null,2));
     await frm.save();dialog.hide();
   }});
   dialog.show();
+}
+
+function captureInstruction(specific, instruction) {
+  const value = (specific || '').trim() || (instruction || '').trim();
+  if (!value || value.length > 1000) {
+    frappe.throw(__('For a check requiring photos or videos, enter an instruction of 1 to 1000 characters in “What to observe or document”.'));
+  }
+  return value;
 }
