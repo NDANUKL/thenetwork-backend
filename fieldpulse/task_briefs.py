@@ -155,14 +155,13 @@ def evaluate_submission(brief, check_ids, submission, evidence, *, task_id, scou
     if exception is not None:
         if not isinstance(exception, str) or not exception.strip() or len(exception) > 4000:
             errors.append('Access issue requires an explanation')
-        if answers or evidence:
-            errors.append('Access issues cannot submit completed field checks or evidence')
+        if (answers or evidence) and arrival_status['status'] != 'inside':
+            errors.append('Partial fieldwork requires the original verified arrival')
         # An unsafe approach is never required. Record available actual GPS, and
         # explicitly flag unavailable/inaccurate GPS for the coordinator.
         if arrival_status['status'] in {'invalid', 'inaccurate'}:
             flags.append('Access issue location is unavailable or inaccurate')
-        return dict(complete=not errors, errors=errors, flags=flags, checks=[], status='access_issue', verified=False)
-    if arrival_status['status'] != 'inside':
+    if exception is None and arrival_status['status'] != 'inside':
         errors.append('Verify arrival with accurate GPS before completing field checks')
     seen, files = set(), set()
     usable = {identity: [] for identity in check_ids}
@@ -186,10 +185,19 @@ def evaluate_submission(brief, check_ids, submission, evidence, *, task_id, scou
         point = gps_result(item, site)
         captured, arrived = _timestamp(item.get('captured_at')), _timestamp(arrival.get('captured_at'))
         sampled = _timestamp(item.get('location_sampled_at'))
-        if item.get('source') != 'camera' or point['status'] != 'inside' or not captured or not sampled or abs((sampled-captured).total_seconds()) > 60 or not arrived or captured < arrived:
+        if item.get('source') != 'camera' or not captured or not arrived or captured < arrived:
             flags.append(f'{identity}: capture source, time or GPS needs coordinator review')
             continue
+        if point['status'] == 'invalid' or not sampled:
+            flags.append(f'{identity}: Location unavailable')
+        elif point['status'] != 'inside' or abs((sampled-captured).total_seconds()) > 60:
+            flags.append(f'{identity}: capture location is outside the site, inaccurate or stale; coordinator review required')
+            continue
         usable[check_id].append(item)
+    if exception is not None:
+        if answers or evidence:
+            flags.append('Visit interrupted: partial fieldwork retained; required checks are not complete')
+        return dict(complete=not errors, errors=errors, flags=flags, checks=[], status='access_issue', verified=False)
     for check in brief['checks']:
         identity = check['id']
         answer = answers.get(identity)

@@ -28,11 +28,32 @@ class TaskBriefTests(unittest.TestCase):
         self.assertFalse(self.evaluate(evidence=self.data['evidence'][:1])['complete'])
         for field, value in [('task_id', 'OTHER'), ('scout_id', 'OTHER'), ('check_id', 'OTHER'),
                              ('accuracy_m', 200), ('source', 'gallery'), ('captured_at', 'bad'),
-                             ('location_sampled_at', None), ('location_sampled_at', '2026-10-28T07:00:00Z'), ('uploaded', False), ('latitude', float('nan')), ('file_id', None)]:
+                             ('location_sampled_at', '2026-10-28T07:00:00Z'), ('uploaded', False), ('file_id', None)]:
             with self.subTest(field=field):
                 rows = copy.deepcopy(self.data['evidence'])
                 rows[0][field] = value
                 self.assertFalse(self.evaluate(evidence=rows)['complete'])
+
+    def test_missing_capture_location_is_nonblocking_and_flagged(self):
+        rows = copy.deepcopy(self.data['evidence'])
+        for row in rows:
+            row.update(latitude=None, longitude=None, accuracy_m=None, location_sampled_at=None)
+        result = self.evaluate(evidence=rows)
+        self.assertTrue(result['complete'])
+        self.assertFalse(result['verified'])
+        self.assertTrue(any('Location unavailable' in flag for flag in result['flags']))
+
+    def test_interrupted_visit_preserves_partial_work_without_completing_checks(self):
+        submission = copy.deepcopy(self.data['submission'])
+        submission['access_issue'] = 'Site manager stopped the visit'
+        result = self.evaluate(submission, self.data['evidence'][:1])
+        self.assertTrue(result['complete'])
+        self.assertEqual(result['status'], 'access_issue')
+        self.assertFalse(result['verified'])
+        self.assertEqual(result['checks'], [])
+        foreign = copy.deepcopy(self.data['evidence'][:1])
+        foreign[0]['scout_id'] = 'OTHER'
+        self.assertFalse(self.evaluate(submission, foreign)['complete'])
 
     def test_duplicate_media_does_not_satisfy_counts(self):
         self.assertFalse(self.evaluate(evidence=[self.data['evidence'][0]] * 2)['complete'])
