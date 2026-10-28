@@ -43,3 +43,5 @@ Quotation rendering retains Frappe prepare_options/cleanup (private-image/cookie
 Deploy both fieldpulse/payments.py and fieldpulse/quotation_pdf.py and restart web workers. Updating the Print Format record alone cannot apply a Python rendering fix. Verify a new website download succeeds, then inspect that exact PDF with tools/verify_quotation_fonts.py. Local mocks and the Windows wkhtmltopdf test do not establish Linux production parity.
 
 29 October 2026: selectable beta/live pricing and immediate duplicate checks implemented locally. Requires normal deployment/migration and Desk/payment verification; not proof of live activation.
+
+29 October 2026 owner-authorized temporary staffing change: the quotation planned scout count no longer caps assignments. Coordinators may allocate additional scouts without changing the per-project price. Dispatch still requires the accepted quotation to include the project and a verified 50% deposit in the current payment environment. Existing assignment, access and Task Brief checks remain. Requires normal backend deployment.

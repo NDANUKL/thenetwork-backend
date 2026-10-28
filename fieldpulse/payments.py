@@ -384,10 +384,7 @@ def require_deposit(doc, method=None):
             break
     if not line:
         frappe.throw('This project is not included in the paid quotation')
-    scouts = set(frappe.get_all('Field Task', filters={'field_request': doc.field_request, 'name': ['!=', doc.name or ''], 'status': ['!=', 'Cancelled']}, pluck='scout_profile'))
-    scouts.add(doc.scout_profile)
-    if len(scouts) > int(line.planned_scouts):
-        frappe.throw('Scout count exceeds the accepted quotation; review the agreed scope first')
+    # Owner temporarily disabled the quotation staffing cap; retain payment and scope checks.
 
 def withdraw_quote(quote):
     document = frappe.get_doc('DD Quotation', quote)

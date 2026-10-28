@@ -284,7 +284,7 @@ class FlowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "50% deposit"):
             self.payments.require_deposit(doc)
 
-    def test_paid_assignment_enforces_project_scout_count(self):
+    def test_paid_assignment_does_not_cap_scout_count(self):
         self.frappe.db.get_single_value.return_value = "live"
         doc = Record(field_request="project", status="Assigned", scout_profile="scout-2", name="new")
         doc.is_new = lambda: True
@@ -297,9 +297,9 @@ class FlowTests(unittest.TestCase):
         # Dict.items conflicts with attribute access; real Frappe documents don't.
         quote.items = [Record(field_request="project", planned_scouts=1)]
         self.payments._quote = MagicMock(return_value=quote)
-        with self.assertRaisesRegex(ValueError, "exceeds"):
-            self.payments.require_deposit(doc)
-        quote.items[0]["planned_scouts"] = 2
+        self.payments.require_deposit(doc)
+        self.assertEqual(quote.items[0]["planned_scouts"], 1)
+        self.frappe.get_all.return_value = ["scout-1", "scout-3", "scout-4"]
         self.payments.require_deposit(doc)
 
     def test_acceptance_creates_two_linked_obligations_only_once(self):
@@ -383,6 +383,29 @@ class FlowTests(unittest.TestCase):
                 else:
                     with self.assertRaisesRegex(ValueError, "current payment environment"):
                         self.payments.require_deposit(doc)
+
+    def test_dispatch_can_exceed_estimate_but_still_requires_paid_quoted_project(self):
+        doc = Record(field_request='project', status='Assigned', scout_profile='second-scout', name='new')
+        doc.is_new = lambda: True
+        doc.get_doc_before_save = lambda: None
+        quote = Record(name='quote', status='Accepted')
+        quote.items = [Record(field_request='project', planned_scouts=1)]
+        self.payments._quote = MagicMock(return_value=quote)
+        self.frappe.get_all.return_value = ['first-scout']
+        self.frappe.db.get_single_value.return_value = 'live'
+        self.frappe.db.exists.return_value = True
+        self.frappe.db.get_value.side_effect = ['request', 'paid-attempt', 'live']
+        self.payments.require_deposit(doc)
+        self.assertEqual(quote.items[0].planned_scouts, 1)
+        self.frappe.db.exists.return_value = False
+        self.frappe.db.get_value.side_effect = ['request']
+        with self.assertRaisesRegex(ValueError, 'verify the 50% deposit'):
+            self.payments.require_deposit(doc)
+        self.frappe.db.exists.return_value = True
+        quote.items = [Record(field_request='different-project', planned_scouts=1)]
+        self.frappe.db.get_value.side_effect = ['request', 'paid-attempt', 'live']
+        with self.assertRaisesRegex(ValueError, 'not included in the paid quotation'):
+            self.payments.require_deposit(doc)
 
     def test_notification_verification_failure_returns_retry_not_paid(self):
         self.frappe.response = {}
