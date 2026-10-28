@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "category": "construction_progress",
+  "title": "Commercial Development Construction Progress – Kisumu",
+  "objective": "Document visible construction progress with milestone photographs, video updates and scout notes.",
+  "scope": "Visual documentation of the commercial development in Kisumu from permitted, safely accessible areas. Record visible facts; do not certify structural quality, engineering compliance or completion percentages.",
+  "deliverables": ["Milestone photographs", "Video progress update", "Scout notes on visible building development"],
+  "instructions": ["Confirm permission with the site contact before entering or recording.", "Follow site safety instructions. Do not enter restricted areas, climb structures or approach unsafe work.", "If access is refused or unsafe, record the access issue. Explain any check that cannot be verified."],
+  "review_required": false,
+  "review_reasons": [],
+  "checks": [
+    {"id":"visible_progress","instruction":"Describe the current visible construction stage and the building elements observed. Capture milestone photographs supporting these observations.","response_type":"text","options":[],"required":true,"evidence":[{"kind":"photo","minimum":2,"instruction":"Capture an overall site view and a visible construction milestone from safe, permitted positions."}]},
+    {"id":"video_update","instruction":"Record a video update showing the visible development and current work from safely accessible areas.","response_type":"none","options":[],"required":true,"evidence":[{"kind":"video","minimum":1,"instruction":"Show overall visible progress and key building elements without entering unsafe or restricted areas."}]},
+    {"id":"scout_notes","instruction":"Record visible work in progress, site activity and any access or visibility limitations affecting this update. Distinguish observations from information supplied by others.","response_type":"text","options":[],"required":true,"evidence":[]}
+  ]
+}

@@ -37,8 +37,11 @@ class DDTaskBrief(Document):
         self.content_json = json.dumps(content, ensure_ascii=False)
         self.content_hash = brief_digest(content)
         if self.status == 'Approved':
-            if content['review_required'] or not content['checks']:
-                frappe.throw('Resolve flagged scope or safety issues and supply checks before approval')
+            if content['review_required']:
+                reasons = '; '.join(content['review_reasons']) or 'Confirm the scope and access arrangements'
+                frappe.throw('Task Brief needs review: ' + reasons + '. Open Edit Task Brief, address these points and update the review reasons.')
+            if not content['checks']:
+                frappe.throw('This draft has no field checks. Open Edit Task Brief and add what the scout must observe, with any photo or video requirements.')
             if not content['deliverables']:
                 frappe.throw('Specify the expected deliverables before approval')
             self.approved_by = frappe.session.user

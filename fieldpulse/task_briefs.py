@@ -49,7 +49,7 @@ def validate_brief(raw):
         raise ValueError('Review flags and reasons must agree')
     checks = brief['checks']
     if not isinstance(checks, list) or len(checks) > 50 or (not checks and not brief['review_required']):
-        raise ValueError('Provide 1 to 50 checks, or flag the request for review')
+        raise ValueError('This draft has no field checks or exceeds 50 checks. Open Edit Task Brief and supply 1 to 50 observations with any photo or video requirements, or record why review is needed.')
     seen = set()
     for check in checks:
         if not isinstance(check, dict) or set(check) != {'id', 'instruction', 'response_type', 'options', 'required', 'evidence'}:

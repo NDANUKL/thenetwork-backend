@@ -60,7 +60,12 @@ class BriefVersionTests(unittest.TestCase):
 
     def test_flagged_requests_cannot_be_approved(self):
         self.content.update(review_required=True, review_reasons=['Scope unclear'])
-        with self.assertRaisesRegex(ValueError, 'Resolve flagged'):
+        with self.assertRaisesRegex(ValueError, 'Task Brief needs review: Scope unclear'):
+            self.doc(status='Approved').validate()
+
+    def test_empty_checks_explain_how_to_complete_draft(self):
+        self.content.update(checks=[], review_required=False, review_reasons=[])
+        with self.assertRaisesRegex(ValueError, 'no field checks'):
             self.doc(status='Approved').validate()
 
     def test_approved_content_cannot_be_edited_or_deleted(self):

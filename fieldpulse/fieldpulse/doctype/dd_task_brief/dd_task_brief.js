@@ -3,8 +3,15 @@ frappe.ui.form.on('DD Task Brief', {
     if (frm.doc.status !== 'Approved') {
       frm.add_custom_button(__('Edit Task Brief'), () => editTaskBrief(frm));
       if (!frm.is_new()) frm.add_custom_button(__('Approve Task Brief'), async () => {
-        await frm.set_value('status', 'Approved');
-        await frm.save();
+        const previous = frm.doc.status;
+        try {
+          await frm.set_value('status', 'Approved');
+          await frm.save();
+        } catch (error) {
+          await frm.set_value('status', previous);
+          frm.enable_save();
+          throw error;
+        }
       });
     }
     if (frm.doc.status === 'Approved') {
@@ -37,13 +44,13 @@ function editTaskBrief(frm) {
         photo_instruction:check.evidence.find(r=>r.kind==='photo')?.instruction||'',videos:check.evidence.find(r=>r.kind==='video')?.minimum||0,
         video_instruction:check.evidence.find(r=>r.kind==='video')?.instruction||''})),
       fields:[{fieldname:'id',label:__('Check ID'),fieldtype:'Data',read_only:1},
-        {fieldname:'instruction',label:__('What to observe or document'),fieldtype:'Small Text',reqd:1,in_list_view:1},
+        {fieldname:'instruction',label:__('What to observe or document'),fieldtype:'Small Text',reqd:1,in_list_view:1,columns:4},
         {fieldname:'response_type',label:__('Response'),fieldtype:'Select',options:'text\nsingle\nmultiple\nnone',default:'text',in_list_view:1,reqd:1},
         {fieldname:'required',label:__('Required'),fieldtype:'Check',default:1,in_list_view:1},
         {fieldname:'options',label:__('Selection choices (one per line)'),fieldtype:'Small Text'},
-        {fieldname:'photos',label:__('Required photographs'),fieldtype:'Int',default:0,in_list_view:1},
+        {fieldname:'photos',label:__('Photos (minimum)'),fieldtype:'Int',default:0,in_list_view:1,columns:1},
         {fieldname:'photo_instruction',label:__('What the photographs should show'),fieldtype:'Small Text'},
-        {fieldname:'videos',label:__('Required videos'),fieldtype:'Int',default:0},
+        {fieldname:'videos',label:__('Videos (minimum)'),fieldtype:'Int',default:0,in_list_view:1,columns:1},
         {fieldname:'video_instruction',label:__('What the videos should show'),fieldtype:'Small Text'}]},
   ],primary_action_label:__('Save draft changes'),async primary_action(values){
     const lines=value=>(value||'').split('\n').map(v=>v.trim()).filter(Boolean);
