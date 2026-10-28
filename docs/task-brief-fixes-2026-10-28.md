@@ -31,3 +31,9 @@ Additional review observations addressed: task-list title/objective remain pinne
 4. Verify Android/iOS permission denial, unsafe access, airplane mode, restart, capture interruption, account switch, lost final acknowledgement followed by approval/correction/cancellation, and storage pressure. Test the Desk check picker and review actions in real Desk.
 
 The live legacy inventory, device reconciliation, staging migration and physical-device lifecycle are still unverified. Passing local checks is not a release sign-off.
+
+## Authorized resolution of the production migration blocker
+
+The owner subsequently supplied a failed `thenetwork.frappe.cloud` migration traceback listing 12 open legacy tasks, then explicitly authorized removing those assignments. The corrected hook cancels exactly those IDs once on that site, without deleting any records or evidence. It closes associated pending revisit authorizations, records the prior task status in an audit comment, refreshes workload, and resets only nonterminal projects with no remaining active or approved allocations. The Patch Log entry prevents later migrations from cancelling a reopened assignment again. Unknown legacy tasks still block cancellation and migration. Scout sync includes the cancelled task states.
+
+Deploy the corrected backend revision and retry the normal Frappe Cloud deployment/migration. This exception needs no SSH access and no separate command. The original steps above still apply to other legacy work. Production success and recovery of any unsent device work have not been verified locally.

@@ -15,3 +15,5 @@ Read docs/native-integration.md and fieldpulse/configuration/native-ownership.js
 Read `docs/task-brief-transition.md` for the current source and rollout gaps. New assignments use approved request-specific DD Task Briefs; do not restore retired catalogue publishers or infer checks from categories. AI is limited to initial request assessment/brief generation.
 
 Run the read-only Task Brief cutover inventory before deployment; never bypass the open-legacy-task migration guard or infer that local tests verify device recovery. Historical questionnaire records are read-only. See `docs/task-brief-fixes-2026-10-28.md` for corrective source changes and remaining rollout evidence.
+
+Explicit owner exception (28 October 2026): the 12 task IDs listed in `task_brief_cutover.AUTHORIZED_TASKS` may be cancelled once on `thenetwork.frappe.cloud` during ordinary migration. This authorization preserves all records/evidence and does not cover other tasks, sites or future reopened assignments. See the controlling production policy.

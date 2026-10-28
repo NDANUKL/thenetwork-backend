@@ -23,6 +23,8 @@ Website: `src/lib/ai.js`, task-brief schema/runtime, assessment safety/state/pro
 
 ## Cutover and remaining verification
 
+Production exception authorized on 28 October: the owner approved cancelling the 12 blockers from the migration traceback. The current migration hook performs that exact site-scoped cancellation once, retaining all records. Deploy this corrected revision and retry the normal Frappe Cloud update; no SSH inventory command is required for these approved cancellations. Other open legacy work remains blocked. See [production policy](production-script-ownership.md).
+
 1. Back up staging, deploy native source and run ordinary `bench migrate`. The new `task_brief_categories` patch converts old operational category labels and separates eligibility flags; it does not rerun handover or alter payments/recovery scripts. Frappe retains old physical columns and historical questionnaire records for audit, without using them for new dispatch.
 2. Run `fieldpulse.task_brief_cutover.inventory` against the pre-deployment site and recover unsent work from affected devices before rollout. Explicitly finish/cancel or rebrief/reassign legacy allocations. The ordinary migration and scout sync guards block unresolved open legacy tasks; mobile does not infer withdrawal for omitted historical assignments. No assignment is converted automatically. See [corrective changes and verification](task-brief-fixes-2026-10-28.md).
 3. Deploy matching website/mobile builds; verify initial generation, Desk permissions and drag reorder, multi-scout coverage, verified-deposit gating, capture/upload/retry, correction and new-visit flows, and report approval on backed-up staging.

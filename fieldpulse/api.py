@@ -38,7 +38,7 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
     scout_profile = _get_scout_profile_for_user()
 
     # Fail before returning an authoritative list that would hide ongoing work.
-    from fieldpulse.task_brief_cutover import open_legacy_tasks
+    from fieldpulse.task_brief_cutover import open_legacy_tasks, cancelled_legacy_tasks
     if open_legacy_tasks(scout_profile.name):
         frappe.throw('Task Brief cutover is pending for your existing assignments. Contact your coordinator. Saved work has not been withdrawn or changed.')
 
@@ -52,6 +52,8 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
 
     server_time = now_datetime().isoformat()
     tasks = frappe.get_all("Field Task", filters=filters, fields=["*"])
+    known = {task['name'] for task in tasks}
+    tasks.extend(task for task in cancelled_legacy_tasks(scout_profile.name, since) if task['name'] not in known)
     if int(task_brief_version or 0) < 1 and any(task.get('task_brief_version') for task in tasks):
         frappe.throw('Update Ground Scouts to open the approved Task Briefs. Saved work remains on this device.')
     if int(visit_workflow_version or 0) < 2 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('visit_workflow_version') == 2 for task in tasks):
