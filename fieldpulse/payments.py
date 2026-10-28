@@ -117,10 +117,15 @@ def validate_quote(doc, method=None):
     sequence_value_1 = (request.full_name, request.email)
     doc.customer_name = sequence_value_1[0]
     doc.customer_email = sequence_value_1[1]
-    if not doc.currency:
-        doc.currency = 'USD'
-    if doc.currency != 'USD':
-        frappe.throw('New quotations must use USD. Create a replacement USD quotation; existing amounts are not currency conversions.')
+    pricing_mode = doc.get('pricing_mode') or 'Live - USD 100 per project'
+    prices = {'Live - USD 100 per project': ('USD', 100, 0),
+              'Beta - KSh 1 per project': ('KES', 1, 1)}
+    if pricing_mode not in prices:
+        frappe.throw('Select Beta - KSh 1 per project or Live - USD 100 per project')
+    if not doc.get('pricing_mode') and doc.currency not in (None, '', 'USD'):
+        frappe.throw('Select a pricing mode explicitly before repricing this draft')
+    doc.pricing_mode = pricing_mode
+    doc.currency, project_rate, inclusive = prices[pricing_mode]
     if not doc.items or getdate(doc.valid_until) < getdate(doc.quotation_date):
         frappe.throw('Add projects and a valid quotation expiry')
     sequence_value_2 = (set(), money(0))
@@ -139,7 +144,7 @@ def validate_quote(doc, method=None):
         if isinstance(count, bool) or not count or float(count) != int(count) or (not 1 <= int(count) <= 20):
             frappe.throw('Enter a planned scout count from 1 to 20 for every project')
         item.quantity = 1
-        item.rate = 100
+        item.rate = project_rate
         item.project_title = field.project_title or field.request_type
         item.description = (field.field_brief or "").strip()
         if not item.description:
@@ -147,7 +152,7 @@ def validate_quote(doc, method=None):
         item.amount = float(money(money(item.rate) * money(item.quantity)))
         total += money(item.amount)
     doc.agreed_completion_date = max(deadlines) if deadlines and len(deadlines) == len(doc.items) else None
-    doc.tax_inclusive = 0
+    doc.tax_inclusive = inclusive
     doc.terms = PAYMENT_TERMS
     try:
         # Canonicalize old percentage drafts without changing their discount.
@@ -162,7 +167,7 @@ def validate_quote(doc, method=None):
         elif discount_type not in ('None', 'Fixed amount'):
             raise ValueError('Choose a valid discount type')
         totals = quotation_totals(total, 'Fixed amount', value,
-            doc.get('vat_rate'), False)
+            doc.get('vat_rate'), bool(inclusive))
         doc.discount_type = 'Fixed amount'
         doc.discount_value = float(value)
         doc.discount_percentage = float(money(value * 100 / total)) if total else 0

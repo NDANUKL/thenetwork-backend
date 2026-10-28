@@ -370,6 +370,13 @@
       "doctype": "DocField"
     },
     {
+      "fieldname": "pricing_mode",
+      "label": "Pricing mode",
+      "fieldtype": "Select",
+      "options": "Live - USD 100 per project\nBeta - KSh 1 per project",
+      "description": "Beta: KSh 1 per project including VAT. Live: USD 100 per project before VAT. Changing mode resets the draft discount."
+    },
+    {
       "fieldname": "currency",
       "label": "Currency",
       "fieldtype": "Select",
@@ -478,10 +485,10 @@
     },
     {
       "fieldname": "discount_value",
-      "label": "Discount amount in USD",
+      "label": "Discount amount",
       "fieldtype": "Currency",
       "default": "0",
-      "description": "Enter the USD amount to deduct before VAT. Use 0 for no discount.",
+      "description": "Amount in the quotation currency. Use 0 for no discount.",
       "precision": "2",
       "options": "currency"
     },

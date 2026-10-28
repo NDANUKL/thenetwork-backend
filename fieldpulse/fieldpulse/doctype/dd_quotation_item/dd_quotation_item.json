@@ -230,7 +230,7 @@
     },
     {
       "fieldname": "rate",
-      "label": "Price per project (USD)",
+      "label": "Price per project",
       "fieldtype": "Currency",
       "search_index": 0,
       "show_dashboard": 0,
@@ -272,7 +272,8 @@
       "show_on_timeline": 0,
       "make_attachment_public": 0,
       "doctype": "DocField",
-      "default": "100"
+      "default": "100",
+      "options": "currency"
     },
     {
       "fieldname": "amount",
@@ -317,7 +318,8 @@
       "sort_options": 0,
       "show_on_timeline": 0,
       "make_attachment_public": 0,
-      "doctype": "DocField"
+      "doctype": "DocField",
+      "options": "currency"
     },
     {
       "label": "Planned scouts",

@@ -116,6 +116,48 @@ class FlowTests(unittest.TestCase):
         self.frappe.db.exists.return_value = False
         return doc
 
+    def test_beta_quote_charges_one_shilling_per_project_including_vat(self):
+        doc = self.quote_document()
+        doc['pricing_mode'] = 'Beta - KSh 1 per project'
+        doc['discount_value'] = 0
+        doc['discount_type'] = 'Fixed amount'
+        self.payments.validate_quote(doc)
+        self.assertEqual(doc.currency, 'KES')
+        self.assertEqual(doc.total, 2)
+        self.assertEqual(doc.tax_inclusive, 1)
+        self.assertEqual(doc.deposit_amount, 1)
+        self.assertEqual(doc.balance_amount, 1)
+        self.assertTrue(all(item.rate == 1 and item.amount == 1 for item in doc.items))
+
+    def test_beta_single_project_and_live_switch(self):
+        doc = self.quote_document()
+        doc.items = doc.items[:1]
+        doc['pricing_mode'] = 'Beta - KSh 1 per project'
+        doc['discount_value'] = 0
+        self.payments.validate_quote(doc)
+        self.assertEqual((doc.total, doc.deposit_amount, doc.balance_amount), (1, .5, .5))
+        doc['pricing_mode'] = 'Live - USD 100 per project'
+        self.payments.validate_quote(doc)
+        self.assertEqual((doc.currency, doc.total, doc.tax_inclusive), ('USD', 116, 0))
+
+    def test_invalid_pricing_and_legacy_currency_are_not_silently_repriced(self):
+        doc = self.quote_document()
+        doc['pricing_mode'] = 'Free'
+        with self.assertRaisesRegex(ValueError, 'Select Beta'):
+            self.payments.validate_quote(doc)
+        doc['pricing_mode'] = None
+        doc['currency'] = 'KES'
+        with self.assertRaisesRegex(ValueError, 'explicitly'):
+            self.payments.validate_quote(doc)
+
+    def test_pricing_cannot_change_issued_or_accepted_quotes(self):
+        for status in ('Issued', 'Accepted'):
+            doc = self.quote_document()
+            doc['pricing_mode'] = 'Beta - KSh 1 per project'
+            doc.get_doc_before_save = lambda: Record(status=status)
+            with self.assertRaisesRegex(ValueError, 'locked'):
+                self.payments.validate_quote(doc)
+
     def test_quote_deadline_comes_from_linked_projects(self):
         doc = self.quote_document()
         original = self.frappe.get_doc.side_effect
@@ -212,7 +254,7 @@ class FlowTests(unittest.TestCase):
     def test_non_usd_draft_is_not_silently_converted(self):
         doc = self.quote_document()
         doc['currency'] = 'KES'
-        with self.assertRaisesRegex(ValueError, 'must use USD'):
+        with self.assertRaisesRegex(ValueError, 'explicitly'):
             self.payments.validate_quote(doc)
 
     def test_issued_quote_gets_standard_terms_automatically(self):

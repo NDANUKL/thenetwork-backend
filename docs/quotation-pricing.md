@@ -2,9 +2,11 @@
 
 A quotation covers one request and one or more of its projects. Add one item per project; duplicate projects and projects belonging to another request are rejected. The Desk project selector filters by the quotation request.
 
-Choose None, Percentage, or Fixed amount for the quotation discount. The value applies once to the combined project subtotal, before VAT. The pricing page promises a negotiated volume discount without specifying a percentage, so staff enter the agreed discount; no automatic tier is assumed. An optional discount reason appears on the PDF and in customer billing.
+Coordinators select a pricing mode for draft quotations: **Beta - KSh 1 per project** (KES, VAT inclusive), or **Live - USD 100 per project** (USD, VAT exclusive). Live remains the default. The backend derives currency and rate from the selected mode; manual rate overrides are not accepted. Switching modes resets the draft discount in Desk, since a discount in one currency is not a currency conversion. Historical non-USD drafts without a mode require an explicit selection before repricing.
 
-VAT defaults to 16% for new quotations. Select Entered prices include VAT when rates already include VAT. In that mode, the discounted total is preserved and its VAT portion is extracted. Otherwise VAT is added to the discounted subtotal. Amounts round to two decimal places. The 50% deposit and remaining balance are calculated from the final payable total. Discounts cannot make either payment zero.
+The project picker excludes projects already selected. Duplicate entries are cleared immediately, with an explanatory message; form validation and backend validation also reject duplicates. Row rate and amount currency formatting follows the parent quotation currency.
+
+Staff enter a fixed discount in the quotation currency, applied once to the combined project subtotal. Legacy percentage drafts are converted to the equivalent fixed discount. VAT defaults to 16%; beta prices include configured VAT, so one project costs KSh 1 before any discount, while live prices add VAT to the discounted USD subtotal. Existing 50% deposit and balance rules remain; neither payment may be zero. The payment provider must accept the resulting small KES instalments for beta checkout to succeed; local tests do not verify provider acceptance.
 
 Issued and accepted quotations remain locked and retain recorded totals. Legacy quotations without a saved pricing breakdown display their recorded total and instalments without inventing VAT. Withdraw an unpaid issued quote and prepare a replacement to change its scope or pricing.
 
@@ -39,3 +41,5 @@ The initial user-font registration guard caused live download failures: Error Lo
 Quotation rendering retains Frappe prepare_options/cleanup (private-image/cookie preparation and temporary-file cleanup) and the JavaScript/local-file restrictions. It passes a copied environment to pdfkit for this render only. On Linux, FONTCONFIG_FILE points to a temporary configuration containing the bundled quotation font directory and an isolated cache. This bypasses the server's global font selection without modifying worker environment variables or user/system font directories. No fc-match/fc-cache gate can prevent a quotation download.
 
 Deploy both fieldpulse/payments.py and fieldpulse/quotation_pdf.py and restart web workers. Updating the Print Format record alone cannot apply a Python rendering fix. Verify a new website download succeeds, then inspect that exact PDF with tools/verify_quotation_fonts.py. Local mocks and the Windows wkhtmltopdf test do not establish Linux production parity.
+
+29 October 2026: selectable beta/live pricing and immediate duplicate checks implemented locally. Requires normal deployment/migration and Desk/payment verification; not proof of live activation.
