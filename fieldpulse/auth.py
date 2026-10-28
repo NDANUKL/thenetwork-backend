@@ -151,22 +151,14 @@ def register_field_agent(full_name, email, password, phone=None, county=None):
 @rate_limit(limit=10, seconds=3600)
 @rate_limit(key='email', limit=3, seconds=3600)
 def request_password_reset(email):
-    """Send a branded Ground Scouts password-reset email to active field agents."""
+    """Send recovery instructions only for an email linked to a Scout Profile."""
     email = validate_email_address((email or "").strip().lower(), throw=True)
 
-    if not frappe.db.exists("User", email):
-        return {"message": "If this email is registered, reset instructions will be sent."}
-
-    from fieldpulse.scout_access import check_access
-    try:
-        check_access(email)
-    except frappe.PermissionError:
-        return {"message": "If this email is registered, reset instructions will be sent."}
-    if not frappe.db.exists("FP Agent", {"user": email, "status": "Active"}):
+    # Profile membership is the sole account eligibility rule for recovery.
+    # Recovery does not change account admission or sign-in permissions.
+    if not frappe.db.exists("Scout Profile", {"user": email}):
         return {"message": "If this email is registered, reset instructions will be sent."}
     user = frappe.get_doc("User", email)
-    if not user.enabled:
-        return {"message": "If this email is registered, reset instructions will be sent."}
 
     reset_link = user._reset_password(send_email=False)
     full_name = user.full_name or email

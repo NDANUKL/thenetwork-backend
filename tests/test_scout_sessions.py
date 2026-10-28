@@ -156,13 +156,38 @@ class MobileTwoFactorTests(unittest.TestCase):
         with self.assertRaises(PermissionError):self.login(otp='654321',tmp_id='challenge-123')
         for field in ('otp','tmp_id','password','pwd'):self.assertNotIn(field,self.f.form_dict)
 
-    def test_reset_unknown_and_blocked_accounts_have_identical_responses_without_mail(self):
-        self.f.db.exists.return_value=False
-        unknown=self.module.request_password_reset(self.user)
-        self.f.db.exists.return_value=True
+    def test_reset_non_scout_user_is_skipped_without_mail(self):
+        self.f.db.exists.side_effect=lambda doctype, filters: doctype == 'User'
+        result=self.module.request_password_reset(self.user)
+        self.assertIn('Scout Profile',result['message'])
+        self.f.db.exists.assert_called_once_with('Scout Profile',{'user':self.user})
+        self.f.get_doc.assert_not_called()
+        self.f.sendmail.assert_not_called()
+
+    def test_profile_membership_is_only_recovery_eligibility_check(self):
+        self.f.db.exists.side_effect=lambda doctype, filters: doctype == 'Scout Profile'
+        user=types.SimpleNamespace(enabled=False,full_name='Scout',
+            _reset_password=MagicMock(return_value='https://example.test/update-password?key=private'))
+        self.f.get_doc.return_value=user
         access=types.SimpleNamespace(check_access=MagicMock(side_effect=PermissionError('disabled')))
-        with patch.dict('sys.modules',{'fieldpulse.scout_access':access}):blocked=self.module.request_password_reset(self.user)
-        self.assertEqual(unknown,blocked);self.f.sendmail.assert_not_called()
+        with patch.dict('sys.modules',{'fieldpulse.scout_access':access}):
+            result=self.module.request_password_reset(' SCOUT@EXAMPLE.TEST ')
+        self.f.db.exists.assert_called_once_with('Scout Profile',{'user':self.user})
+        access.check_access.assert_not_called()
+        self.f.db.get_value.assert_not_called()
+        self.f.sendmail.assert_called_once()
+        user._reset_password.assert_called_once_with(send_email=False)
+        self.assertFalse(user.enabled)
+        self.assertNotIn('private',str(result))
+
+    def test_mail_failure_is_not_reported_as_success(self):
+        user=MagicMock(full_name='Scout')
+        user._reset_password.return_value='https://example.test/update-password?key=private'
+        self.f.get_doc.return_value=user
+        self.f.sendmail.side_effect=RuntimeError('Mail transport failed')
+        with self.assertRaisesRegex(RuntimeError,'Mail transport failed'):
+            self.module.request_password_reset(self.user)
+        self.f.db.commit.assert_not_called()
 
     def test_active_reset_returns_generic_reply_and_uses_native_one_time_link(self):
         user=MagicMock(enabled=True,full_name='Scout')
