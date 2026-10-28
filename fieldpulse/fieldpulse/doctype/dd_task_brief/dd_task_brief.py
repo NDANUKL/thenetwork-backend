@@ -3,6 +3,7 @@ import json
 import frappe
 from frappe.model.document import Document
 from fieldpulse.task_briefs import validate_brief, brief_digest
+from fieldpulse.task_brief_revision_guard import require_undispatched_project
 
 
 class DDTaskBrief(Document):
@@ -17,8 +18,8 @@ class DDTaskBrief(Document):
             frappe.throw('Approved Task Briefs are immutable; create a new draft version')
         if previous and (self.project != previous.project or self.version != previous.version):
             frappe.throw('The project and version cannot be changed')
+        require_undispatched_project(self.project)
         if self.is_new():
-            frappe.db.sql('SELECT name FROM `tabField Request` WHERE name=%s FOR UPDATE', [self.project])
             self.version = int(frappe.db.get_value('DD Task Brief', {'project': self.project}, 'version', order_by='version desc') or 0) + 1
         if previous and self.supersedes != previous.supersedes:
             frappe.throw('Previous version provenance cannot be changed')

@@ -27,7 +27,8 @@ class BriefVersionTests(unittest.TestCase):
         self.frappe.get_roles.return_value = ['Field Operations Coordinator']
         self.frappe.PermissionError = PermissionError
         self.frappe.throw.side_effect = lambda message, *args: (_ for _ in ()).throw(ValueError(message))
-        self.frappe.db.get_value.return_value = 2
+        self.dispatched = False
+        self.frappe.db.get_value.side_effect = lambda doctype, *args, **kwargs: ('TASK-1' if self.dispatched else None) if doctype == 'Field Task' else 2
         self.frappe.session.user = 'coordinator@example.test'
         self.frappe.utils.now_datetime.return_value = '2026-10-28 12:00:00'
         self.frappe.whitelist.return_value = lambda function: function
@@ -36,6 +37,12 @@ class BriefVersionTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location('task_brief_controller', ROOT / 'fieldpulse/fieldpulse/doctype/dd_task_brief/dd_task_brief.py')
         self.module = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, {'frappe': self.frappe, 'frappe.model.document': docmodule}):
+            guard_spec = importlib.util.spec_from_file_location('fieldpulse.task_brief_revision_guard', ROOT / 'fieldpulse/task_brief_revision_guard.py')
+            guard = importlib.util.module_from_spec(guard_spec)
+            guard_spec.loader.exec_module(guard)
+            guard_patch = patch.dict(sys.modules, {'fieldpulse.task_brief_revision_guard': guard})
+            guard_patch.start()
+            self.addCleanup(guard_patch.stop)
             spec.loader.exec_module(self.module)
         self.content = json.loads((ROOT / 'tests/fixtures/task-brief-v1.json').read_text())['brief']
 
@@ -84,6 +91,22 @@ class BriefVersionTests(unittest.TestCase):
         self.frappe.get_doc.return_value = MagicMock(project='OTHER', status='Approved', version=1)
         with self.assertRaisesRegex(ValueError, 'earlier approved brief'):
             self.doc(supersedes='BRIEF-1').validate()
+
+    def test_dispatched_project_blocks_new_draft_and_direct_approval(self):
+        self.dispatched = True
+        for status in ('Draft', 'Approved'):
+            with self.subTest(status=status), self.assertRaisesRegex(ValueError, 'started offline'):
+                self.doc(status=status).validate()
+        self.frappe.db.get_value.assert_called_with('Field Task', {
+            'field_request': 'PROJECT-1', 'task_brief_version': ['is', 'set'],
+        }, 'name', for_update=True)
+
+    def test_draft_created_before_dispatch_cannot_be_edited_or_approved_afterwards(self):
+        previous = self.doc(version=2)
+        self.dispatched = True
+        for status in ('Draft', 'Approved'):
+            with self.subTest(status=status), self.assertRaisesRegex(ValueError, 'assigned Task Brief'):
+                self.doc(previous=previous, version=2, status=status).validate()
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ from datetime import timedelta
 import frappe
 from fieldpulse.task_briefs import CATEGORIES, validate_brief, brief_digest, assigned_brief, gps_result, evaluate_submission
 from fieldpulse.mobile_datetime import mobile_datetime, site_datetime_iso
+from fieldpulse.task_brief_revision_guard import lock_project, require_undispatched_project
 
 
 def decoded(value, default=None):
@@ -12,6 +13,9 @@ def decoded(value, default=None):
 
 
 def prepare_project(doc, method=None):
+    previous = doc.get_doc_before_save() if not doc.is_new() else None
+    if previous and previous.get('approved_task_brief') != doc.get('approved_task_brief'):
+        require_undispatched_project(doc.name)
     if not doc.get('approved_task_brief'):
         return
     brief = frappe.get_doc('DD Task Brief', doc.approved_task_brief)
@@ -47,6 +51,7 @@ def pin_assignment(task, method=None):
         return
     if not task.get('field_request'):
         frappe.throw('A Task Brief assignment must belong to a project')
+    lock_project(task.field_request)
     project = frappe.get_doc('Field Request', task.field_request)
     reference = project.get('approved_task_brief')
     if not reference:

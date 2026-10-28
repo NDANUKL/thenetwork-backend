@@ -13,6 +13,7 @@ class Record(dict):
     def __getattr__(self, key): return self.get(key)
     def __setattr__(self, key, value): self[key] = value
     def is_new(self): return self.get('new', True)
+    def get_doc_before_save(self): return self.get('previous')
 
 
 class WorkflowTests(unittest.TestCase):
@@ -25,7 +26,14 @@ class WorkflowTests(unittest.TestCase):
         self.frappe.PermissionError = PermissionError
         spec = importlib.util.spec_from_file_location('brief_workflow_test', ROOT/'fieldpulse/task_brief_workflow.py')
         self.module = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, {'frappe': self.frappe}):spec.loader.exec_module(self.module)
+        with patch.dict(sys.modules, {'frappe': self.frappe}):
+            guard_spec = importlib.util.spec_from_file_location('fieldpulse.task_brief_revision_guard', ROOT/'fieldpulse/task_brief_revision_guard.py')
+            guard = importlib.util.module_from_spec(guard_spec)
+            guard_spec.loader.exec_module(guard)
+            guard_patch = patch.dict(sys.modules, {'fieldpulse.task_brief_revision_guard': guard})
+            guard_patch.start()
+            self.addCleanup(guard_patch.stop)
+            spec.loader.exec_module(self.module)
         self.project=Record(name='PROJECT',approved_task_brief='BRIEF',county='Kajiado',gps_accuracy_threshold_m=20)
         self.brief=Record(name='BRIEF',project='PROJECT',status='Approved',version=1,
             content_json=json.dumps(self.fixture['brief']),content_hash=brief_digest(self.fixture['brief']))
@@ -41,6 +49,19 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(original,self.task.task_brief_snapshot)
         self.assertEqual(json.loads(original)['site']['accuracy_threshold_m'],20)
         self.assertIsNone(self.task.questionnaire)
+        self.frappe.db.sql.assert_called_once_with('SELECT name FROM `tabField Request` WHERE name=%s FOR UPDATE', ['PROJECT'])
+
+    def test_project_cannot_switch_or_clear_brief_after_dispatch(self):
+        self.frappe.db.get_value.return_value = 'TASK'
+        for reference in ('OTHER', None):
+            project = Record(self.project, new=False, previous=Record(approved_task_brief='BRIEF'), approved_task_brief=reference)
+            with self.subTest(reference=reference), self.assertRaisesRegex(ValueError, 'assigned Task Brief'):
+                self.module.prepare_project(project)
+
+    def test_ordinary_project_save_with_same_brief_remains_allowed(self):
+        project = Record(self.project, new=False, previous=Record(approved_task_brief='BRIEF'))
+        self.module.prepare_project(project)
+        self.frappe.db.get_value.assert_not_called()
 
     def test_unapproved_and_foreign_briefs_cannot_dispatch(self):
         for change in ({'status':'Draft'},{'project':'OTHER'},{'content_hash':'tampered'}):

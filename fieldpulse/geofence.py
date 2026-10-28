@@ -1,6 +1,6 @@
-"""Shared testing radius for arrival and captured evidence checks."""
-# Temporary cross-county testing range; set to 0 to restore configured site radii.
-TESTING_GEOFENCE_RADIUS_M = 2_000_000
+"""Shared site radius for arrival and captured evidence checks."""
+# Testing allowance disabled: use configured site radii, defaulting to 50 metres.
+TESTING_GEOFENCE_RADIUS_M = 0
 
 
 def effective_geofence_radius(radius):
