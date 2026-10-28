@@ -35,4 +35,8 @@ Corrective storage retirement: SQLite v15 fresh installations omit questionnaire
 
 ## Local validation
 
+Owner-requested testing follow-up: Task Brief snapshot evaluation now uses the existing `fieldpulse.geofence.TESTING_GEOFENCE_RADIUS_M` (2,000,000 metres), matched in mobile `loadBrief`. This temporary distance allowance applies to existing pins as well as new work; original stored pins remain unchanged. GPS accuracy thresholds remain enforced. Set the temporary allowance to zero in both repositories to restore pinned distances. Deploy backend and mobile together. This is source state, not verified live rollout.
+
+Mobile submission now queues completed fieldwork directly after the declaration checkbox and returns to tasks after durable saving. Access/location-verification issues require a reason and one Submit action, without a separate review screen; the submission remains an issue, not completed checks. Upload continues asynchronously and may remain queued offline.
+
 Run backend `python -m unittest discover -s tests -p 'test_*.py'` with existing test dependencies; website `node --test evals/*.test.mjs` and Next production build; mobile `tsc --noEmit` and `node --test tests/*.test.cjs tests/*.test.mjs`. Contract tests exercise category independence, immutable versions, ownership, GPS and capture freshness, missing/duplicate media, inability/access exceptions, declarations and required-check coverage. SQLite tests exercise restart persistence and lost-acknowledgement upload retries without changing capture metadata.

@@ -102,6 +102,9 @@ def snapshot(task):
     if value.get('content_hash') != brief_digest(value.get('brief')):
         frappe.throw('The pinned Task Brief is inconsistent')
     assigned_brief(value['brief'], value['check_ids'])
+    # Owner-requested temporary cross-county test range; preserve GPS accuracy.
+    from fieldpulse.geofence import effective_geofence_radius
+    value['site']['radius_m'] = effective_geofence_radius(value['site']['radius_m'])
     return value
 
 
