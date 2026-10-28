@@ -382,9 +382,12 @@ def assign_project_scouts(field_request, assignments):
             fields=['task_brief_version', 'assigned_check_ids']):
         if task.get('task_brief_version') == approved.name:
             coverage.update(json.loads(task.get('assigned_check_ids') or '[]'))
-    for allocation in assignments:
+    for row_number, allocation in enumerate(assignments, start=1):
         selected = allocation.get('check_ids') or []
-        assigned_brief(content, selected)
+        try:
+            assigned_brief(content, selected)
+        except ValueError as error:
+            frappe.throw(f'Scout assignment row {row_number}: {error}')
         coverage.update(selected)
     if not {check['id'] for check in content['checks'] if check['required']} <= coverage:
         frappe.throw('Allocate every required field check to at least one scout')

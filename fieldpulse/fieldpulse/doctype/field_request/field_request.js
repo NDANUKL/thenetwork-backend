@@ -45,7 +45,7 @@ frappe.ui.form.on("Field Request", {
       const checks = JSON.parse(brief.content_json).checks;
       const dialog = new frappe.ui.Dialog({
         title: __("Assign scouts to this project"),
-        fields: [{ fieldname: "assignment_help", fieldtype: "HTML", options: `<p>${__("Choose a scout in the row below. Use Add Row for more scouts.")}</p>` },
+        fields: [{ fieldname: "assignment_help", fieldtype: "HTML", options: `<p>${__("Choose a scout in each row. Every new row starts with all field checks. Use Choose checks to give a scout a smaller set.")}</p>` },
           { fieldname: "assignments", label: __("Scout assignments"), fieldtype: "Table", reqd: 1, in_place_edit: true, data: [{check_ids: checks.map(check => check.id).join(", "),check_labels:checks.map(check=>check.instruction).join('; ')}],
           fields: [
             { fieldname: "scout", label: __("Scout"), fieldtype: "Link", options: "Scout Profile", reqd: 1, in_list_view: 1,
@@ -67,8 +67,8 @@ frappe.ui.form.on("Field Request", {
             },
             { fieldname: "scout_name", label: __("Full name"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
             { fieldname: "base_county", label: __("County"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
-            {fieldname:'check_ids',fieldtype:'Small Text',hidden:1},
-            {fieldname:'check_labels',label:__('Assigned checks'),fieldtype:'Small Text',read_only:1,in_list_view:1},
+            {fieldname:'check_ids',fieldtype:'Small Text',hidden:1,default:checks.map(check=>check.id).join(', ')},
+            {fieldname:'check_labels',label:__('Assigned checks'),fieldtype:'Small Text',read_only:1,in_list_view:1,default:checks.map(check=>check.instruction).join('; ')},
             {fieldname:'select_checks',label:__('Choose checks'),fieldtype:'Button',in_list_view:1,click(){
               const row=this.doc;
               if(!row)return;
@@ -83,6 +83,11 @@ frappe.ui.form.on("Field Request", {
           ] }],
         primary_action_label: __("Assign"),
         async primary_action(values) {
+          const emptyRow = values.assignments.findIndex(row => !(row.check_ids || '').split(',').some(id => id.trim()));
+          if (emptyRow !== -1) {
+            frappe.msgprint(__('Row {0}: use Choose checks to select at least one field check for this scout.', [emptyRow + 1]));
+            return;
+          }
           dialog.disable_primary_action();
           try {
             const result = await frappe.call({ method: "dd_assign_scouts_without_extra_columns", args: { field_request: frm.doc.name, assignments: JSON.stringify(values.assignments.map(row => ({...row,check_ids:(row.check_ids || "").split(",").map(id => id.trim()).filter(Boolean)}))) }, freeze: true });
