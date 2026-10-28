@@ -25,6 +25,18 @@ class EditorTests(unittest.TestCase):
                 Record(question=None,label='What proportion of maize appears harvested?',check_key='maize-check',answer_format='Single choice',
                     answer_options='Standing\nPartly harvested\nFully harvested\nUnable to establish',evidence_mode='Specify evidence',evidence_json='[]')])
 
+    def test_conditional_questions_require_their_parent_before_dispatch(self):
+        for code,record_gate in [('12.2',True),('15.2',False)]:
+            project=copy.deepcopy(self.project)
+            conditional=Record(name='conditional',question_code=code,label='Transaction detail',validation_json=json.dumps(dict(group='service',protocol_version=2,answer_type='single',result_options=['Matches','Differs'],record_gate=record_gate,evidence=[])))
+            project.scout_checks.append(Record(question='conditional',label='Transaction detail'))
+            with self.assertRaisesRegex(ValueError,'parent question'):
+                editor.build_specs(project,self.questions+[conditional])
+            parent_code=code.split('.')[0]+'.1'
+            parent=Record(name='parent',question_code=parent_code,label='Check the record or participation first',validation_json=json.dumps(dict(group='service',protocol_version=2,answer_type='single',result_options=['Matching record found','Eligible and agreed'],evidence=[])))
+            project.scout_checks.append(Record(question='parent',label=parent.label))
+            self.assertTrue(editor.build_specs(project,self.questions+[conditional,parent]))
+
     def test_incomplete_template_settings_remain_editable(self):
         source=Record(name='interview',questionnaire='base',label='What is offered?',
             validation_json=json.dumps(dict(group='service',protocol_version=2,

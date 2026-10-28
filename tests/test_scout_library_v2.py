@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import unittest
 from fieldpulse.scout_library import (evaluate_question, resolve_config, validate_config,
-    required_evidence, SHARED_V2, CLOSING_V2)
+    required_evidence, needs_source_basis, SHARED_V2, CLOSING_V2)
 
 ROOT = Path(__file__).parents[1]
 FIXTURES = json.loads((ROOT / 'tests/fixtures/scout-v2-contract.json').read_text())
@@ -24,6 +24,69 @@ class LibraryContractTests(unittest.TestCase):
                 if 'review' in case: self.assertEqual(bool(result['reasons']), case['review'])
                 if 'states' in case: self.assertEqual([r['state'] for r in result['evidence']], case['states'])
                 if 'skipped' in case: self.assertEqual(result['skipped'], case['skipped'])
+
+    def test_explicit_source_basis_overrides_legacy_source_requirement(self):
+        config = dict(FIXTURES['base'], source_basis_required=True, source_required=True,
+                      answer_type='single', result_options=['Reported available'], evidence=[])
+        answer = dict(result='Reported available', text='Observed on site', source_type='Direct observation')
+        self.assertEqual(evaluate_question('12.1', config, answer, {}, [])['errors'], [])
+        for source in ['Representative', 'Document or record', 'Combination']:
+            answer['source_type'] = source
+            self.assertTrue(any('source' in error for error in evaluate_question('12.1', config, answer, {}, [])['errors']))
+
+    def test_all_service_options_for_template_and_project_questions(self):
+        for version in (2, 3):
+            catalogue = json.loads((ROOT / f'fieldpulse/configuration/scout-questionnaires-v{version}.json').read_text(encoding='utf-8'))
+            self.assertEqual(len(catalogue['services']), 15)
+            for service in catalogue['services']:
+                for question in service['questions']:
+                    code = question['code']
+                    for project in (False, True):
+                        for result in question['result_options'] or ['']:
+                            with self.subTest(version=version, code=code, result=result, project=project):
+                                config = dict(question, protocol_version=2, group='service')
+                                if project: config['source_basis_required'] = True
+                                if config['answer_type'] in {'checklist', 'interview', 'custom'}:
+                                    config['items'] = [dict(id='assigned', label='Assigned item', quantity_required=True, reading_required=True, demonstration_required=bool(config.get('demonstration')), video_demonstration_required=bool(config.get('demonstration')), not_applicable_permitted=True)]
+                                value = dict(result=result, results=[result], text='Finding recorded on site', source_type='Direct observation' if project else 'Representative', quantity='0', condition='No obvious visible issues', identifier='Identifier matches', demonstration='Demonstrated without an obvious issue')
+                                if not project: value['source_role'] = 'Records office'
+                                answer = dict(items={'assigned':value}, source_type=value['source_type'], source_role=value.get('source_role')) if config.get('items') else value
+                                answers = {code.split('.')[0]+'.1':dict(result='Matching record found'), '15.1':dict(result='Eligible and agreed'), code:answer}
+                                answer['exceptions'] = {r['requirement_id']:dict(reason='Permission refused') for r in required_evidence(code,config,answer)}
+                                evaluated = evaluate_question(code,config,answer,answers,[])
+                                self.assertFalse(evaluated['skipped'])
+                                self.assertEqual(evaluated['errors'], [])
+                                if project and needs_source_basis(code,config,answer):
+                                    for source in ('Representative', 'Document or record', 'Combination'):
+                                        missing = dict(answer, source_type=source, source_role='')
+                                        self.assertTrue(any('source' in error for error in evaluate_question(code,config,missing,answers,[])['errors']))
+                                        self.assertEqual(evaluate_question(code,config,dict(missing,source_role='Records office'),answers,[])['errors'], [])
+
+    def test_unavailable_item_does_not_require_impossible_reading(self):
+        config = dict(protocol_version=2, group='service', answer_type='checklist', result_options=['Observed','Unable to inspect'], evidence=[], items=[dict(id='meter',label='Meter',reading_required=True,quantity_required=True)])
+        answer = dict(items=dict(meter=dict(result='Unable to inspect', explanation='Access refused')))
+        self.assertEqual(evaluate_question('5.2',config,answer,{},[])['errors'], [])
+
+    def test_quantity_format_matches_mobile(self):
+        config = dict(protocol_version=2,group='service',answer_type='checklist',result_options=['Present'],evidence=[],items=[dict(id='goods',label='Goods',quantity_required=True)])
+        for quantity in ['0','2.5','1e3',' 3 ']:
+            self.assertEqual(evaluate_question('13.1',config,dict(items=dict(goods=dict(result='Present',quantity=quantity))),{},[])['errors'], [])
+        for quantity in [' ','-1','NaN','Infinity','0x10','1_000']:
+            self.assertTrue(any('quantity' in error for error in evaluate_question('13.1',config,dict(items=dict(goods=dict(result='Present',quantity=quantity))),{},[])['errors']))
+
+    def test_unavailable_outcomes_ignore_inactive_followups(self):
+        config = dict(protocol_version=2,group='service',answer_type='checklist',result_options=['Present','Unable to check','Not found'],source_basis_required=True,source_required=True,condition=True,identifier=True,demonstration=True,evidence=[],items=[dict(id='pump',label='Pump',quantity_required=True,reading_required=True,demonstration_required=True,video_demonstration_required=True)])
+        answer = dict(items=dict(pump=dict(result='Unable to check',text='Access refused',quantity='bad',condition='Visible damage or deterioration',identifier='Identifier differs',demonstration='Demonstrated with an issue')))
+        self.assertEqual(evaluate_question('2.4',config,answer,{},[])['errors'], [])
+        self.assertEqual(required_evidence('2.4',config,answer), [])
+        answer['items']['pump'] = dict(result='Not found',text='Checked the assigned room; pump absent')
+        answer['source_type'] = 'Direct observation'
+        self.assertEqual(evaluate_question('2.4',config,answer,{},[])['errors'], [])
+
+    def test_no_record_still_needs_office_but_unreachable_does_not(self):
+        config = dict(protocol_version=2,group='service',answer_type='single',result_options=['No matching record found','Issuer could not be reached'],source_required=True,evidence=[])
+        self.assertTrue(any('source office' in error for error in evaluate_question('12.1',config,dict(result='No matching record found',text='Office searched the supplied receipt reference'),{},[])['errors']))
+        self.assertEqual(evaluate_question('12.1',config,dict(result='Issuer could not be reached',text='Office closed; contact did not answer',source_type='Representative'),{},[])['errors'], [])
 
     def test_catalogue_matches_retained_source_and_has_all_services(self):
         data = json.loads((ROOT / 'fieldpulse/configuration/scout-questionnaires-v2.json').read_text(encoding='utf-8'))

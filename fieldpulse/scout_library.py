@@ -104,6 +104,25 @@ def targets(code, config, answer):
     return [('', {}, answer)]
 
 
+UNAVAILABLE = re.compile(r'not applicable|unable|inaccessible|declined|could not be reached|unwilling|not eligible|no representative', re.I)
+DEMONSTRATIONS = {'Demonstrated without an obvious issue', 'Demonstrated with an issue', 'Not demonstrated'}
+
+
+def needs_demonstration(config, value, item):
+    return bool(item.get('demonstration_required') and value.get('result') and not BLOCKED.search(str(value['result'])) and value['result'] not in DEMONSTRATIONS)
+
+
+def needs_source_basis(code, config, answer):
+    if not config.get('source_basis_required') or answer.get('blocked'): return False
+    for _, _, value in targets(code, config, answer):
+        if config['answer_type'] == 'text':
+            if str(value.get('text') or '').strip(): return True
+        else:
+            selected = value.get('results', []) if config['answer_type'] == 'multi' else [value.get('result')]
+            if any(result and not UNAVAILABLE.search(str(result)) for result in selected): return True
+    return False
+
+
 def required_evidence(code, config, answer):
     result = []
     seen_once = set()
@@ -117,7 +136,7 @@ def required_evidence(code, config, answer):
             key = f"{code}:{'' if rule.get('once') else item_id}:{rule['id']}"
             result.append(dict(rule, requirement_id=key, item_id=item_id, item_label=item.get('label', '')))
             if rule.get('once'): seen_once.add(rule['id'])
-        if config.get('demonstration') and item.get('video_demonstration_required') and value.get('demonstration') in {'Demonstrated without an obvious issue', 'Demonstrated with an issue'}:
+        if config.get('demonstration') and needs_demonstration(config, value, item) and item.get('video_demonstration_required') and value.get('demonstration') in {'Demonstrated without an obvious issue', 'Demonstrated with an issue'}:
             result.append(dict(id='demonstration', kind='Video', subject='Demonstrate ' + item['label'], requirement_id=f'{code}:{item_id}:demonstration', item_id=item_id))
     return result
 
@@ -141,7 +160,7 @@ def evaluate_question(code, config, answer, answers, media):
         if not explanation(answer, answers): errors.append('Explain why this check could not be completed')
         reasons.append('Unable to check')
         return dict(errors=errors, reasons=reasons, evidence=[], skipped=False)
-    if config.get('source_basis_required'):
+    if needs_source_basis(code, config, answer):
         if answer.get('source_type') not in {'Direct observation','Representative','Document or record','Combination'}:
             errors.append(code + ': record whether the finding was observed or obtained from another source')
         elif answer.get('source_type') != 'Direct observation' and not str(answer.get('source_role') or '').strip():
@@ -161,24 +180,25 @@ def evaluate_question(code, config, answer, answers, media):
         refusal = any(s in {'Declined to answer', 'Eligible but declined', 'Not eligible'} or str(s or '').startswith('No representative') for s in selected)
         if ((blocked and not refusal) or needs_text) and not explanation(value, answers): errors.append(label + ': finding or explanation missing')
         if blocked: reasons.append(label + ': ' + ', '.join(str(s) for s in selected))
-        if value.get('source_type') in {'Representative', 'Document or record', 'Combination'} or any('reported' in str(s or '').lower() for s in selected) or (config.get('source_required') and not any(re.search(r'unable|unwilling|no representative|could not be reached', str(s or ''), re.I) for s in selected)):
+        if not config.get('source_basis_required') and any(s and not UNAVAILABLE.search(str(s)) for s in selected) and (value.get('source_type') in {'Representative', 'Document or record', 'Combination'} or any('reported' in str(s or '').lower() for s in selected) or config.get('source_required')):
             if not str(answer.get('source_role') or value.get('source_role') or '').strip(): errors.append(label + ': source office or role missing')
         if config.get('confirmed_detail') and result in {'Confirmed', 'Recorded'} and not str(value.get('text') or '').strip(): errors.append(label + ': confirmed detail missing')
         if value.get('identity_differs') and not str(value.get('text') or '').strip(): errors.append(label + ': describe the business identity difference')
         if config.get('condition') and result == 'Observed available' and value.get('condition') not in {'No obvious visible issues', 'Visible damage or deterioration', 'Unable to assess'}:
             errors.append(label + ': inspected item condition missing')
-        if value.get('condition') == 'Visible damage or deterioration' and not str(value.get('text') or '').strip(): errors.append(label + ': describe the damage')
+        if config.get('condition') and result == 'Observed available' and value.get('condition') == 'Visible damage or deterioration' and not str(value.get('text') or '').strip(): errors.append(label + ': describe the damage')
         if config.get('identifier') and result == 'Present' and value.get('identifier') not in {'Identifier matches', 'Identifier differs', 'Identifier unavailable or unreadable', 'No identifier supplied'}:
             errors.append(label + ': identifier result missing')
-        if value.get('identifier') == 'Identifier differs' and not str(value.get('text') or '').strip(): errors.append(label + ': describe the identifier difference')
+        if config.get('identifier') and result == 'Present' and value.get('identifier') == 'Identifier differs' and not str(value.get('text') or '').strip(): errors.append(label + ': describe the identifier difference')
         if item.get('quantity_required') and not blocked and value.get('quantity') in (None, ''): errors.append(label + ': quantity missing')
         if item.get('reading_required') and not blocked and not str(value.get('text') or '').strip(): errors.append(label + ': assigned reading missing')
-        if value.get('quantity') not in (None, ''):
+        if not blocked and value.get('quantity') not in (None, ''):
             try:
+                if not re.fullmatch(r'[+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?', str(value['quantity']).strip()): raise ValueError('Invalid quantity')
                 amount = float(value['quantity'])
                 if not math.isfinite(amount) or amount < 0: raise ValueError()
             except (TypeError, ValueError): errors.append(label + ': enter a nonnegative quantity')
-        if item.get('demonstration_required'):
+        if needs_demonstration(config, value, item):
             if value.get('demonstration') not in {'Demonstrated without an obvious issue', 'Demonstrated with an issue', 'Not demonstrated'}: errors.append(label + ': demonstration result missing')
             elif value['demonstration'] != 'Demonstrated without an obvious issue' and not explanation(value, answers): errors.append(label + ': explain the demonstration result')
             if value.get('demonstration') == 'Not demonstrated': reasons.append(label + ': Not demonstrated')

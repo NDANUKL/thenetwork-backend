@@ -113,6 +113,14 @@ def build_specs(project, questions):
         if authorization_required:config['authorisation_required']=True
         validate_config(config,assigned=True)
         specs.append(dict(code=code,label=row.label.strip(),help_text=row.get('instructions') or (source.get('help_text') or '' if source else ''),config=config))
+    selected_codes={row['code'] for row in specs}
+    for row in specs:
+        code=row['code']
+        parent=code.split('.')[0]+'.1' if row['config'].get('record_gate') or code.startswith('15.') and code!='15.1' else None
+        if parent and parent not in selected_codes:
+            source_parent=next((q for q in questions if q.question_code==parent),None)
+            parent_label=source_parent.label if source_parent else 'record lookup or participation check'
+            raise ValueError(f'Include the parent question "{parent_label}" for "{row["label"]}" before dispatch')
     if not any(row['config']['group']=='service' for row in specs):raise ValueError('Retain at least one service question')
     specs.append(dict(code='S_EXTRA',label=CLOSING_V2['label'],help_text='',config=dict(CLOSING_V2,protocol_version=2,group='final',visit_workflow_version=2)))
     if len({row['code'] for row in specs})!=len(specs):raise ValueError('Project question codes must be unique')
