@@ -37,7 +37,7 @@ function editTaskBrief(frm) {
       {label:'Land and Property',value:'land_property_check'}, {label:'Construction Progress',value:'construction_progress'},
       {label:'Business and Asset',value:'business_asset_check'}, {label:'Custom Ground Verification',value:'custom_ground_verification'}],default:content.category,reqd:1},
     ...['objective','scope'].map(key=>({fieldname:key,label:__(frappe.utils.to_title_case(key)),fieldtype:'Small Text',reqd:1,default:content[key]})),
-    ...['deliverables','instructions','review_reasons'].map(key=>({fieldname:key,label:__(key.replaceAll('_',' ')+' (one per line)'),fieldtype:'Small Text',default:(content[key]||[]).join('\n')})),
+    ...['deliverables','instructions'].map(key=>({fieldname:key,label:__(key.replaceAll('_',' ')+' (one per line)'),fieldtype:'Small Text',default:(content[key]||[]).join('\n')})),
     {fieldname:'checks',label:__('Field checks — drag rows to reorder'),fieldtype:'Table',in_place_edit:true,
       description:__('Photo and video captures use “What to observe or document” unless a separate capture instruction is supplied.'),
       data:(content.checks||[]).map(check=>({id:check.id,instruction:check.instruction,response_type:check.response_type,required:check.required,
@@ -55,9 +55,9 @@ function editTaskBrief(frm) {
         {fieldname:'video_instruction',label:__('What the videos should show'),fieldtype:'Small Text'}]},
   ],primary_action_label:__('Save draft changes'),async primary_action(values){
     const lines=value=>(value||'').split('\n').map(v=>v.trim()).filter(Boolean);
-    const reasons=lines(values.review_reasons);
+    // Retain draft metadata; coordinator approval clears the legacy review flag.
     content={schema_version:1,category:values.category,title:values.title,objective:values.objective,scope:values.scope,
-      deliverables:lines(values.deliverables),instructions:lines(values.instructions),review_required:!!reasons.length,review_reasons:reasons,
+      deliverables:lines(values.deliverables),instructions:lines(values.instructions),review_required:!!content.review_required,review_reasons:content.review_reasons||[],
       checks:(values.checks||[]).map(row=>({id:row.id||crypto.randomUUID(),instruction:row.instruction,response_type:row.response_type,
         required:!!row.required,options:lines(row.options),evidence:[
           ...(row.photos>0?[{kind:'photo',minimum:row.photos,instruction:captureInstruction(row.photo_instruction,row.instruction)}]:[]),

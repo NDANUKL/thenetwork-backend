@@ -65,9 +65,23 @@ class BriefVersionTests(unittest.TestCase):
         self.assertEqual(doc.approved_by, 'coordinator@example.test')
         self.assertEqual(doc.approved_at, '2026-10-28 12:00:00')
 
-    def test_flagged_requests_cannot_be_approved(self):
+    def test_review_reasons_do_not_block_coordinator_approval(self):
         self.content.update(review_required=True, review_reasons=['Scope unclear'])
-        with self.assertRaisesRegex(ValueError, 'Task Brief needs review: Scope unclear'):
+        draft = self.doc()
+        draft.validate()
+        self.assertEqual(json.loads(draft.content_json)['review_reasons'], ['Scope unclear'])
+        doc = self.doc(status='Approved')
+        doc.validate()
+        approved = json.loads(doc.content_json)
+        self.assertFalse(approved['review_required'])
+        self.assertEqual(approved['review_reasons'], [])
+        self.assertEqual(approved['checks'], self.content['checks'])
+        self.assertEqual(doc.content_hash, self.module.brief_digest(approved))
+        self.assertEqual(doc.approved_by, 'coordinator@example.test')
+
+    def test_flagged_empty_brief_still_requires_checks(self):
+        self.content.update(checks=[], review_required=True, review_reasons=['Define checks'])
+        with self.assertRaisesRegex(ValueError, 'no field checks'):
             self.doc(status='Approved').validate()
 
     def test_empty_checks_explain_how_to_complete_draft(self):
