@@ -11,5 +11,5 @@ def install(preserve_published=False):
     install_finance_role()
     # All payment fields, permissions and print format are versioned Frappe documents.
     # Retirement belongs exclusively to the explicitly approved native handover.
-    from fieldpulse.scout_templates import install_templates
-    install_templates(preserve_published=preserve_published)
+    # Task Briefs are request-specific native documents. No shared questionnaire
+    # catalogue is installed or republished during ordinary model sync.

@@ -66,41 +66,6 @@ def _assert_scout_owns_task(field_task, scout_profile):
         frappe.throw("This Field Task is not assigned to the current scout", frappe.PermissionError)
 
 
-def _validate_question_response(question_response, field_task, evidence_type):
-    """Return a valid attachment-question response for this task, if supplied."""
-    response = frappe.get_doc("FP Question Response", question_response)
-    question = frappe.get_doc("FP Question", response.question)
-    task_questionnaire = frappe.db.get_value("Field Task", field_task, "questionnaire")
-    if not task_questionnaire or question.questionnaire != task_questionnaire:
-        frappe.throw("Question Response does not belong to this Field Task", frappe.PermissionError)
-
-    if question.question_type == "service_check":
-        import json
-        config = json.loads(question.validation_json or '{}')
-        if config.get('visit_workflow_version') == 2:
-            from fieldpulse.scout_visit import require_verified_arrival
-            require_verified_arrival(frappe.get_doc('FP Task Response', response.task_response), frappe.get_doc('Field Task', field_task))
-        allowed = {'Photo', 'Video', 'Document'} if config.get('protocol_version') == 2 else {'Photo', 'Video'}
-        if evidence_type not in allowed:
-            frappe.throw("Service checks accept photos and videos only")
-        expected_evidence_type = evidence_type
-    else:
-        expected_evidence_type = QUESTION_ATTACHMENT_EVIDENCE_TYPES.get(question.question_type)
-    if not expected_evidence_type:
-        frappe.throw("Question Response is not for a photo, file, or signature question")
-    if response.question_type != question.question_type:
-        frappe.throw("Question Response type does not match its questionnaire question")
-    if evidence_type != expected_evidence_type:
-        frappe.throw(
-            f"Evidence type must be {expected_evidence_type} for this {question.question_type} question"
-        )
-
-    response_task = frappe.db.get_value("FP Task Response", response.task_response, "task")
-    if response_task != field_task:
-        frappe.throw("Question Response does not belong to this Field Task", frappe.PermissionError)
-    return response
-
-
 def _object_key(field_task, client_uuid, filename):
     return f"field-evidence/{field_task}/{client_uuid}/{os.path.basename(filename)}"
 
@@ -127,6 +92,8 @@ def request_evidence_upload(
     location_sampled_at=None,
     description=None,
     clarification_required=0,
+    task_response=None,
+    field_check_id=None,
 ):
     """Create/reuse evidence metadata and return a short-lived R2 PUT URL."""
     if not client_uuid:
@@ -142,23 +109,32 @@ def request_evidence_upload(
 
     scout_profile = _current_scout()
     _assert_scout_owns_task(field_task, scout_profile)
-    if question_response:
-        answer = _validate_question_response(question_response, field_task, evidence_type)
-        from fieldpulse.scout_visit import strict
-        task = frappe.get_doc('Field Task', field_task)
-        if task.get('rework_type') == 'Correct answers' and evidence_type in {'Photo','Video'}:
-            frappe.throw('Answer corrections cannot collect new site evidence; request an authorized revisit')
-        if task.get('rework_type') == 'Return to site' and task.get('rework_response') and evidence_type in {'Photo', 'Video'}:
-            from fieldpulse.scout_rework import require_fresh_capture
-            require_fresh_capture(frappe.get_doc('FP Task Response', task.rework_response), captured_at)
-        if strict(task):
-            if evidence_type in {'Photo','Video'} and metadata_origin != 'Camera': frappe.throw('Use the on-site camera for visit photos and videos')
-            if evidence_type == 'Document' and (metadata_origin != 'Imported document' or any(value is not None for value in (captured_at,gps_lat,gps_lng,accuracy_m,location_sampled_at))):
-                frappe.throw('Imported documents must not claim an on-site capture time or GPS position')
+    frappe.db.sql('SELECT name FROM `tabField Task` WHERE name=%s FOR UPDATE', [field_task])
+    brief_task = frappe.get_doc('Field Task', field_task)
+    if not brief_task.get('task_brief_version'):
+        frappe.throw('Historical questionnaire evidence is read-only. Use a Task Brief.')
+    if brief_task.get('task_brief_version'):
+        from fieldpulse.task_brief_workflow import snapshot, decoded
+        from fieldpulse.task_briefs import gps_result
+        if question_response or not task_response or not field_check_id:
+            frappe.throw('Task Brief evidence must identify its submission and field check')
+        response = frappe.get_doc('FP Task Response', task_response)
+        pinned = snapshot(brief_task)
+        if response.task != field_task or response.agent != scout_profile or response.status != 'Draft' or field_check_id not in pinned['check_ids']:
+            frappe.throw('Evidence must belong to this scout\'s open assigned check', frappe.PermissionError)
+        if gps_result(decoded(response.arrival_check_json, {}), pinned['site'])['status'] != 'inside':
+            frappe.throw('Verify arrival before collecting field evidence')
+        if metadata_origin != 'Camera' or evidence_type not in ('Photo', 'Video'):
+            frappe.throw('Capture field evidence using the app camera')
+        if brief_task.get('rework_type') == 'Correct answers':
+            frappe.throw('Clarify recorded answers here; additional field evidence requires a new allocation')
+        if not captured_at:
+            frappe.throw('Keep the original evidence capture timestamp')
+        from datetime import timedelta
+        if mobile_datetime(captured_at) > frappe.utils.now_datetime() + timedelta(minutes=5):
+            frappe.throw('The capture timestamp cannot be in the future')
     if evidence_type in {"Photo", "Video"} and not mime_type.startswith("image/" if evidence_type == "Photo" else "video/"):
         frappe.throw("Evidence media type does not match its content type")
-    if question_response and frappe.db.get_value("FP Question Response", question_response, "question_type") == "service_check" and not (caption and str(caption).strip()):
-        frappe.throw("Caption the evidence before uploading")
     settings = _r2_settings()
     evidence_name = frappe.db.exists("Field Evidence", {"client_uuid": client_uuid})
 
@@ -168,6 +144,8 @@ def request_evidence_upload(
             frappe.throw("The client upload ID belongs to another evidence record", frappe.PermissionError)
         if (evidence.question_response or "") != (question_response or ""):
             frappe.throw("The client upload ID belongs to another question response", frappe.PermissionError)
+        if (evidence.get('task_response') or '') != (task_response or '') or (evidence.get('field_check_id') or '') != (field_check_id or ''):
+            frappe.throw('The upload ID belongs to another field check', frappe.PermissionError)
         if evidence.upload_status == "Uploaded":
             return {"evidence_id": evidence.name, "upload_status": evidence.upload_status}
     else:
@@ -178,6 +156,8 @@ def request_evidence_upload(
                 "field_task": field_task,
                 "scout": scout_profile,
                 "question_response": question_response,
+                "task_response": task_response,
+                "field_check_id": field_check_id,
                 "evidence_type": evidence_type,
                 "r2_object_key": _object_key(field_task, client_uuid, filename),
                 "original_filename": os.path.basename(filename),
@@ -226,6 +206,7 @@ def request_evidence_upload(
 def confirm_evidence_upload(evidence_id, etag):
     """Verify the uploaded private object before marking evidence uploaded."""
     evidence = frappe.get_doc("Field Evidence", evidence_id)
+    frappe.db.sql('SELECT name FROM `tabField Task` WHERE name=%s FOR UPDATE', [evidence.field_task])
     scout_profile = _current_scout()
     if evidence.scout != scout_profile:
         frappe.throw("This evidence does not belong to the current scout", frappe.PermissionError)
@@ -233,6 +214,8 @@ def confirm_evidence_upload(evidence_id, etag):
     _assert_scout_owns_task(evidence.field_task, scout_profile)
     if evidence.upload_status == "Uploaded":
         return {"evidence_id": evidence.name, "upload_status": "Uploaded", "etag": evidence.etag}
+    if not frappe.db.get_value('Field Task', evidence.field_task, 'task_brief_version'):
+        frappe.throw('Historical questionnaire evidence is read-only. Use a Task Brief.')
     if frappe.db.get_value("Field Task", evidence.field_task, "status") in ("Submitted", "Approved", "Cancelled", "Awaiting authorization"):
         frappe.throw("Evidence is frozen after submission; request rework", frappe.PermissionError)
     settings = _r2_settings()

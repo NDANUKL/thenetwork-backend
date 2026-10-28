@@ -27,10 +27,10 @@ doc_events = {'Diaspora Request': {'before_save': ['fieldpulse.customer_requests
                       'after_insert': 'fieldpulse.native_events.ensure_field_requests',
                       'on_update': 'fieldpulse.native_events.ensure_field_requests'},
  'Field Request': {'before_save': ['fieldpulse.customer_requests.copy_ownership',
-                                   'fieldpulse.native_events.map_field_request', 'fieldpulse.scout_templates.prepare_project'],
+                                   'fieldpulse.native_events.map_field_request', 'fieldpulse.task_brief_workflow.prepare_project'],
                    'on_update': 'fieldpulse.native_events.sync_task_navigation'},
  'Field Task': {'before_save': ['fieldpulse.native_events.map_task',
-                                'fieldpulse.native_events.require_deposit', 'fieldpulse.scout_templates.apply_to_task']},
+                                'fieldpulse.native_events.require_deposit', 'fieldpulse.task_brief_workflow.pin_assignment']},
  'User': {'on_update': 'fieldpulse.scout_registration.sync_user',
           'validate': ['fieldpulse.scout_access.validate_user', 'fieldpulse.customer_access.validate_user'],
           'on_trash': 'fieldpulse.scout_access.protect_identity',
@@ -38,6 +38,7 @@ doc_events = {'Diaspora Request': {'before_save': ['fieldpulse.customer_requests
  'FP Agent': {'on_update': 'fieldpulse.scout_registration.sync_agent'}}
 
 after_migrate = 'fieldpulse.payment_install.after_migrate'
+before_migrate = 'fieldpulse.task_brief_cutover.assert_ready'
 
 scheduler_events = {'cron': {'*/5 * * * *': ['fieldpulse.native_events.reconcile', 'fieldpulse.access_notifications.retry_approvals']},
  'daily': ['fieldpulse.fieldpulse.doctype.scout_profile.scout_profile.refresh_activity_statuses']}

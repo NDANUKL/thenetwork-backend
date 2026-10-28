@@ -39,7 +39,9 @@
     "final_review_json",
     "rework_of",
     "rework_type",
-    "rework_questions_json"
+    "rework_questions_json",
+    "brief_answers_json",
+    "brief_completion_json"
   ],
   "fields": [
     {
@@ -262,6 +264,20 @@
     {
       "fieldname": "rework_questions_json",
       "label": "Questions requiring rework",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "brief_answers_json",
+      "label": "Field Check Responses",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "brief_completion_json",
+      "label": "Completion Results",
       "fieldtype": "Code",
       "options": "JSON",
       "read_only": 1

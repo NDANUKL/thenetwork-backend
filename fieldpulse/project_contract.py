@@ -4,7 +4,7 @@ import json
 class ProjectContractError(ValueError):
     pass
 
-REQUEST_TYPES = {"land_property_check": "Property Verification", "construction_progress": "Construction Progress", "business_asset_check": "Business / Merchant Verification", "custom_ground_verification": "General Site Visit"}
+REQUEST_TYPES = {"land_property_check": "Land and Property", "construction_progress": "Construction Progress", "business_asset_check": "Business and Asset", "custom_ground_verification": "Custom Ground Verification"}
 
 def structured_projects(raw, *, strict=False):
     try:

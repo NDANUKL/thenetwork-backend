@@ -1,0 +1,87 @@
+{
+  "brief": {
+    "schema_version": 1,
+    "category": "land_property_check",
+    "title": "Record the visible condition of the Kitengela plot",
+    "objective": "Document visible condition and occupancy at the supplied plot.",
+    "scope": "Observe from the authorised access point without entering occupied structures.",
+    "deliverables": [
+      "Condition observations and two site photographs"
+    ],
+    "instructions": [
+      "Leave if access is unsafe or permission is refused."
+    ],
+    "review_required": false,
+    "review_reasons": [],
+    "checks": [
+      {
+        "id": "condition",
+        "instruction": "Describe the visible plot condition and signs of occupancy.",
+        "response_type": "text",
+        "options": [],
+        "required": true,
+        "evidence": [
+          {
+            "kind": "photo",
+            "minimum": 2,
+            "instruction": "Show the plot overview and the visible access boundary."
+          }
+        ]
+      }
+    ]
+  },
+  "site": {
+    "latitude": -1.3,
+    "longitude": 36.8,
+    "radius_m": 50,
+    "accuracy_threshold_m": 20
+  },
+  "submission": {
+    "arrival": {
+      "latitude": -1.3,
+      "longitude": 36.8,
+      "accuracy_m": 5,
+      "captured_at": "2026-10-28T08:00:00Z"
+    },
+    "answers": {
+      "condition": {
+        "status": "observed",
+        "value": "Unoccupied plot with a wire fence."
+      }
+    },
+    "declaration": true,
+    "additional_observations": ""
+  },
+  "evidence": [
+    {
+      "latitude": -1.3,
+      "longitude": 36.8,
+      "accuracy_m": 5,
+      "captured_at": "2026-10-28T08:01:00Z",
+      "id": "media-1",
+      "task_id": "TASK-1",
+      "scout_id": "SCOUT-1",
+      "check_id": "condition",
+      "kind": "photo",
+      "source": "camera",
+      "uploaded": true,
+      "file_id": "FILE-1",
+      "location_sampled_at": "2026-10-28T08:01:00Z"
+    },
+    {
+      "latitude": -1.3,
+      "longitude": 36.8,
+      "accuracy_m": 5,
+      "captured_at": "2026-10-28T08:02:00Z",
+      "id": "media-2",
+      "task_id": "TASK-1",
+      "scout_id": "SCOUT-1",
+      "check_id": "condition",
+      "kind": "photo",
+      "source": "camera",
+      "uploaded": true,
+      "file_id": "FILE-2",
+      "location_sampled_at": "2026-10-28T08:02:00Z"
+    }
+  ]
+}

@@ -42,8 +42,10 @@ Do not update or re-enable retired site scripts, recreate website installers, ru
 
 The one-off `dd_amend_00028_currency` repair remains excluded from native API aliases and must never be replayed automatically. Compatibility aliases and guarded legacy delegation remain in code for transition/recovery; their presence does not mean the disabled scripts currently own production.
 
-`docs/scout-visit-workflow.md` is a checksum-pinned input to the published questionnaire catalogue, not an operational deployment guide. Preserve its exact UTF-8/LF contents for existing versions. Update current ownership/deployment wording in this guide and the controlling production policy; a change to questionnaire policy requires a reviewed new catalogue/template version.
+`docs/scout-visit-workflow.md` records the historical questionnaire workflow. Preserve its exact UTF-8/LF contents for the dated audit; it is no longer a source for new template publication. New assignments use native project-specific Task Briefs; see [source transition and cutover](task-brief-transition.md). This local change is not evidence of deployment.
 
 The simplified assignment dialog omits Responsibility and Location inputs. Assignment requires the verified 50% deposit. Customers may review the complete approved report before paying the balance. Preserve those rules when changing integrations.
 
 Feature guides, including [scout admission](scout-admission.md), describe source behavior and their own rollout checks. Completed native handover does not establish deployment of every later feature.
+
+Task Brief corrective rollout: run `bench --site <staging-site> execute fieldpulse.task_brief_cutover.inventory` before deploying the coordinated release, then reconcile each open legacy allocation and its unsent device work using the existing release. Ordinary migration refuses unresolved legacy work. Historical questionnaire records are read-only; the old push, evidence-link and revisit-dispatch APIs are retired. The retained historical report readers do not authorize new questionnaire work. See [fix verification and remaining deployment prerequisites](task-brief-fixes-2026-10-28.md).

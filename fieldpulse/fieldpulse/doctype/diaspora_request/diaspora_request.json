@@ -33,7 +33,8 @@
     "project_contract_version",
     "recurring_plan",
     "recurring_occurrence",
-    "recurring_source"
+    "recurring_source",
+    "assessment_status"
   ],
   "fields": [
     {
@@ -89,7 +90,7 @@
       "fieldtype": "Select",
       "in_list_view": 1,
       "label": "Category",
-      "options": "land_property_check\nconstruction_progress\nbusiness_asset_check\ncustom_ground_verification\nneeds_confirmation\nout_of_scope",
+      "options": "land_property_check\nconstruction_progress\nbusiness_asset_check\ncustom_ground_verification",
       "reqd": 1
     },
     {
@@ -488,6 +489,14 @@
       "read_only": 1,
       "options": "Diaspora Request",
       "no_copy": 1
+    },
+    {
+      "fieldname": "assessment_status",
+      "label": "Eligibility Status",
+      "fieldtype": "Select",
+      "options": "supported\nneeds_confirmation\nout_of_scope",
+      "default": "supported",
+      "read_only": 1
     }
   ],
   "index_web_pages_for_search": 1,

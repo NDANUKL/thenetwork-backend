@@ -1,0 +1,106 @@
+{
+  "doctype": "DocType",
+  "name": "DD Task Brief",
+  "module": "FieldPulse",
+  "autoname": "format:BRIEF-{YYYY}-{#####}",
+  "engine": "InnoDB",
+  "track_changes": 1,
+  "allow_rename": 0,
+  "field_order": [
+    "project",
+    "version",
+    "status",
+    "title",
+    "category",
+    "content_json",
+    "content_hash",
+    "supersedes",
+    "approved_by",
+    "approved_at"
+  ],
+  "fields": [
+    {
+      "fieldname": "project",
+      "label": "Project",
+      "fieldtype": "Link",
+      "options": "Field Request",
+      "reqd": 1
+    },
+    {
+      "fieldname": "version",
+      "label": "Version",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Draft\nApproved",
+      "default": "Draft",
+      "reqd": 1
+    },
+    {
+      "fieldname": "title",
+      "label": "Task Title",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "category",
+      "label": "Category",
+      "fieldtype": "Select",
+      "options": "land_property_check\nconstruction_progress\nbusiness_asset_check\ncustom_ground_verification",
+      "read_only": 1
+    },
+    {
+      "fieldname": "content_json",
+      "label": "Task Brief",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "reqd": 1
+    },
+    {
+      "fieldname": "content_hash",
+      "label": "Content Hash",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "supersedes",
+      "label": "Previous Version",
+      "fieldtype": "Link",
+      "options": "DD Task Brief",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_by",
+      "label": "Approved By",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approved_at",
+      "label": "Approved At",
+      "fieldtype": "Datetime",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "report": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "report": 1
+    }
+  ]
+}

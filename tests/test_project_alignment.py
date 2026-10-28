@@ -24,8 +24,9 @@ class AlignmentTests(unittest.TestCase):
         with patch.dict(sys.modules,{'frappe':fake}): spec.loader.exec_module(cls.m)
     def setUp(self):
         def throw(msg,exc=ValueError): raise exc(msg)
-        self.api=types.SimpleNamespace(throw=throw,PermissionError=PermissionError,has_permission=Mock(return_value=True),get_doc=Mock(),get_all=Mock(),utils=types.SimpleNamespace(now=lambda:'2026-10-09',add_days=lambda d,n:date.fromisoformat(d)+timedelta(days=n)),db=types.SimpleNamespace(exists=Mock(return_value=False),get_value=Mock(return_value=None),set_value=Mock()))
+        self.api=types.SimpleNamespace(throw=throw,PermissionError=PermissionError,has_permission=Mock(return_value=True),get_doc=Mock(),get_all=Mock(),utils=types.SimpleNamespace(now=lambda:'2026-10-09',add_days=lambda d,n:date.fromisoformat(d)+timedelta(days=n)),db=types.SimpleNamespace(sql=Mock(),exists=Mock(return_value=False),get_value=Mock(return_value=None),set_value=Mock()))
         self.m.frappe=self.api
+        self.api.get_all.return_value=[]
         self.api.whitelist=lambda **kw:lambda fn:fn
         from tests.test_native_integration import load
         ownership=types.SimpleNamespace(owned_api=lambda *a:lambda fn:fn,owned_event=lambda *a:lambda fn:fn)
@@ -35,10 +36,14 @@ class AlignmentTests(unittest.TestCase):
         self.addCleanup(modules.stop)
         self.source=Doc(name='DD1',creation='2026-10-01 12:00:00',deadline_preference='twoWeeks',category='land_property_check',summary='Project 1: Shop brief\n\nProject 2: Land brief',evidence_checklist=[Doc(evidence_item='Project 1 [SHOP · Garissa]: photos'),Doc(evidence_item='Project 2 [LAND · Nyandarua]: boundary')])
         self.request=Doc(name='FR1',diaspora_request='DD1',project_number=1,project_title='SHOP',county='Garissa',alignment_review=0,status='Awaiting Assignment',priority='Normal',deadline='2026-10-15',evidence_requirements='photos',field_brief='Shop brief',save=Mock())
+        self.request.approved_task_brief='BRIEF-1'
+        self.approved=Doc(name='BRIEF-1',project='FR1',status='Approved',content_json=json.dumps(json.loads((Path(__file__).parent/'fixtures/task-brief-v1.json').read_text())['brief']))
+        self.existing=Doc(name='EXISTING',task_brief_version='BRIEF-1',assigned_check_ids='["condition"]')
+
     def test_projects_isolated(self):
         p=self.m.project_plan(self.source)
         self.assertFalse(p['issues']); self.assertEqual([r['county'] for r in p['projects']],['Garissa','Nyandarua'])
-        self.assertEqual([r['request_type'] for r in p['projects']],['Business / Merchant Verification','Property Verification'])
+        self.assertEqual([r['request_type'] for r in p['projects']],['Business and Asset','Land and Property'])
         self.assertNotIn('Project 2','\n'.join(p['projects'][0]['evidence']))
     def test_label_separators(self):
         for sep in [' · ',' – ',' — ',' - ']:
@@ -89,14 +94,14 @@ class AlignmentTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.m.map_task(Doc(name='T1',field_request='FR1'))
         with self.assertRaises(ValueError): self.m.map_task(Doc(name='T1'))
     def test_assignment_input_permissions_and_retries(self):
-        self.api.get_doc.return_value=self.request
+        self.api.get_doc.side_effect=lambda kind,name:self.approved if kind=='DD Task Brief' else self.existing if kind=='Field Task' else self.request
         for rows in ['broken',{},[],[None]]:
             with self.assertRaises(ValueError): self.m.assign_project_scouts('FR1',rows)
         self.api.has_permission.return_value=False
-        with self.assertRaises(PermissionError): self.m.assign_project_scouts('FR1',[{'scout':'S1'}])
+        with self.assertRaises(PermissionError): self.m.assign_project_scouts('FR1',[{'scout':'S1','check_ids':['condition']}])
         self.api.has_permission.return_value=True; self.request.status='Assigned'; self.api.db.get_value.return_value='EXISTING'
-        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'}]),{'tasks':['EXISTING']})
-        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'},{'scout':'S2'}]),{'tasks':['EXISTING','EXISTING']})
+        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1','check_ids':['condition']}]),{'tasks':['EXISTING']})
+        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1','check_ids':['condition']},{'scout':'S2','check_ids':['condition']}]),{'tasks':['EXISTING','EXISTING']})
     def test_assignment_ignores_retired_responsibility_payload(self):
         self.request.status = 'Assigned'
         self.request.diaspora_request = None
@@ -106,13 +111,29 @@ class AlignmentTests(unittest.TestCase):
             if isinstance(kind, dict):
                 created.append(kind)
                 return task
-            return self.request if kind == 'Field Request' else Doc(name=name)
+            return self.approved if kind=='DD Task Brief' else self.request if kind == 'Field Request' else Doc(name=name)
         self.api.get_doc.side_effect = get_doc
         self.api.db.get_value.return_value = None
-        result = self.m.assign_project_scouts('FR1', [{'scout': 'S1', 'responsibility': 'Old client value'}])
+        result = self.m.assign_project_scouts('FR1', [{'scout': 'S1', 'check_ids':['condition'], 'responsibility': 'Old client value'}])
         self.assertEqual(result, {'tasks': ['TASK-1']})
         self.assertNotIn('responsibility', created[0])
         task.insert.assert_called_once()
+
+    def test_followup_allocation_counts_compatible_active_and_approved_coverage(self):
+        content=json.loads(self.approved.content_json)
+        content['checks'].append(dict(content['checks'][0],id='followup'))
+        self.approved.content_json=json.dumps(content)
+        self.request.status='Assigned';self.request.diaspora_request=None
+        followup=Doc(name='FOLLOWUP',task_brief_version='BRIEF-1',assigned_check_ids='["followup"]')
+        self.api.get_doc.side_effect=lambda kind,name:self.approved if kind=='DD Task Brief' else followup if kind=='Field Task' else self.request
+        self.api.db.get_value.return_value='FOLLOWUP'
+        self.api.get_all.return_value=[self.existing]
+        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S2','check_ids':['followup']}]),{'tasks':['FOLLOWUP']})
+        filters=self.api.get_all.call_args.kwargs['filters']
+        self.assertIn('Approved',filters['status'][1]);self.assertNotIn('Cancelled',filters['status'][1])
+        self.existing.task_brief_version='OLD'
+        with self.assertRaisesRegex(ValueError,'every required'):
+            self.m.assign_project_scouts('FR1',[{'scout':'S2','check_ids':['followup']}])
 
     def test_manual_request_source_is_fixed(self):
         self.request.diaspora_request = None
@@ -123,12 +144,13 @@ class AlignmentTests(unittest.TestCase):
 
     def test_manual_request_needs_no_customer_project_number(self):
         self.request.diaspora_request=None; self.request.project_number=None
-        self.request.status='Assigned'; self.api.get_doc.return_value=self.request
+        self.request.status='Assigned'; self.api.get_doc.side_effect=lambda kind,name:self.approved if kind=='DD Task Brief' else self.existing if kind=='Field Task' else self.request
         self.api.db.get_value.return_value='EXISTING'
-        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'}]),{'tasks':['EXISTING']})
-        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1'},{'scout':'S2'}]),{'tasks':['EXISTING','EXISTING']})
+        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1','check_ids':['condition']}]),{'tasks':['EXISTING']})
+        self.assertEqual(self.m.assign_project_scouts('FR1',[{'scout':'S1','check_ids':['condition']},{'scout':'S2','check_ids':['condition']}]),{'tasks':['EXISTING','EXISTING']})
 
     def test_partial_and_full_rollup(self):
+        self.request.approved_task_brief=None
         self.api.get_doc.side_effect=lambda dt,n:self.request if dt=='Field Request' else self.source
         for tasks,projects,want in [(['Approved','Assigned'],[(1,'In Progress')],'Partially assigned'),(['Approved'],[(1,'Completed')],'Partially assigned'),(['Approved'],[(1,'Completed'),(2,'Completed')],'Completed')]:
             self.api.get_all.side_effect=lambda dt,**kw:[Doc(status=s) for s in tasks] if dt=='Field Task' else [Doc(project_number=n,status=s) for n,s in projects]
@@ -136,6 +158,7 @@ class AlignmentTests(unittest.TestCase):
             calls=self.api.db.set_value.call_args_list
             self.assertEqual([c.args[3] for c in calls if c.args[0]=='Diaspora Request'][-1],want)
     def test_cancelled_and_rejected_preserved(self):
+        self.request.approved_task_brief=None
         self.request.status='Cancelled'; self.api.get_doc.return_value=self.request; self.api.get_all.return_value=[Doc(status='Approved')]
         self.m.rollup_tasks(Doc(field_request='FR1')); self.api.db.set_value.assert_not_called()
         self.request.status='Assigned'; self.source.status='Rejected'; self.api.get_doc.side_effect=lambda dt,n:self.request if dt=='Field Request' else self.source

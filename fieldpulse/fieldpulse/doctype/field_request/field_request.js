@@ -16,7 +16,7 @@ frappe.ui.form.on("Field Request", {
     const missing = [];
     if (!frm.doc.county) missing.push("Add the project county.");
     if (!frm.doc.evidence_requirements) missing.push("Confirm the project's evidence requirements.");
-    if (frm.doc.alignment_review && !missing.length) missing.push("Review the agreed brief and tick Checklist reviewed before assigning a scout.");
+    if (frm.doc.alignment_review && !missing.length) missing.push("Review the agreed brief and approve the Task Brief before assigning a scout.");
     frm.set_intro(missing.join(" "), "orange");
   },
 });
@@ -31,7 +31,7 @@ frappe.ui.form.on("Field Request", {
     frm.set_df_property("status", "description", __("Use Assign scouts to select a Scout Profile and create their Field Task. Changing status alone does not assign a scout."));
 
     if (frm.is_new() || ["Completed", "Cancelled"].includes(frm.doc.status) || !frm.perm.some(p => p.write)) return;
-    frm.add_custom_button(__("Assign scouts"), () => {
+    frm.add_custom_button(__("Assign scouts"), async () => {
       if (frm.is_dirty()) {
         frappe.msgprint(__("Save this project before assigning scouts."));
         return;
@@ -40,10 +40,13 @@ frappe.ui.form.on("Field Request", {
         frappe.msgprint(__("Confirm this project's scope, project number and county before assigning scouts."));
         return;
       }
+      if (!frm.doc.approved_task_brief) {frappe.msgprint(__('Approve a Task Brief first.')); return;}
+      const brief = await frappe.db.get_doc('DD Task Brief', frm.doc.approved_task_brief);
+      const checks = JSON.parse(brief.content_json).checks;
       const dialog = new frappe.ui.Dialog({
         title: __("Assign scouts to this project"),
         fields: [{ fieldname: "assignment_help", fieldtype: "HTML", options: `<p>${__("Choose a scout in the row below. Use Add Row for more scouts.")}</p>` },
-          { fieldname: "assignments", label: __("Scout assignments"), fieldtype: "Table", reqd: 1, in_place_edit: true, data: [{}],
+          { fieldname: "assignments", label: __("Scout assignments"), fieldtype: "Table", reqd: 1, in_place_edit: true, data: [{check_ids: checks.map(check => check.id).join(", "),check_labels:checks.map(check=>check.instruction).join('; ')}],
           fields: [
             { fieldname: "scout", label: __("Scout"), fieldtype: "Link", options: "Scout Profile", reqd: 1, in_list_view: 1,
               get_query: () => ({ filters: { access_status: ["!=", "Deactivated"] } }),
@@ -64,14 +67,25 @@ frappe.ui.form.on("Field Request", {
             },
             { fieldname: "scout_name", label: __("Full name"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
             { fieldname: "base_county", label: __("County"), fieldtype: "Data", read_only: 1, in_list_view: 1 },
-            { fieldname: "questionnaire", label: __("Questionnaire"), fieldtype: "Link", options: "FP Questionnaire",
-              get_query: () => ({filters: frm.doc.scout_questionnaire ? {name:frm.doc.scout_questionnaire} : {status:"Published",title:["not like","%University fee payment confirmation%"],project:["is","not set"]}}) },
+            {fieldname:'check_ids',fieldtype:'Small Text',hidden:1},
+            {fieldname:'check_labels',label:__('Assigned checks'),fieldtype:'Small Text',read_only:1,in_list_view:1},
+            {fieldname:'select_checks',label:__('Choose checks'),fieldtype:'Button',in_list_view:1,click(){
+              const row=this.doc;
+              if(!row)return;
+              const selected=new Set((row.check_ids||'').split(',').map(id=>id.trim()));
+              frappe.prompt([{fieldname:'checks',label:__('Checks for this scout'),fieldtype:'MultiCheck',reqd:1,sort_options:false,
+                options:checks.map(check=>({label:frappe.utils.escape_html(check.instruction),value:check.id,checked:selected.has(check.id)}))}],values=>{
+                  row.check_ids=values.checks.join(', ');
+                  row.check_labels=checks.filter(check=>values.checks.includes(check.id)).map(check=>check.instruction).join('; ');
+                  dialog.fields_dict.assignments.grid.refresh();
+                },__('Choose checks'),__('Apply'));
+            }},
           ] }],
         primary_action_label: __("Assign"),
         async primary_action(values) {
           dialog.disable_primary_action();
           try {
-            const result = await frappe.call({ method: "dd_assign_scouts_without_extra_columns", args: { field_request: frm.doc.name, assignments: JSON.stringify(values.assignments) }, freeze: true });
+            const result = await frappe.call({ method: "dd_assign_scouts_without_extra_columns", args: { field_request: frm.doc.name, assignments: JSON.stringify(values.assignments.map(row => ({...row,check_ids:(row.check_ids || "").split(",").map(id => id.trim()).filter(Boolean)}))) }, freeze: true });
             dialog.hide();
             const assigned = await frappe.db.get_list("Field Task", {filters: {name: ["in", result.message.tasks]}, fields: ["name", "task_number"], limit: 20});
             frappe.msgprint(__("Scout tasks: {0}", [assigned.map(task => task.task_number || task.name).join(", ")]));
@@ -87,128 +101,16 @@ frappe.ui.form.on("Field Request", {
 
 }
 
-frappe.ui.form.on("Field Request", {
-  setup(frm) {
-    frm.set_query("question", "scout_checks", () => ({filters: {questionnaire: frm.doc.scout_questionnaire, active: 1, question_group: "Service"}}));
-  },
-  scout_service(frm) {
-    if (!frm.doc.scout_service) return;
-    frm.set_value("scout_questionnaire", null);
-    frm.clear_table("scout_checks");
-    frm.set_value("scout_checks_confirmed", 0);
-    frm.refresh_field("scout_checks");
-    frm.set_intro(__("Save to load this service template, then review its selected checks before confirming dispatch."));
-  }
-});
-
-function scoutConfigurationFields(template) {
-  const mediaOptions = ['No media', 'Photo', 'Video', 'Photo and video', 'Document'];
-
-  const fields = [
-    {fieldname:'configuration_help',fieldtype:'HTML',options:'<p>'+frappe.utils.escape_html((template.evidence||[]).map(r=>r.kind+': '+r.subject).join('; ') || 'This question needs no attachment unless you add an evidence requirement.')+'</p>'},
-    {fieldname:'enabled',fieldtype:'Check',label:__('Include this assigned conditional check'),default:1,hidden:!template.assigned_only},
-    {fieldname:'items',fieldtype:'Table',in_place_edit:true,label:__('Specific items or questions for this visit'),hidden:!['checklist','interview','custom'].includes(template.answer_type),fields:[
-      {fieldname:'id',fieldtype:'Data',hidden:1},
-      {fieldname:'label',fieldtype:'Small Text',label:__('What should the scout check or ask?'),reqd:1,in_list_view:1},
-      {fieldname:'reference',fieldtype:'Small Text',label:__('Supplied reference / expected detail')},
-      {fieldname:'quantity_required',fieldtype:'Check',label:__('Record quantity')},
-      {fieldname:'reading_required',fieldtype:'Check',label:__('Record assigned reading')},
-      {fieldname:'not_applicable_permitted',fieldtype:'Check',label:__('Allow Not applicable for this custom question')},
-      {fieldname:'demonstration_required',fieldtype:'Check',label:__('Function demonstration assigned')},
-      {fieldname:'video_demonstration_required',fieldtype:'Check',label:__('Video demonstration required')},
-      {fieldname:'media',fieldtype:'Select',label:__('Custom question evidence'),hidden:template.answer_type!=='custom',options:mediaOptions.join('\n'),default:'No media'},
-      {fieldname:'subject',fieldtype:'Small Text',label:__('Subject to capture for custom question'),hidden:template.answer_type!=='custom'},
-      {fieldname:'when',fieldtype:'Small Text',label:__('Required for these answers only (separate with |)'),hidden:template.answer_type!=='custom'},
-    ]},
-    {fieldname:'confirmation_method',fieldtype:'Select',label:__('Permitted confirmation method'),options:'\nVerbal\nWritten\nAuthorised photo',reqd:!!template.confirmation,hidden:!template.confirmation},
-    {fieldname:'confirmation_subject',fieldtype:'Small Text',label:__('What document or information may the scout collect?'),hidden:!template.confirmation,depends_on:"eval:doc.confirmation_method && doc.confirmation_method !== 'Verbal'",mandatory_depends_on:"eval:doc.confirmation_method && doc.confirmation_method !== 'Verbal'"},
-    {fieldname:'physical_inspection',fieldtype:'Check',label:__('Inspect physical document (otherwise compare supplied files)'),hidden:!template.inspection},
-    {fieldname:'walkthrough_subject',fieldtype:'Small Text',label:__('Assigned walkthrough: areas to record in one video'),hidden:!template.walkthrough},
-    {fieldname:'delivery_document_subject',fieldtype:'Small Text',label:__('Delivery document fields to photograph, if assigned'),hidden:!template.delivery_document},
-    {fieldname:'verification_subject',fieldtype:'Small Text',label:__('Optional: products, facilities or signs to photograph'),hidden:!template.optional_verification},
-    {fieldname:'extra_capture',fieldtype:'Check',label:__('Add extra attachment requirements')},
-    {fieldname:'additional_evidence',fieldtype:'Table',in_place_edit:true,depends_on:'eval:doc.extra_capture',label:__('Optional extra photos, videos or documents'),fields:[
-      {fieldname:'id',fieldtype:'Data',hidden:1},
-      {fieldname:'media',fieldtype:'Select',label:__('Media'),options:mediaOptions.slice(1).join('\n'),reqd:1,in_list_view:1},
-      {fieldname:'subject',fieldtype:'Small Text',label:__('Exact subject to capture'),reqd:1,in_list_view:1},
-      {fieldname:'when',fieldtype:'Small Text',label:__('Only for these answers (separate with |)')},
-    ]},
-  ];
-  return fields;
-}
-
-function scoutConfiguration(values, template) {
-  const config = {};
-  for (const key of ['enabled','confirmation_method','confirmation_subject','physical_inspection','walkthrough_subject','delivery_document_subject','verification_subject']) if (values[key] !== undefined && values[key] !== '') config[key]=values[key];
-  const rules=(media,subject,when,id)=>!media || media==='No media'?[]:(media==='Photo and video'?['Photo','Video']:[media]).map(kind=>({id:id+'-'+kind.toLowerCase(),kind,subject,...(when?{when:when.split('|').map(v=>v.trim()).filter(Boolean)}:{})}));
-  if (['checklist','interview','custom'].includes(template.answer_type)) config.items=(values.items||[]).map(item=>({...item,id:item.id||scoutInternalId(),...(template.answer_type==='custom'?{evidence:rules(item.media,item.subject,item.when,'custom')}:{})}));
-  config.additional_evidence=(values.extra_capture?values.additional_evidence||[]:[]).flatMap(item=>rules(item.media,item.subject,item.when,item.id||scoutInternalId()));
-  return config;
-}
-
-function scoutInternalId() { return 'entry-'+crypto.randomUUID(); }
-
-// Applied to the native Field Request asset. Edits belong to these child rows only.
 frappe.ui.form.on('Field Request', {
   refresh(frm) {
-    for (const field of ['customer_coverage_section','customer_scope_reference','customer_scope_version','customer_checks','customer_checks_confirmed','customer_checks_reviewed_by','customer_checks_reviewed_at']) frm.set_df_property(field,'hidden',1);
-    frm.set_df_property('scout_checks','description',__('Review the questions below. Use Edit question and evidence in a row to change its wording, items or attachments. Save your edits, then tick Checklist reviewed, save and use Assign scouts.'));
-
-  }
-});
-
-frappe.ui.form.on('DD Scout Check', {
-  label(frm) {frm.set_value('scout_checks_confirmed',0);},
-  instructions(frm) {frm.set_value('scout_checks_confirmed',0);},
-  scout_checks_add(frm) {frm.set_value('scout_checks_confirmed',0);},
-  scout_checks_remove(frm) {frm.set_value('scout_checks_confirmed',0);},
-  scout_checks_move(frm) {frm.set_value('scout_checks_confirmed',0);},
-  async question(frm,cdt,cdn) {
-    const row=locals[cdt][cdn];
-    if (row.question) {
-      const {message}=await frappe.db.get_value('FP Question',row.question,['label']);
-      await frappe.model.set_value(cdt,cdn,'label',message.label);
-    }
-    await frappe.model.set_value(cdt,cdn,'answer_format',row.question?'Template format':'Written answer');
-    await frm.set_value('scout_checks_confirmed',0);
-  },
-  async edit_question(frm,cdt,cdn) {
-    const row=locals[cdt][cdn];
-    if (frm.is_new()) {frappe.msgprint(__('Save the project and load its template first.'));return;}
-    let settings={template:false,evidence:[],options:[],protected:false};
-    if (row.question) ({message:settings}=await frappe.call('fieldpulse.scout_v2.question_editor_settings',{project:frm.doc.name,question:row.question,configuration:row.configuration_json}));
-    const template=settings.configuration_template||{};
-    const saved=JSON.parse(row.configuration_json||'{}');
-    let rules;
-    try {rules=row.evidence_mode==='Specify evidence'?JSON.parse(row.evidence_json||'[]'):settings.evidence;} catch {rules=[];}
-    const dialog=new frappe.ui.Dialog({title:__('Edit this project question'),size:'extra-large',fields:[
-      ...(settings.protected?[{fieldname:'protected_help',fieldtype:'HTML',options:'<p>'+__('This required evidence check must remain. Adapt its question and capture subjects to the request; required media types and conditions are preserved.')+'</p>'}]:[]),
-      {fieldname:'label',label:__('Question for the scout'),fieldtype:'Small Text',reqd:1},
-      {fieldname:'instructions',label:__('Instructions / what a satisfactory answer must establish'),fieldtype:'Small Text'},
-      {fieldname:'answer_format',label:__('Answer format'),fieldtype:'Select',options:settings.template?'Template format':'Single choice\nMultiple choice\nWritten answer',read_only:settings.template,reqd:1},
-      {fieldname:'answer_options',label:settings.template?__('Template answer choices'):__('Answer choices, one per line'),fieldtype:'Small Text',read_only:settings.template,depends_on:"eval:doc.answer_format !== 'Written answer'"},
-      ...(settings.configuration_template?scoutConfigurationFields(template):[]),
-      {fieldname:'evidence_mode',label:__('Required evidence'),fieldtype:'Select',options:settings.template?'Keep template evidence\nSpecify evidence':'Specify evidence',reqd:1},
-      {fieldname:'evidence',label:__('Photo, video or document requirements'),fieldtype:'Table',in_place_edit:true,depends_on:"eval:doc.evidence_mode === 'Specify evidence'",fields:[
-        {fieldname:'id',fieldtype:'Data',hidden:1},
-        {fieldname:'kind',label:__('Media'),fieldtype:'Select',options:'Photo\nVideo\nDocument',reqd:1,in_list_view:1},
-        {fieldname:'subject',label:__('Exactly what the evidence must show'),fieldtype:'Small Text',reqd:1,in_list_view:1},
-        {fieldname:'when',label:__('Only for these answer choices, separated by |'),fieldtype:'Small Text'},
-        {fieldname:'once',label:__('One file can cover the assigned items'),fieldtype:'Check'},
-        {fieldname:'caption',label:__('Automatic file label'),fieldtype:'Small Text'},
-        {fieldname:'detail_when',label:__('Clarification for these outcomes, separated by |'),fieldtype:'Small Text'},
-      ]},
-    ],primary_action_label:__('Save question'),async primary_action(values) {
-      if (!settings.template && values.answer_format!=='Written answer' && !values.answer_options?.trim()) {frappe.msgprint(__('Enter the answer choices first.'));return;}
-      if (settings.configuration_template) await frappe.model.set_value(cdt,cdn,'configuration_json',JSON.stringify(scoutConfiguration(values,template)));
-      const evidence=(values.evidence||[]).map((rule,index)=>({id:rule.id||scoutInternalId(),kind:rule.kind,subject:rule.subject,...(rule.when?{when:rule.when.split('|').map(v=>v.trim()).filter(Boolean)}:{}),...(rule.once?{once:true}:{}),...(rule.caption?{caption:rule.caption}:{}),...(rule.detail_when?{detail_when:rule.detail_when.split('|').map(v=>v.trim()).filter(Boolean)}:{})}));
-      for (const key of ['label','instructions','answer_format','evidence_mode']) await frappe.model.set_value(cdt,cdn,key,values[key]||'');
-      await frappe.model.set_value(cdt,cdn,'answer_options',settings.template?'':values.answer_options||'');
-      await frappe.model.set_value(cdt,cdn,'evidence_json',JSON.stringify(evidence));
-      await frm.set_value('scout_checks_confirmed',0);
-      frm.refresh_field('scout_checks');dialog.hide();
-    }});
-    dialog.set_values({...saved,extra_capture:!!saved.additional_evidence?.length,enabled:saved.enabled??1,items:(saved.items||(template.default_items||[]).map(label=>({label}))).map(item=>({...item,id:item.id||scoutInternalId(),media:item.evidence?.length===2?'Photo and video':item.evidence?.[0]?.kind||'No media',subject:item.evidence?.[0]?.subject,when:item.evidence?.[0]?.when?.join('|')})),additional_evidence:(saved.additional_evidence||[]).map(rule=>({id:rule.id.replace(/-(photo|video|document)$/,''),media:rule.kind,subject:rule.subject,when:rule.when?.join('|')})),label:row.label||'',instructions:row.instructions||'',answer_format:settings.template?'Template format':row.answer_format==='Template format'?'Written answer':row.answer_format||'Written answer',answer_options:settings.template?settings.options.join('\n'):row.answer_options||'',evidence_mode:settings.template?(row.evidence_mode||'Keep template evidence'):'Specify evidence',evidence:rules.map(rule=>({...rule,when:rule.when?.join('|'),detail_when:rule.detail_when?.join('|')}))});
-    dialog.show();
+    frm.set_query('approved_task_brief', () => ({filters:{project:frm.doc.name,status:'Approved'}}));
+    if (frm.is_new()) return;
+    frm.add_custom_button(__('Task Briefs'), () => frappe.set_route('List','DD Task Brief',{project:frm.doc.name}));
+    frm.add_custom_button(__('Create Task Brief'), () => frappe.new_doc('DD Task Brief', {
+      project:frm.doc.name,status:'Draft',content_json:JSON.stringify({schema_version:1,
+      category:frm.doc.service_category || 'custom_ground_verification', title:frm.doc.project_title || frm.doc.name,
+      objective:frm.doc.field_brief || 'Review the client request',scope:frm.doc.field_brief || 'Review the client request',
+      instructions:[],deliverables:[],review_required:true,review_reasons:['Review the request and define its field checks'],checks:[]})
+    }));
   }
 });

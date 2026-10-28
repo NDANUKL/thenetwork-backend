@@ -54,7 +54,7 @@ def legacy_project_plan(source):
                 if candidate.lower() + " county" in description.lower():
                     county = candidate
         if number and description:
-            projects[number] = {"number": number, "title": description, "county": county, "request_type": "General Site Visit", "evidence": [], "description": description, "scope_status": detail.get("location_question_status")}
+            projects[number] = {"number": number, "title": description, "county": county, "request_type": "Custom Ground Verification", "evidence": [], "description": description, "scope_status": detail.get("location_question_status")}
     for row in source.get("evidence_checklist") or []:
         text = (row.get("evidence_item") or "").strip()
         number = 0
@@ -79,13 +79,13 @@ def legacy_project_plan(source):
             if project and (project["county"] and project["county"] != county or not project.get("description") and project["title"] != title):
                 issues.append("Conflicting county or title for project " + str(number))
             if not project:
-                request_type = {"land_property_check": "Property Verification", "construction_progress": "Construction Progress", "business_asset_check": "Business / Merchant Verification"}.get(source.get("category"), "General Site Visit")
+                request_type = {"land_property_check": "Land and Property", "construction_progress": "Construction Progress", "business_asset_check": "Business and Asset"}.get(source.get("category"), "Custom Ground Verification")
                 if title.upper() in ["SHOP", "SALON", "BUSINESS", "MERCHANT"]:
-                    request_type = "Business / Merchant Verification"
+                    request_type = "Business and Asset"
                 elif title.upper() == "LAND":
-                    request_type = "Property Verification"
+                    request_type = "Land and Property"
                 elif title.upper() in ["HOUSE", "HOME", "PLOT", "PROPERTY"] and source.get("category") != "construction_progress":
-                    request_type = "Property Verification"
+                    request_type = "Land and Property"
                 project = {"number": number, "title": title, "county": county, "request_type": request_type, "evidence": []}
                 projects[number] = project
             project["county"] = county
@@ -96,9 +96,9 @@ def legacy_project_plan(source):
         if "construction" in text:
             project["request_type"] = "Construction Progress"
         elif any(word in text for word in ["salon", "shop", "business", "merchant"]):
-            project["request_type"] = "Business / Merchant Verification"
+            project["request_type"] = "Business and Asset"
         elif any(word in text for word in ["land", "house", "home", "plot", "property", "apartment"]):
-            project["request_type"] = "Construction Progress" if source.get("category") == "construction_progress" else "Property Verification"
+            project["request_type"] = "Construction Progress" if source.get("category") == "construction_progress" else "Land and Property"
         project["review"] = 1 if not project["county"] or not project["evidence"] or project.get("scope_status") in ["needed", "scope_confirmation", "unsupported"] else 0
     deadline = None
     preference = source.get("deadline_preference")
@@ -148,11 +148,11 @@ def project_plan(source):
             # New contracts require a category; identity never comes from this text.
             text = project["description"].lower()
             if any(word in text for word in ["shop", "business", "salon", "merchant"]):
-                project["request_type"] = "Business / Merchant Verification"
+                project["request_type"] = "Business and Asset"
             elif "construction" in text:
                 project["request_type"] = "Construction Progress"
             elif any(word in text for word in ["land", "property", "plot"]):
-                project["request_type"] = "Property Verification"
+                project["request_type"] = "Land and Property"
         supplied_counties = []
         for site in source.get("customer_sites") or []:
             try:
@@ -164,9 +164,9 @@ def project_plan(source):
         if supplied_counties:
             project["county"] = ", ".join(supplied_counties)
         project["request_type"] = project["request_type"] or {
-            "land_property_check": "Property Verification", "construction_progress": "Construction Progress",
-            "business_asset_check": "Business / Merchant Verification",
-        }.get(source.category, "General Site Visit")
+            "land_property_check": "Land and Property", "construction_progress": "Construction Progress",
+            "business_asset_check": "Business and Asset",
+        }.get(source.category, "Custom Ground Verification")
         project["review"] = int(not project["county"] or not project["evidence"] or project["scope_status"] == "scope_confirmation")
     preference = source.get("deadline_preference")
     deadline = source.get("deadline_date") if preference == "specific" else None
@@ -203,6 +203,8 @@ def fill_field_request(target, source, plan):
         frappe.throw("An existing assignment cannot be split automatically. Review its project scope first.")
     target.project_number = selected["number"]
     target.project_title = selected["title"]
+    from fieldpulse.task_briefs import CATEGORIES
+    target.service_category = next((key for key, label in CATEGORIES.items() if label == selected['request_type']), 'custom_ground_verification')
     target.project_id = selected["id"]
     target.project_key = source.name + ":" + selected["id"]
     target.county = selected["county"]
@@ -308,6 +310,10 @@ def map_task(doc, method=None):
         doc.evidence_requirements = request.evidence_requirements
         doc.priority = request.priority
         doc.task_brief = request.field_brief
+        if doc.get('task_brief_version'):
+            pinned = json.loads(doc.task_brief_snapshot)
+            doc.project_title = pinned['brief']['title']
+            doc.task_brief = pinned['brief']['objective']
         if not doc.due_at and request.deadline:
             doc.due_at = str(request.deadline)[:10] + " 23:59:59"
         map_task_navigation(doc, request)
@@ -324,6 +330,9 @@ def rollup_tasks(doc, method=None):
             status = "Assigned"
             if all(task.status == "Approved" for task in tasks):
                 status = "Completed"
+                if request.get('approved_task_brief'):
+                    from fieldpulse.task_brief_workflow import coverage_ready
+                    if not coverage_ready([request.name]): status = 'In Progress'
             elif any(task.status in ["In Progress", "Submitted", "Rejected", "Approved", "Awaiting authorization"] for task in tasks):
                 status = "In Progress"
             if request.status != status:
@@ -345,6 +354,7 @@ def sync_request_status(source):
 @frappe.whitelist(methods=["POST"])
 def assign_project_scouts(field_request, assignments):
     name = field_request
+    frappe.db.sql('SELECT name FROM `tabField Request` WHERE name=%s FOR UPDATE', [name])
     request = frappe.get_doc("Field Request", name)
     request.check_permission("write")
     if not frappe.has_permission("Field Task", "create"):
@@ -361,6 +371,23 @@ def assign_project_scouts(field_request, assignments):
         frappe.throw("Scout assignments must be a JSON array of objects.")
     if not assignments or len(assignments) > 20:
         frappe.throw("Choose between one and twenty scout assignments.")
+    from fieldpulse.task_briefs import validate_brief, assigned_brief
+    if not request.get('approved_task_brief'):
+        frappe.throw('Approve the Task Brief before assigning scouts')
+    approved = frappe.get_doc('DD Task Brief', request.approved_task_brief)
+    content = validate_brief(approved.content_json)
+    coverage = set()
+    for task in frappe.get_all('Field Task', filters={'field_request': name,
+            'status': ['in', ['Assigned', 'Accepted', 'In Progress', 'Submitted', 'Approved']]},
+            fields=['task_brief_version', 'assigned_check_ids']):
+        if task.get('task_brief_version') == approved.name:
+            coverage.update(json.loads(task.get('assigned_check_ids') or '[]'))
+    for allocation in assignments:
+        selected = allocation.get('check_ids') or []
+        assigned_brief(content, selected)
+        coverage.update(selected)
+    if not {check['id'] for check in content['checks'] if check['required']} <= coverage:
+        frappe.throw('Allocate every required field check to at least one scout')
     seen = []
     created = []
     for assignment in assignments:
@@ -372,11 +399,12 @@ def assign_project_scouts(field_request, assignments):
         profile.check_permission("read")
         existing = frappe.db.get_value("Field Task", {"field_request": name, "scout_profile": scout, "status": ["not in", ["Cancelled", "Approved"]]}, "name")
         if existing:
+            previous = frappe.get_doc('Field Task', existing)
+            if previous.get('task_brief_version') != approved.name or json.loads(previous.get('assigned_check_ids') or '[]') != assignment.get('check_ids'):
+                frappe.throw('This scout already has a different allocation. Review it before creating another task.')
             created.append(existing)
         else:
-            task = frappe.get_doc({"doctype": "Field Task", "field_request": name, "scout_profile": scout, "status": "Assigned", "assigned_at": frappe.utils.now(), "location": assignment.get("location"), "questionnaire": assignment.get("questionnaire")})
-            if task.questionnaire:
-                task.questionnaire_version = frappe.db.get_value("FP Questionnaire", task.questionnaire, "version")
+            task = frappe.get_doc({"doctype": "Field Task", "field_request": name, "scout_profile": scout, "status": "Assigned", "assigned_at": frappe.utils.now(), "location": assignment.get("location"), "assigned_check_ids": json.dumps(assignment.get('check_ids') or [])})
             task.insert()
             created.append(task.name)
     request = frappe.get_doc("Field Request", name)

@@ -28,25 +28,32 @@ def _mobile_capabilities():
     # Increment the contract only for changes that require a coordinated mobile release.
     return {"contract": 1, "protocol_version": 2, "visit_workflow_version": 2,
             "rework_version": 2, "questionnaire_editor_version": 1,
-            "authoritative_assignments": True, "resumable_submission": True}
+            "authoritative_assignments": True, "resumable_submission": True, "task_brief_version": 1}
 
 
 @frappe.whitelist()
-def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version=0, rework_version=0, questionnaire_editor_version=0):
+def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version=0, rework_version=0, questionnaire_editor_version=0, task_brief_version=0):
     """Return tasks (and referenced locations/questionnaires/questions)
     assigned to the calling scout, changed since the given timestamp."""
     scout_profile = _get_scout_profile_for_user()
+
+    # Fail before returning an authoritative list that would hide ongoing work.
+    from fieldpulse.task_brief_cutover import open_legacy_tasks
+    if open_legacy_tasks(scout_profile.name):
+        frappe.throw('Task Brief cutover is pending for your existing assignments. Contact your coordinator. Saved work has not been withdrawn or changed.')
 
     frappe.db.set_value("Scout Profile", scout_profile.name, {
         "last_app_activity": now_datetime(), "activity_status": "Active",
     }, update_modified=False)
 
-    filters = {"scout_profile": scout_profile.name}
+    filters = {"scout_profile": scout_profile.name, "task_brief_version": ["is", "set"]}
     if since:
         filters["modified"] = [">", since]
 
     server_time = now_datetime().isoformat()
     tasks = frappe.get_all("Field Task", filters=filters, fields=["*"])
+    if int(task_brief_version or 0) < 1 and any(task.get('task_brief_version') for task in tasks):
+        frappe.throw('Update Ground Scouts to open the approved Task Briefs. Saved work remains on this device.')
     if int(visit_workflow_version or 0) < 2 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('visit_workflow_version') == 2 for task in tasks):
         frappe.throw('Update the app to use the verified-arrival visit workflow. Saved work remains on this device.')
     if int(protocol_version or 1) < 2 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('protocol_version') == 2 for task in tasks):
@@ -62,32 +69,18 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
         for field in ("due_at", "assigned_at", "creation", "created_at"):
             if task.get(field):
                 task[field] = site_datetime_iso(task[field])
-        from fieldpulse.scout_rework import revision_payload
-        task['rework_draft'] = revision_payload(task)
+        if task.get('task_brief_version'):
+            from fieldpulse.task_brief_workflow import revision_payload
+            task['brief_revision'] = revision_payload(task)
 
     location_names = list({t["location"] for t in tasks if t.get("location")})
-    questionnaire_names = list({t["questionnaire"] for t in tasks if t.get("questionnaire")})
-
     locations = (
         frappe.get_all("FP Location", filters={"name": ["in", location_names]}, fields=["*"])
         if location_names else []
     )
-    questionnaires = (
-        frappe.get_all("FP Questionnaire", filters={"name": ["in", questionnaire_names]}, fields=["*"])
-        if questionnaire_names else []
-    )
-
-    questions = []
-    options = []
-    if questionnaire_names:
-        questions = frappe.get_all(
-            "FP Question", filters={"questionnaire": ["in", questionnaire_names]}, fields=["*"]
-        )
-        question_names = [q["name"] for q in questions]
-        if question_names:
-            options = frappe.get_all(
-                "FP Question Option", filters={"question": ["in", question_names]}, fields=["*"]
-            )
+    # Empty legacy envelopes allow queued historical data to remain local without
+    # redistributing questionnaire templates or predefined questions.
+    questionnaires, questions, options = [], [], []
 
     # Older mobile builds pull with GET, so explicitly persist the activity stamp.
     frappe.db.commit()
@@ -105,164 +98,6 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
         "question_options": options,
         "server_time": server_time,
     }
-
-
-@frappe.whitelist(methods=["POST"])
-def sync_push_responses(task_responses=None, question_responses=None):
-    """Accept a batch of Task Response / Question Response records.
-    Each item must include a client_uuid. Idempotent: retried UUIDs
-    return the existing record instead of creating a duplicate."""
-    if isinstance(task_responses, str):
-        task_responses = frappe.parse_json(task_responses)
-    if isinstance(question_responses, str):
-        question_responses = frappe.parse_json(question_responses)
-
-    task_responses = task_responses or []
-    question_responses = question_responses or []
-
-    accepted = []
-    rejected = []
-
-    for item in task_responses:
-        frappe.db.savepoint("sync_item")
-        try:
-            accepted.append(_upsert_task_response(item))
-        except Exception as e:
-            frappe.db.rollback(save_point="sync_item")
-            rejected.append({"client_uuid": item.get("client_uuid"), "errors": [str(e)]})
-
-    for item in question_responses:
-        frappe.db.savepoint("sync_item")
-        try:
-            accepted.append(_upsert_question_response(item))
-        except Exception as e:
-            frappe.db.rollback(save_point="sync_item")
-            rejected.append({"client_uuid": item.get("client_uuid"), "errors": [str(e)]})
-
-    frappe.db.commit()
-    return {"accepted": accepted, "rejected": rejected}
-
-
-def _upsert_task_response(item):
-    client_uuid = item.get("client_uuid")
-    if not client_uuid:
-        frappe.throw("Missing client_uuid")
-
-    scout_profile = item.get("scout_profile") or item.get("agent")
-    current_scout = _get_scout_profile_for_user()
-    if not scout_profile:
-        scout_profile = current_scout.name
-    if scout_profile != current_scout.name:
-        frappe.throw("Task responses can only be submitted by the assigned scout")
-
-    field_task = frappe.get_doc("Field Task", item.get("task"))
-    visit_snapshot = frappe.parse_json(getattr(field_task, 'client_request_snapshot', None) or '{}') or {}
-    if visit_snapshot.get('visit_workflow_version') == 2 and item.get('visit_workflow_version') != 2:
-        frappe.throw('This assignment requires the verified-arrival visit workflow')
-    if (frappe.parse_json(getattr(field_task, 'client_request_snapshot', None) or '{}') or {}).get('protocol_version') == 2 and item.get('protocol_version') != 2:
-        frappe.throw('This assignment requires the version 2 mobile questionnaire protocol')
-    if field_task.scout_profile != current_scout.name:
-        frappe.throw("This Field Task is not assigned to the current scout")
-
-    if field_task.status == 'Awaiting authorization':
-        frappe.throw('This revisit is awaiting authorization; do not start or submit fieldwork', frappe.PermissionError)
-    if item.get("location") != field_task.location:
-        frappe.throw("Response location must match the assigned task", frappe.PermissionError)
-    if item.get("status", "Draft") not in ("Draft", "Submitted"):
-        frappe.throw("Scouts may only save drafts or submit responses", frappe.PermissionError)
-
-    if getattr(field_task, 'rework_response', None):
-        expected = frappe.db.get_value('FP Task Response', field_task.rework_response, 'client_uuid')
-        if client_uuid != expected:
-            frappe.throw('Sync and open the coordinator-created rework revision before resubmitting')
-    existing = frappe.db.exists("FP Task Response", {"client_uuid": client_uuid})
-    if existing:
-        doc = frappe.get_doc("FP Task Response", existing)
-        if doc.task != field_task.name or doc.agent != current_scout.name:
-            frappe.throw("Response ID belongs to another task or scout", frappe.PermissionError)
-        if doc.status == "Submitted":
-            if item.get("status") == "Submitted":
-                return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists", "response_status": "Submitted"}
-            return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists", "response_status": "Submitted"}
-        incoming_ts = mobile_datetime(item.get("client_updated_at"))
-        if item.get("status") != "Submitted" and incoming_ts and doc.client_updated_at and incoming_ts <= mobile_datetime(doc.client_updated_at):
-            return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
-    else:
-        doc = frappe.new_doc("FP Task Response")
-        doc.client_uuid = client_uuid
-
-    if field_task.status in ("Cancelled", "Approved", "Submitted", "Awaiting authorization"):
-        frappe.throw("This Field Task is no longer open for responses", frappe.PermissionError)
-
-    for field in (
-        "task", "location", "status", "started_at", "submitted_at",
-        "client_updated_at", "device_id", "app_version",
-        "latitude", "longitude", "accuracy_m", "arrival_check_json", "final_review_json",
-    ):
-        if field in item:
-            doc.set(field, mobile_datetime(item[field]) if field in ("started_at", "submitted_at", "client_updated_at") else item[field])
-    doc.agent = scout_profile
-
-    _apply_geofence_check(doc)
-    doc.save(ignore_permissions=True)
-    return {"client_uuid": client_uuid, "server_id": doc.name, "status": "accepted"}
-
-
-def _apply_geofence_check(doc):
-    if not doc.location or doc.latitude is None or doc.longitude is None:
-        doc.geofence_status = "Invalid GPS"
-        return
-
-    location = frappe.get_doc("FP Location", doc.location)
-    distance = haversine_distance_m(doc.latitude, doc.longitude, location.latitude, location.longitude)
-    doc.geofence_distance_m = distance
-    doc.geofence_status = "Inside" if distance <= effective_geofence_radius(location.geofence_radius_m) else "Outside"
-
-
-def _upsert_question_response(item):
-    client_uuid = item.get("client_uuid")
-    if not client_uuid:
-        frappe.throw("Missing client_uuid")
-
-    parent = frappe.get_doc("FP Task Response", item.get("task_response"))
-    current_scout = _get_scout_profile_for_user()
-    task = frappe.get_doc("Field Task", parent.task)
-    if parent.agent != current_scout.name or task.scout_profile != current_scout.name:
-        frappe.throw("This response does not belong to the current scout", frappe.PermissionError)
-    if parent.status != "Draft" or task.status in ("Cancelled", "Approved", "Submitted", "Awaiting authorization"):
-        frappe.throw("Only open draft responses can be edited", frappe.PermissionError)
-    question = frappe.get_doc("FP Question", item.get("question"))
-    if question.questionnaire != task.questionnaire or item.get("question_type") != question.question_type:
-        frappe.throw("Question must belong to the assigned questionnaire and match its type", frappe.PermissionError)
-
-    if field_scope := task.get("questionnaire_scope"):
-        if question.question_code not in frappe.parse_json(field_scope):
-            frappe.throw("This check was not selected before dispatch", frappe.PermissionError)
-    frappe.db.sql("SELECT name FROM `tabFP Task Response` WHERE name=%s FOR UPDATE", [parent.name])
-    existing = frappe.db.exists("FP Question Response", {"client_uuid": client_uuid})
-    if existing:
-        doc = frappe.get_doc("FP Question Response", existing)
-        if doc.task_response != parent.name or doc.question != question.name:
-            frappe.throw("Answer ID belongs to another response or question", frappe.PermissionError)
-        incoming_ts = mobile_datetime(item.get("client_updated_at"))
-        if incoming_ts and doc.client_updated_at and incoming_ts <= mobile_datetime(doc.client_updated_at):
-            return {"client_uuid": client_uuid, "server_id": doc.name, "status": "already_exists"}
-    else:
-        if frappe.db.exists("FP Question Response", {"task_response": parent.name, "question": question.name}):
-            frappe.throw("This question already has an answer in this response")
-        doc = frappe.new_doc("FP Question Response")
-        doc.client_uuid = client_uuid
-
-    for field in (
-        "task_response", "question", "question_code", "question_type",
-        "answer_text", "answer_json", "client_updated_at",
-    ):
-        if field in item:
-            doc.set(field, mobile_datetime(item[field]) if field in ("started_at", "submitted_at", "client_updated_at") else item[field])
-
-    doc.question_code = question.question_code
-    doc.save(ignore_permissions=True)
-    return {"client_uuid": client_uuid, "server_id": doc.name, "status": "accepted"}
 
 
 @frappe.whitelist(methods=["POST"])

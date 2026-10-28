@@ -142,26 +142,6 @@ class ProtocolTests(unittest.TestCase):
         self.assertTrue(any('Arrival location' in e for e in result['reasons']))
 
 
-class CatalogueTests(unittest.TestCase):
-    def setUp(self):
-        self.api = MagicMock()
-        self.module = load('scout_templates_test', 'fieldpulse/scout_templates.py', {'frappe': self.api})
-
-    def test_source_has_15_services_75_exact_question_codes_and_one_mandatory_media_question_each(self):
-        data = self.module.catalogue()
-        self.assertEqual(len(data['services']), 15)
-        self.assertEqual(len(data['source_sha256']), 64)
-        for index, service in enumerate(data['services'], 1):
-            self.assertEqual([q['code'] for q in service['questions']], [f'{index}.{i}' for i in range(1, 6)])
-            self.assertEqual(sum(q['mandatory_evidence'] for q in service['questions']), 1)
-        self.assertEqual(data['services'][0]['questions'][3]['label'], 'What is on the plot and how is it being used?')
-
-    def test_service_mapping_is_explicit_and_ambiguity_requires_review(self):
-        for text, expected in [('Check my land plot', 'land'), ('Inspect the vehicle', 'vehicle'), ('Merchant survey', 'merchant_survey'), ('University enrolment', 'adult_enrolment')]:
-            self.assertEqual(self.module.infer_service(text), expected)
-        self.assertIsNone(self.module.infer_service('Inspect the plot and car'))
-        self.assertIsNone(self.module.infer_service('School enrolment'))
-        self.assertEqual(self.module.infer_service('Plot with no construction activity', 'Property Verification'), 'land')
 
 
 class PermissionTests(unittest.TestCase):

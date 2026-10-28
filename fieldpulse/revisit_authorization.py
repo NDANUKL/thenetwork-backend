@@ -76,7 +76,8 @@ def lock_request(name):
     return doc
 
 
-@frappe.whitelist(methods=['POST'])
+# Historical authorization implementation retained for audit, not a public API.
+# New visits are explicitly allocated from an approved Task Brief.
 def act(revisit, action, notes=None):
     from fieldpulse.scout_submissions import require_reviewer
     require_reviewer()

@@ -1,0 +1,36 @@
+# Task Brief source transition ? 28 October 2026
+
+This describes local source, not a verified deployment. The controlling cross-repository policy is [production-script-ownership.md](production-script-ownership.md). The live verification dated 26 October predates this feature. No retired DD scripts or handover migrations were changed or run.
+
+## Implemented flow
+
+- The website initial assessment generates a schema-validated, request-specific Task Brief for each project. Only four service categories exist; supported/needs_confirmation/out_of_scope are separate assessment statuses. Unsafe or unresolved projects have no actionable checks and require review. Assessment proofs bind the structured brief to submission. No subsequent submission, evidence review or report step invokes AI.
+- Native `DD Task Brief` records store immutable approved versions and hashes. Coordinators edit/add/remove/reorder checks, response choices, evidence counts, scope and instructions. Approval requires resolved review flags. Every allocation explicitly selects its scout's check IDs; required checks must be covered across allocations. The existing verified 50% deposit gate and simplified assignment dialog remain.
+- Assignments pin the approved content, version, destination, proximity radius and accuracy threshold. New dispatch never consults a questionnaire or service-to-question map. Template publishers, selectors, project questionnaire editors and the three runtime service catalogues have been removed. Historical submission readers remain for existing reports; disabled recovery scripts remain untouched.
+- Mobile assignment routes open `TaskBriefScreen`. SQLite version 14 adds independent brief drafts and archived revisions. Arrival verification unlocks checks; an access issue records the actual available GPS without forcing an unsafe approach. Text, selections, per-check Unable to Verify explanations and optional observations save locally. Camera files retain original capture metadata and are queued for authenticated upload. Missing, inaccurate or stale GPS samples do not count toward required evidence.
+- Final review displays checks, answers, evidence and unmet requirements. Only the accuracy/evidence declaration is manual. Backend validation reloads confirmed private-storage evidence and independently checks ownership, checks, counts, arrival, capture metadata and declaration. Completion is never evidence verification.
+- Coordinator decisions are Approve, Reject, Request clarification or Request additional evidence. Clarification creates an auditable answer revision retaining original captures. Additional evidence retains the submission and closes its allocation; the coordinator assigns a new visit/check subset from the project. Fresh captures cannot be added to an answer-only correction.
+- Reports are assembled deterministically from approved submissions. Unable to Verify remains Not verified with explicit limitations. Required-check coverage is checked again before report preparation. Existing coordinator report approval and customer delivery/payment controls remain.
+- Recurring plans snapshot an approved brief. Each occurrence gets its own draft and must be approved and dispatched again; approvals, visits and payments are not copied. Historical questionnaire-based recurring plans require a new plan rather than silently carrying old templates forward.
+
+## Files and contracts
+
+Backend: `task_briefs.py`, `task_brief_workflow.py`, standard DD Task Brief, Field Request/Task/Evidence and FP Task Response schemas, native assignment/upload/review/report/recurring modules. Shared contract: `configuration/task-brief-v1.schema.json`, `tests/fixtures/task-brief-v1.json`.
+
+Website: `src/lib/ai.js`, task-brief schema/runtime, assessment safety/state/proof handling and request submission route. Mobile: `services/taskBriefs.ts`, `components/TaskBriefScreen.tsx`, assignment routes, SQLite/repository/sync/camera recovery and evidence preview.
+
+`DiasporaDesk/backend-review` is not an active backend and was not modified.
+
+## Cutover and remaining verification
+
+1. Back up staging, deploy native source and run ordinary `bench migrate`. The new `task_brief_categories` patch converts old operational category labels and separates eligibility flags; it does not rerun handover or alter payments/recovery scripts. Frappe retains old physical columns and historical questionnaire records for audit, without using them for new dispatch.
+2. Run `fieldpulse.task_brief_cutover.inventory` against the pre-deployment site and recover unsent work from affected devices before rollout. Explicitly finish/cancel or rebrief/reassign legacy allocations. The ordinary migration and scout sync guards block unresolved open legacy tasks; mobile does not infer withdrawal for omitted historical assignments. No assignment is converted automatically. See [corrective changes and verification](task-brief-fixes-2026-10-28.md).
+3. Deploy matching website/mobile builds; verify initial generation, Desk permissions and drag reorder, multi-scout coverage, verified-deposit gating, capture/upload/retry, correction and new-visit flows, and report approval on backed-up staging.
+4. Run physical Android/iOS tests: permission denial/recovery, inaccurate GPS, unsafe access, airplane-mode capture, restart, account switch, upload interruption, lost acknowledgement and restored connectivity. Local mocks/types/builds do not establish real-device or live behavior.
+5. Mobile source cleanup is complete following explicit user approval: obsolete renderers, catalogue tooling and related fixtures/tests were deleted. See the [completed mobile retirement manifest](task-brief-mobile-retirement.md). Historical saved responses/files and shared capture/storage components remain intact.
+
+Corrective storage retirement: SQLite v15 fresh installations omit questionnaire, question, option, question-response, legacy task-response and upload-queue tables. Existing installations retain these tables and files for recovery. Runtime queue, task progress, sync and camera recovery use Task Brief drafts. Historical mutation APIs are removed and questionnaire DocTypes are read-only. Historical report readers are retained for existing records, not new workflow dispatch.
+
+## Local validation
+
+Run backend `python -m unittest discover -s tests -p 'test_*.py'` with existing test dependencies; website `node --test evals/*.test.mjs` and Next production build; mobile `tsc --noEmit` and `node --test tests/*.test.cjs tests/*.test.mjs`. Contract tests exercise category independence, immutable versions, ownership, GPS and capture freshness, missing/duplicate media, inability/access exceptions, declarations and required-check coverage. SQLite tests exercise restart persistence and lost-acknowledgement upload retries without changing capture metadata.

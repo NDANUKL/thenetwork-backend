@@ -128,13 +128,13 @@ class RuntimeTests(unittest.TestCase):
         doc=Record(recurring_plan=None,recurring_occurrence=None,is_new=lambda:False,get_doc_before_save=lambda:previous)
         with self.assertRaisesRegex(ValueError,'provenance'):self.m.guard_request(doc)
 
-    def test_prepare_reuses_only_scope_and_questions_in_new_request(self):
-        from fieldpulse.project_questionnaires import fingerprint
-        checks=[Record(check_key='roof',label='Has roofing started?',answer_format='Written answer')]
-        target=Record(name='FR-NEW',project_id='project-1',scout_checks=checks,scout_checks_confirmed=1,
-            scout_service='Construction progress',scout_questionnaire='DD-CON-v1',field_brief='Inspect the roof',evidence_requirements='Roof photos',save=MagicMock())
+    def test_prepare_reuses_scope_as_an_unapproved_brief_in_new_request(self):
+        from fieldpulse.task_briefs import brief_digest
+        content=json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())['brief']
+        target=Record(name='FR-NEW',project_id='project-1',field_brief='Inspect the roof',
+            evidence_requirements='Roof photos',save=MagicMock())
         project={key:target.get(key) for key in self.m.CONTEXT}
-        project.update(project_id='project-1',checks=checks,fingerprint=fingerprint(target))
+        project.update(project_id='project-1',task_brief=content,fingerprint=brief_digest(content))
         source=dict(original_brief='Inspect my roofing',summary='Roofing',customer_sites=[dict(site_label='Site 1',access_notes='Gate')])
         snapshot=dict(source=source,projects=[project])
         self.plan.scope_snapshot=json.dumps(snapshot);self.plan.scope_hash=self.m.digest(snapshot)
@@ -147,7 +147,7 @@ class RuntimeTests(unittest.TestCase):
             if dt=='Field Request':return target
             return self.plan
         self.f.get_doc.side_effect=get_doc
-        self.f.get_all.return_value=['FR-NEW'];self.f.db.get_value.return_value=True
+        self.f.get_all.side_effect=lambda dt,**kw:['FR-NEW'] if dt=='Field Request' else [];self.f.db.get_value.return_value=True
         with patch.dict(sys.modules,{'fieldpulse.beta_access':types.SimpleNamespace(require_access=lambda doc:None)}):
             self.assertEqual(self.m.prepare_occurrence(self.plan,self.visit),'DD-NEW')
         self.assertEqual(self.visit.status,'Prepared')
@@ -157,10 +157,13 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(created[0]['recurring_plan'],'plan-1')
         self.assertNotIn('payments',created[0]);self.assertNotIn('report',created[0])
         self.assertEqual(created[0]['customer_sites'][0]['confirmation_status'],'Needs confirmation')
-        self.assertEqual(target.scout_checks[0]['label'],'Has roofing started?')
+        self.assertEqual(created[1]['doctype'],'DD Task Brief')
+        self.assertEqual(created[1]['status'],'Draft')
+        self.assertEqual(json.loads(created[1]['content_json']),content)
+        self.assertFalse(target.approved_task_brief)
         self.assertEqual(source['customer_sites'][0]['access_notes'],'Gate')
         self.assertEqual(self.m.prepare_occurrence(self.plan,self.visit),'DD-NEW')
-        self.assertEqual(len(created),1)
+        self.assertEqual(len(created),2)
 
     def test_business_errors_rollback_before_becoming_customer_messages(self):
         self.m.account=lambda:'account-1'

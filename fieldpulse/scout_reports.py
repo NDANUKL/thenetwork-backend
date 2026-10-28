@@ -8,8 +8,11 @@ from fieldpulse.scout_submissions import require_reviewer, submission_detail
 
 def prepare_if_ready(reference):
     projects = frappe.get_all('Field Request', filters={'diaspora_request': reference, 'status': ['!=', 'Cancelled']}, pluck='name')
-    tasks = frappe.get_all('Field Task', filters={'field_request': ['in', projects], 'status': ['!=', 'Cancelled']}, fields=['name', 'status']) if projects else []
+    tasks = frappe.get_all('Field Task', filters={'field_request': ['in', projects], 'status': ['!=', 'Cancelled']}, fields=['name', 'status', 'task_brief_version']) if projects else []
     if not tasks or any(task.status != 'Approved' for task in tasks): return None
+    if any(getattr(task, 'task_brief_version', None) for task in tasks):
+        from fieldpulse.task_brief_workflow import coverage_ready
+        if not coverage_ready(projects): return None
     return prepare_report(reference)['report']
 
 
@@ -71,7 +74,7 @@ def selected_evidence(doc):
         reference = frappe.db.get_value("Field Request", task.field_request, "diaspora_request") if task.field_request else None
         if reference != doc.request or task.status != "Approved" or evidence.upload_status != "Uploaded" or evidence.evidence_type not in {"Photo", "Video"}:
             frappe.throw("Client evidence must come from this request's approved scout work")
-        parent = frappe.db.get_value("FP Question Response", evidence.question_response, "task_response")
+        parent = evidence.get('task_response') or frappe.db.get_value("FP Question Response", evidence.question_response, "task_response")
         from fieldpulse.scout_lineage import evidence_origin_allowed
         approved_sources = [item.get('response') for item in json.loads(doc.get('review_sources_json') or '[]')]
         parent = next((source for source in approved_sources if source and evidence_origin_allowed(source, parent, frappe.get_doc)), parent)

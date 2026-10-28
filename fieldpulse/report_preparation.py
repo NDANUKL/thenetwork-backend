@@ -7,8 +7,11 @@ from fieldpulse.customer_coverage import build_check, decode, answer_present
 def prepare_content(reference):
     from fieldpulse.scout_submissions import submission_detail
     projects = frappe.get_all('Field Request', filters={'diaspora_request': reference, 'status': ['!=', 'Cancelled']}, pluck='name')
-    tasks = frappe.get_all('Field Task', filters={'field_request': ['in', projects], 'status': ['!=', 'Cancelled']}, fields=['name', 'status', 'field_request']) if projects else []
+    tasks = frappe.get_all('Field Task', filters={'field_request': ['in', projects], 'status': ['!=', 'Cancelled']}, fields=['name', 'status', 'field_request', 'task_brief_version']) if projects else []
     if not tasks or any(task.status != 'Approved' for task in tasks): frappe.throw('All active scout tasks must be approved')
+    if any(getattr(task, 'task_brief_version', None) for task in tasks):
+        from fieldpulse.task_brief_workflow import coverage_ready
+        if not coverage_ready(projects): frappe.throw('Approve allocations covering every required Task Brief check')
     rows, sources, visits, scopes, media = [], [], [], [], {}
     complete = True
     for item in tasks:
@@ -18,6 +21,37 @@ def prepare_content(reference):
         if not response: frappe.throw('A task is missing its reviewed, approved submission')
         detail = submission_detail(response)
         sources.append(dict(task=task.name, response=response))
+        if detail.get('brief'):
+            pinned, submission = detail['brief'], detail['submission']
+            scopes.append(dict(project=project.name, title=pinned['brief']['title'], reference=pinned['brief_id'],
+                version=pinned['version'], scope=pinned['brief']['scope'], retrospective=False))
+            site, arrival = pinned['site'], submission.get('arrival') or {}
+            visits.append(dict(task=task.name, site=site.get('label'), address=site.get('address'),
+                date=arrival.get('captured_at'), arrival='Inside', methods='Scout observations and coordinator-reviewed evidence.'))
+            for check in pinned['brief']['checks']:
+                if check['id'] not in pinned['check_ids']: continue
+                answer = submission['answers'].get(check['id']) or {}
+                observed = answer.get('status') == 'observed'
+                # An inability retracts any earlier observation. Keep the original
+                # value in the source response for audit, never as a report finding.
+                value = answer.get('value') if observed else None
+                findings = ', '.join(value) if isinstance(value, list) else str(value or '')
+                if not findings:
+                    findings = 'See the recorded field evidence.' if observed else answer.get('explanation') or 'No observation recorded.'
+                gaps = [] if observed else [answer.get('explanation') or 'This check was not verified.']
+                evidence_ids = [item.name for item in detail['evidence'] if item.field_check_id == check['id']]
+                rows.append(dict(check_id=task.name+':'+check['id'], project=project.name, task=task.name,
+                    customer_question=check['instruction'], findings=findings,
+                    assessment='Supported finding' if observed else 'Not verified', basis='Directly observed' if observed else 'Not recorded',
+                    basis_detail='', limitations='\n'.join(gaps), limitation_acknowledged=0,
+                    answer_refs_json=json.dumps([response+':'+check['id']]), evidence_ids_json=json.dumps(evidence_ids),
+                    recorded_gaps_json=json.dumps(gaps)))
+            if submission.get('additional_observations'):
+                visits[-1]['methods'] += '\nAdditional observations: '+submission['additional_observations']
+            for evidence in detail['evidence']:
+                media[evidence.name] = dict(evidence=evidence.name, evidence_type=evidence.evidence_type,
+                    caption=evidence.caption or next((check['instruction'] for check in pinned['brief']['checks'] if check['id']==evidence.field_check_id), ''), include_client=0)
+            continue
         assigned = detail.get('client_request') or decode(task.get('client_request_snapshot'), {}) or {}
         review = assigned.get('questionnaire_review') or {}
         answers = {a.question_code: decode(a.answer_json, {}) for a in detail.get('answers') or []}
@@ -60,7 +94,7 @@ def prepare_content(reference):
                     caption=evidence.caption or '', include_client=0)
     supported = sum(row['assessment'] == 'Supported finding' for row in rows)
     pending = len(rows) - supported
-    summary = f'{len(tasks)} approved scout submission(s) cover {len(scopes)} recorded site assignment(s). Of {len(rows)} questionnaire findings, {supported} have recorded supporting findings and {pending} require a limitation or source-basis review.'
+    summary = f'{len(tasks)} approved scout submission(s) cover {len(scopes)} recorded site assignment(s). Of {len(rows)} field checks, {supported} have recorded supporting findings and {pending} require a limitation or source-basis review.'
     # Add actual findings, rather than a generic introduction or inferred conclusions.
     summary += '\n\n' + '\n\n'.join(row['customer_question'] + '\n' + (row['findings'][:700] if row['assessment'] == 'Supported finding' else 'Not verified / requires review: ' + (row['limitations'] or 'Source basis not recorded')) for row in rows[:4])
     return dict(executive_summary=summary, findings='\n\n'.join(row['customer_question'] + '\n' + row['findings'] for row in rows),

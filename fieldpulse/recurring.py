@@ -30,11 +30,11 @@ def api(fn):
 PLAN = 'DD Recurring Plan'
 OCCURRENCE = 'DD Recurring Occurrence'
 SOURCE_FIELDS = ('full_name','email','original_brief','summary','category','category_label',
-    'classification_confidence','suggested_scouts','estimated_days','recommendation_reason',
+    'assessment_status','classification_confidence','suggested_scouts','estimated_days','recommendation_reason',
     'coverage_note','needs_human_review','project_details','project_contract_version')
 SITE_FIELDS = ('site_label','location_mode','county','area','map_url','latitude','longitude',
     'pin_type','contact_name','contact_phone','access_notes','project_ids')
-CONTEXT = ('scout_service','scout_questionnaire','scout_authorisation','scout_reference_material',
+CONTEXT = ('scout_authorisation','scout_reference_material',
     'scout_contact_access','scout_restrictions','field_brief','evidence_requirements')
 
 
@@ -85,8 +85,8 @@ def owned_plan(name, customer=None):
 
 def source_snapshot(source):
     from fieldpulse.project_alignment import project_plan
-    from fieldpulse.project_questionnaires import EDIT_FIELDS, fingerprint
-    if source.status == 'Rejected' or source.category in ('out_of_scope','needs_confirmation'):
+    from fieldpulse.task_briefs import validate_brief, brief_digest
+    if source.status == 'Rejected' or (source.get('assessment_status') or source.category) in ('out_of_scope','needs_confirmation'):
         reject('This request needs an agreed supported scope before recurring checks can be set up')
     quote = frappe.db.get_value('DD Quotation', {'request': source.name, 'status': 'Accepted'}, ['name','version'], as_dict=True)
     if not quote: reject('Accept the source request quotation before setting up recurring checks')
@@ -97,19 +97,20 @@ def source_snapshot(source):
     operational_sites = []
     for item in plan['projects']:
         names = frappe.get_all('Field Request', filters={'diaspora_request': source.name, 'project_id': item['id'], 'status': ['!=','Cancelled']}, pluck='name')
-        if len(names) != 1: reject('Every project needs one confirmed questionnaire')
+        if len(names) != 1: reject('Every project needs one approved Task Brief')
         doc = frappe.get_doc('Field Request', names[0])
-        if not doc.get('scout_checks_confirmed') or not doc.get('scout_questionnaire') or not doc.get('scout_checks'):
-            reject('The coordinator must confirm every project questionnaire first')
+        if not doc.get('approved_task_brief'):
+            reject('The coordinator must approve every project Task Brief first')
+        brief = frappe.get_doc('DD Task Brief', doc.approved_task_brief)
+        content = validate_brief(brief.content_json)
+        if brief.project != doc.name or brief.status != 'Approved' or brief_digest(content) != brief.content_hash:
+            reject('The approved Task Brief is inconsistent')
         if not doc.get('project_locations') or any(s.confirmation_status != 'Confirmed for dispatch' for s in doc.project_locations):
             reject('Confirm project locations before setting up recurring checks')
-        if frappe.db.get_value('FP Questionnaire', doc.scout_questionnaire, 'status') != 'Published':
-            reject('The confirmed questionnaire must be published')
         operational_sites.extend(doc.project_locations)
         projects.append(dict(project_id=item['id'], **{key: doc.get(key) for key in CONTEXT},
-            checks=[{key: row.get(key) for key in EDIT_FIELDS} for row in doc.scout_checks],
-            fingerprint=fingerprint(doc), reviewed_by=doc.get('scout_checks_reviewed_by'),
-            reviewed_at=str(doc.get('scout_checks_reviewed_at') or '')))
+            task_brief=content, brief_source=brief.name, fingerprint=brief.content_hash,
+            reviewed_by=brief.approved_by, reviewed_at=str(brief.approved_at or '')))
     # Only scope inputs are copied. No task, answer, approval, invoice or payment is reused.
     values = {key: source.get(key) for key in SOURCE_FIELDS}
     sites = snapshot_sites(source.get('customer_sites') or [],operational_sites)
@@ -161,7 +162,7 @@ def eligibility(reference):
     if existing: return {'eligible':False,'reason':'This request already has an open recurring plan.','plan':existing}
     try: snapshot=source_snapshot(source)
     except (RecurringError, frappe.ValidationError):
-        return {'eligible':False,'reason':'Accept the quotation and ask the coordinator to confirm the supported scope, questionnaire and precise locations first.'}
+        return {'eligible':False,'reason':'Accept the quotation and ask the coordinator to confirm the supported scope, Task Brief and precise locations first.'}
     return {'eligible':True,'title':source.summary,'brief':source.original_brief,
         'projects':len(snapshot['projects']),'quote':snapshot['quote']['name']}
 
@@ -324,12 +325,19 @@ def prepare_occurrence(plan, visit):
     if not can_prepare(plan.status,visit,today()): reject('Activate the plan and confirm access within the visit window before preparing it')
     snapshot=json.loads(plan.scope_snapshot)
     if digest(snapshot)!=plan.scope_hash: reject('The approved recurring scope is inconsistent')
+    if any(not p.get('task_brief') for p in snapshot['projects']):
+        reject('This historical recurring scope needs a new Task Brief plan')
     # User identity is read from the account, never accepted from the client payload.
     customer=frappe.get_doc('DD Customer Account',plan.customer_account)
     from fieldpulse.beta_access import require_access
     require_access(customer)
     if not customer.email_verified or not frappe.db.get_value('User',customer.user,'enabled'): reject('The customer account is not active')
     values=json.loads(json.dumps(snapshot['source']))
+    details=json.loads(values.get('project_details') or '[]')
+    for item in details:
+        spec=next((p for p in snapshot['projects'] if p['project_id']==item.get('id')),None)
+        if spec: item['task_brief']=spec['task_brief']
+    values['project_details']=json.dumps(details)
     values.update(doctype='Diaspora Request',status='New',submission_id='recurring:'+visit.name,
         email=customer.user,dd_customer_account=plan.customer_account,
         recurring_plan=plan.name,recurring_occurrence=visit.name,recurring_source=plan.source_request,
@@ -346,13 +354,25 @@ def prepare_occurrence(plan, visit):
         spec=next((p for p in snapshot['projects'] if p['project_id']==target.project_id),None)
         if not spec: reject('Unexpected recurring project identity')
         for key in CONTEXT: target.set(key,spec.get(key))
-        target.set('scout_checks',spec['checks'])
-        target.recurring_plan=plan.name;target.recurring_template=spec['scout_questionnaire']
-        target.scout_checks_confirmed=1
+        target.recurring_plan=plan.name
         with writing(): target.save(ignore_permissions=True)
-        from fieldpulse.project_questionnaires import fingerprint
-        if not target.scout_checks_confirmed or fingerprint(target)!=spec['fingerprint']:
-            reject('The approved questionnaire changed; preparation needs coordinator review')
+        # A new visit gets its own draft and requires a fresh coordinator approval.
+        from fieldpulse.task_briefs import validate_brief, brief_digest
+        content=validate_brief(spec.get('task_brief'))
+        if brief_digest(content)!=spec['fingerprint']:
+            reject('The approved Task Brief changed; preparation needs coordinator review')
+        drafts=frappe.get_all('DD Task Brief',filters={'project':target.name,'status':'Draft'},pluck='name')
+        if drafts:
+            brief=frappe.get_doc('DD Task Brief',drafts[0])
+            if brief_digest(validate_brief(brief.content_json))!=spec['fingerprint']:
+                reject('The new visit draft does not match the approved recurring scope')
+        else:
+            marker=frappe.flags.dd_initial_brief_project
+            frappe.flags.dd_initial_brief_project=target.name
+            try:
+                frappe.get_doc(dict(doctype='DD Task Brief',project=target.name,status='Draft',
+                    content_json=json.dumps(content))).insert(ignore_permissions=True)
+            finally: frappe.flags.dd_initial_brief_project=marker
     visit.request=request.name;visit.status='Prepared'
     record(visit,'Prepared separate request')
     return request.name
@@ -368,18 +388,21 @@ def guard_request(doc, method=None):
 
 def guard_project(doc, method=None):
     previous=doc.get_doc_before_save() if not doc.is_new() else None
-    if previous and previous.get('recurring_plan') and any(doc.get(k)!=previous.get(k) for k in ('recurring_plan','recurring_template')):
-        reject('Recurring questionnaire provenance cannot be changed')
+    if previous and previous.get('recurring_plan') and any(doc.get(k)!=previous.get(k) for k in ('recurring_plan',)):
+        reject('Recurring Task Brief provenance cannot be changed')
     if not doc.get('recurring_plan'): return
     if not previous or not previous.get('recurring_plan'):
         if not frappe.flags.get('dd_recurring_write'): reject('Prepare recurring projects through their plan')
     if frappe.db.get_value('Diaspora Request',doc.diaspora_request,'recurring_plan') != doc.recurring_plan:
         reject('Recurring project ownership does not match its source')
-    from fieldpulse.project_questionnaires import fingerprint
     plan=frappe.get_doc(PLAN,doc.recurring_plan)
     spec=next((p for p in json.loads(plan.scope_snapshot)['projects'] if p['project_id']==doc.project_id),None)
-    if not spec or fingerprint(doc)!=spec['fingerprint']:
-        reject('This visit uses the approved recurring scope. Changes need a newly assessed request')
+    if not spec or not spec.get('task_brief'):
+        reject('This historical recurring scope needs a new Task Brief plan')
+    if doc.get('approved_task_brief'):
+        brief=frappe.get_doc('DD Task Brief',doc.approved_task_brief)
+        if brief.content_hash!=spec['fingerprint']:
+            reject('This visit uses the approved recurring scope. Changes need a newly assessed request')
 
 
 def process_due():

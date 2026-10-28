@@ -25,7 +25,9 @@
     "metadata_origin",
     "location_sampled_at",
     "description",
-    "clarification_required"
+    "clarification_required",
+    "task_response",
+    "field_check_id"
   ],
   "fields": [
     {
@@ -166,6 +168,19 @@
       "fieldname": "clarification_required",
       "label": "Subject needs clarification",
       "fieldtype": "Check"
+    },
+    {
+      "fieldname": "task_response",
+      "label": "Task Brief Submission",
+      "fieldtype": "Link",
+      "options": "FP Task Response",
+      "read_only": 1
+    },
+    {
+      "fieldname": "field_check_id",
+      "label": "Field Check",
+      "fieldtype": "Data",
+      "read_only": 1
     }
   ],
   "index_web_pages_for_search": 1,

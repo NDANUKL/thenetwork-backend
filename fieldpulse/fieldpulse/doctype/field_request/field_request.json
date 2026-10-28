@@ -25,10 +25,6 @@
     "evidence_requirements",
     "project_id",
     "scout_checks_section",
-    "scout_service",
-    "scout_questionnaire",
-    "scout_checks",
-    "scout_checks_confirmed",
     "scout_reference_material",
     "scout_contact_access",
     "scout_authorisation",
@@ -40,10 +36,11 @@
     "customer_checks_confirmed",
     "customer_checks_reviewed_by",
     "customer_checks_reviewed_at",
-    "scout_checks_reviewed_by",
-    "scout_checks_reviewed_at",
     "recurring_plan",
-    "recurring_template"
+    "recurring_template",
+    "approved_task_brief",
+    "service_category",
+    "gps_accuracy_threshold_m"
   ],
   "fields": [
     {
@@ -83,7 +80,7 @@
       "fieldtype": "Select",
       "in_list_view": 1,
       "label": "Request Type",
-      "options": "Property Verification\nConstruction Progress\nSchool Attendance / Enrollment Verification\nClinic / Medical Visit Verification\nBusiness / Merchant Verification\nDocument / Receipt Verification\nGeneral Site Visit"
+      "options": "Land and Property\nConstruction Progress\nBusiness and Asset\nCustom Ground Verification"
     },
     {
       "fieldname": "county",
@@ -337,36 +334,8 @@
     },
     {
       "fieldname": "scout_checks_section",
-      "label": "Scout questionnaire",
+      "label": "Visit context",
       "fieldtype": "Section Break"
-    },
-    {
-      "fieldname": "scout_service",
-      "label": "Scout service",
-      "fieldtype": "Select",
-      "options": "\nLand or plot check\nProperty or building check\nConstruction progress check\nBusiness or shop check\nVehicle check\nEquipment or funded asset check\nAdult student enrolment check\nSchool fee payment confirmation\nAdult student attendance check\nAdult clinic visit verification\nDocument comparison and issuer confirmation\nReceipt confirmation\nPurchase or delivery confirmation\nGeneral site visit\nMerchant survey and field interviews",
-      "description": "The service loads its checklist automatically. Change it only if the agreed work is different."
-    },
-    {
-      "fieldname": "scout_questionnaire",
-      "label": "Service template",
-      "fieldtype": "Link",
-      "options": "FP Questionnaire",
-      "read_only": 1
-    },
-    {
-      "fieldname": "scout_checks",
-      "label": "Scout checklist",
-      "fieldtype": "Table",
-      "options": "DD Scout Check",
-      "description": "Review these questions against the customer request. Use Edit question and evidence in a row to change its wording, items or attachments. Add or remove questions as needed, then tick Checklist reviewed and save."
-    },
-    {
-      "fieldname": "scout_checks_confirmed",
-      "label": "Checklist reviewed",
-      "fieldtype": "Check",
-      "default": "0",
-      "description": "After reviewing the questions, evidence and visit details, tick this box and save. Then use Assign scouts."
     },
     {
       "fieldname": "scout_reference_material",
@@ -447,19 +416,6 @@
       "hidden": 1
     },
     {
-      "fieldname": "scout_checks_reviewed_by",
-      "label": "Questionnaire reviewed by",
-      "fieldtype": "Link",
-      "read_only": 1,
-      "options": "User"
-    },
-    {
-      "fieldname": "scout_checks_reviewed_at",
-      "label": "Questionnaire reviewed at",
-      "fieldtype": "Datetime",
-      "read_only": 1
-    },
-    {
       "fieldname": "recurring_plan",
       "label": "Recurring Plan",
       "fieldtype": "Link",
@@ -475,6 +431,25 @@
       "options": "FP Questionnaire",
       "hidden": 1,
       "no_copy": 1
+    },
+    {
+      "fieldname": "approved_task_brief",
+      "label": "Approved Task Brief",
+      "fieldtype": "Link",
+      "options": "DD Task Brief"
+    },
+    {
+      "fieldname": "service_category",
+      "label": "Service Category",
+      "fieldtype": "Select",
+      "options": "land_property_check\nconstruction_progress\nbusiness_asset_check\ncustom_ground_verification",
+      "read_only": 1
+    },
+    {
+      "fieldname": "gps_accuracy_threshold_m",
+      "label": "Maximum GPS uncertainty (metres)",
+      "fieldtype": "Float",
+      "default": "20"
     }
   ],
   "index_web_pages_for_search": 1,

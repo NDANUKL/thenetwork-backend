@@ -41,7 +41,11 @@
     "rework_source_response",
     "rework_assignment_reason",
     "revisit_request",
-    "finance_offer"
+    "finance_offer",
+    "task_brief_version",
+    "task_brief_snapshot",
+    "assigned_check_ids",
+    "service_category"
   ],
   "fields": [
     {
@@ -88,14 +92,18 @@
       "fieldname": "questionnaire",
       "fieldtype": "Link",
       "label": "Questionnaire",
-      "options": "FP Questionnaire"
+      "options": "FP Questionnaire",
+      "hidden": 1,
+      "reqd": 0
     },
     {
       "fieldname": "questionnaire_version",
       "fieldtype": "Int",
       "label": "Questionnaire Version",
       "read_only": 1,
-      "description": "Set automatically from the assigned questionnaire. Preserved for this task."
+      "description": "Set automatically from the assigned questionnaire. Preserved for this task.",
+      "hidden": 1,
+      "reqd": 0
     },
     {
       "default": "Assigned",
@@ -252,7 +260,8 @@
       "fieldtype": "Code",
       "options": "JSON",
       "read_only": 1,
-      "hidden": 1
+      "hidden": 1,
+      "reqd": 0
     },
     {
       "fieldname": "client_request_snapshot",
@@ -333,6 +342,33 @@
       "label": "Accepted scout fee arrangement",
       "fieldtype": "Link",
       "options": "DD Scout Offer",
+      "read_only": 1
+    },
+    {
+      "fieldname": "task_brief_version",
+      "label": "Approved Task Brief",
+      "fieldtype": "Link",
+      "options": "DD Task Brief",
+      "read_only": 1
+    },
+    {
+      "fieldname": "task_brief_snapshot",
+      "label": "Pinned Task Brief",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "assigned_check_ids",
+      "label": "Assigned Field Checks",
+      "fieldtype": "Code",
+      "options": "JSON",
+      "read_only": 1
+    },
+    {
+      "fieldname": "service_category",
+      "label": "Service Category",
+      "fieldtype": "Data",
       "read_only": 1
     }
   ],

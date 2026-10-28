@@ -71,4 +71,16 @@ class PreparationTests(unittest.TestCase):
         context=self.module.pdf_context(doc,[(Record(),Record(name='photo'))])
         self.assertEqual(context['checks'][0]['evidence_refs'],['E001'])
 
+    def test_task_brief_reports_keep_unable_to_verify_as_a_limitation(self):
+        fixture=json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())
+        self.detail=dict(brief=dict(brief=fixture['brief'],brief_id='BRIEF-1',version=3,check_ids=['condition'],site=fixture['site']),
+            submission=dict(fixture['submission'],answers={'condition':{'status':'unable_to_verify','value':'Fence is intact','explanation':'Access refused'}}),evidence=[])
+        content=self.content();row=content['report_checks'][0]
+        self.assertEqual(row['assessment'],'Not verified')
+        self.assertIn('Access refused',row['limitations'])
+        self.assertEqual(row['findings'],'Access refused')
+        self.assertNotIn('Fence is intact',content['findings'])
+        self.assertEqual(json.loads(content['scope_snapshot_json'])[0]['version'],3)
+        self.assertEqual(row['customer_question'],fixture['brief']['checks'][0]['instruction'])
+
 if __name__=='__main__':unittest.main()

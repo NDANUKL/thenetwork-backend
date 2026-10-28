@@ -20,6 +20,11 @@ class FieldTask(Document):
 
     def validate(self):
         previous = self.get_doc_before_save() if not self.is_new() else None
+        if previous and not previous.get('task_brief_version') and self.get('task_brief_version'):
+            frappe.throw('Create a new allocation to assign a Task Brief')
+        if previous and previous.get('task_brief_version'):
+            from fieldpulse.task_brief_workflow import validate_task
+            validate_task(self, previous)
         if self.is_new() and self.get('replaces_task') and frappe.flags.dd_replacement_source != self.replaces_task:
             frappe.throw('Use the coordinator rework action to create a replacement assignment')
         if previous and self.get('replaces_task') != previous.get('replaces_task'):

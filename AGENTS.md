@@ -9,3 +9,9 @@ Read docs/native-integration.md and fieldpulse/configuration/native-ownership.js
 ## Documentation authority
 
 `docs/production-script-ownership.md` is the controlling cross-repository production policy; `docs/production-handover-verification-2026-10-26.md` records the live evidence. Website/mobile guides must link to that policy rather than maintain a competing ownership procedure. `DiasporaDesk/backend-review` is a historical review snapshot, not an active backend checkout or deployment guide. When runtime ownership changes, update the controlling policy and the referring agent/setup guides in the same change. Clearly distinguish dated audits, current source behavior and verified deployed feature state.
+
+## Task Brief source transition
+
+Read `docs/task-brief-transition.md` for the current source and rollout gaps. New assignments use approved request-specific DD Task Briefs; do not restore retired catalogue publishers or infer checks from categories. AI is limited to initial request assessment/brief generation.
+
+Run the read-only Task Brief cutover inventory before deployment; never bypass the open-legacy-task migration guard or infer that local tests verify device recovery. Historical questionnaire records are read-only. See `docs/task-brief-fixes-2026-10-28.md` for corrective source changes and remaining rollout evidence.

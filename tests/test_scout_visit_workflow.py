@@ -6,7 +6,6 @@ import unittest
 from fieldpulse.scout_library import evaluate
 from fieldpulse.scout_protocol import arrival_result
 from fieldpulse.scout_visit import sample_is_contemporaneous
-import test_scout_v2_integration as setup_module
 
 ROOT=Path(__file__).parents[1]
 SITE=dict(latitude=-1.3,longitude=36.8,geofence_radius_m=50)
@@ -93,26 +92,6 @@ class VisitPolicyTests(unittest.TestCase):
         self.assertEqual(evaluate([q],{'1.1':dict(result='Yes')},{'1.1':[media]},POINT,SITE)['errors'],[])
 
 
-class VisitInstallationTests(unittest.TestCase):
-    def setUp(self): setup_module.InstallationTests.setUp(self)
-    def test_version_three_preserves_version_two_and_adds_explicit_visual_video(self):
-        self.site.conf['dd_questionnaire_v2_enabled']=True
-        self.module.install_templates()
-        old=copy.deepcopy(self.site.get_doc('FP Questionnaire','DD-land-v2'))
-        self.site.conf['dd_scout_visit_workflow_enabled']=True
-        data=self.module.catalogue()
-        self.assertEqual(data['version'],3)
-        self.assertEqual(data['policy_sha256'],hashlib.sha256((ROOT/'docs/scout-visit-workflow.md').read_bytes()).hexdigest())
-        self.module.install_templates()
-        self.assertEqual(self.site.get_doc('FP Questionnaire','DD-land-v2').schema_hash,old.schema_hash)
-        self.assertEqual(len(self.site.get_all('FP Questionnaire')),30)
-        for service in data['services']:
-            first=service['questions'][0]
-            if service['service_code'] in {'land','property','construction','business','vehicle','equipment','delivery'}:
-                self.assertTrue(first['mandatory_selection'])
-                self.assertIn('Video',[rule['kind'] for rule in first['evidence']])
-            if service['service_code'] in {'document','receipt','adult_enrolment','university_fees','adult_attendance','adult_clinic'}:
-                self.assertFalse(any(rule['kind']=='Video' for q in service['questions'] for rule in q['evidence']))
 
 
 if __name__=='__main__':unittest.main()

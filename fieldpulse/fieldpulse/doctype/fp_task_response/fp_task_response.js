@@ -25,6 +25,30 @@ frappe.ui.form.on("FP Task Response", {
       wrapper.html(`<p class="text-danger">${__("Unable to load the submission. Refresh to try again.")}</p>`);
       return;
     }
+    if (data.brief) {
+      const pinned=data.brief, submitted=data.submission;
+      wrapper.html(card('Approved Task Brief',block('Objective',pinned.brief.objective)+block('Scope',pinned.brief.scope)+block('Instructions',pinned.brief.instructions))+
+        card('Arrival',structured(submitted.arrival))+
+        (submitted.access_issue?card('Access issue',text(submitted.access_issue)):'')+
+        pinned.brief.checks.filter(check=>pinned.check_ids.includes(check.id)).map(check=>card(check.instruction,
+          structured(submitted.answers[check.id]||'No response')+block('Required evidence',check.evidence)+
+          (data.evidence||[]).filter(e=>e.field_check_id===check.id).map(e=>`<p>${esc(e.evidence_type)} · ${esc(e.captured_at)} · GPS ${esc(e.gps_lat)}, ${esc(e.gps_lng)} ± ${esc(e.accuracy_m)} m <button class="btn btn-default btn-sm" data-evidence="${esc(e.name)}">Open evidence</button></p>`).join(''))).join('')+
+        card('Additional observations',text(submitted.additional_observations||'None'))+
+        card('Technical completeness — not evidence verification',structured(data.completion)));
+      wrapper.find('[data-evidence]').on('click',async function(){
+        const {message}=await frappe.call('fieldpulse.evidence.get_evidence_view_url',{evidence_id:this.dataset.evidence});
+        window.open(message.view_url,'_blank','noopener,noreferrer');
+      });
+      if(frm.doc.status==='Submitted'&&!['Passed','Failed'].includes(frm.doc.qa_status)){
+        for(const decision of ['Approve','Reject','Request clarification','Request additional evidence'])frm.add_custom_button(__(decision),()=>frappe.prompt(
+          [{fieldname:'notes',fieldtype:'Small Text',label:__('Review findings and instructions'),reqd:1}],async values=>{
+            await frappe.call({method:'fieldpulse.task_brief_workflow.review_response',args:{response:frm.doc.name,decision,notes:values.notes},freeze:true});
+            await frm.reload_doc();
+            if(decision==='Request additional evidence')frappe.msgprint(__('Original submission retained. Assign a new visit from the project with the checks needing more evidence.'));
+          },__(decision),__('Record decision')));
+      }
+      return;
+    }
     const request = data.client_request || {};
     const arrival = data.arrival || {};
     const final = data.final_review || {};
@@ -102,34 +126,6 @@ frappe.ui.form.on("FP Task Response", {
       const {message} = await frappe.call("fieldpulse.evidence.get_evidence_view_url", {evidence_id: this.dataset.evidence});
       window.open(message.view_url, "_blank", "noopener,noreferrer");
     });
-    if (frm.doc.status !== "Submitted" || ["Passed", "Failed"].includes(frm.doc.qa_status)) return;
-    for (const decision of ["Approve", "Request rework"]) {
-      if (decision === "Approve" && final.visit_route === "arrival_exception") continue;
-      const fields = [
-        {fieldname: "notes", label: __("Review instructions / decision notes"), fieldtype: "Small Text", reqd: 1}
-      ];
-      if (decision === "Request rework") fields.unshift(
-        {fieldname: "rework_type", label: __("What does the scout need to do?"), fieldtype: "Select", options: "\nCorrect answers\nReturn to site", reqd: 1, description: __("Correct answers retains the verified visit and evidence and must not require a site visit or new capture. Return to site creates an authorization request before any fieldwork is dispatched.")},
-        {fieldname: "rework_assignment", label: __("Who should carry out the revisit?"), fieldtype: "Select", options: "Same scout\nAssign another scout", default: "Same scout", depends_on: "eval:doc.rework_type === 'Return to site'"},
-        {fieldname: "replacement_scout", label: __("New scout"), fieldtype: "Link", options: "Scout Profile", depends_on: "eval:doc.rework_type === 'Return to site' && doc.rework_assignment === 'Assign another scout'", mandatory_depends_on: "eval:doc.rework_type === 'Return to site' && doc.rework_assignment === 'Assign another scout'", get_query: () => ({filters: {name: ["!=", frm.doc.agent], availability_status: ["!=", "On Leave"]}})},
-        {fieldname: "reassignment_reason", label: __("Reason for assigning another scout"), fieldtype: "Small Text", depends_on: "eval:doc.rework_type === 'Return to site' && doc.rework_assignment === 'Assign another scout'", mandatory_depends_on: "eval:doc.rework_type === 'Return to site' && doc.rework_assignment === 'Assign another scout'", description: __("A new scout gets a blank assignment and records their own visit. The original submission remains preserved.")},
-        {fieldname: "rework_questions", label: __("Questions requiring attention"), fieldtype: "MultiCheck", reqd: 1, sort_options: false, options: (data.questions || []).filter(q => q.question_code !== "S_EXTRA" || answers.has(q.name)).map(q => ({label: esc(q.label), value: esc(q.question_code)}))}
-      );
-      frm.add_custom_button(__(decision), () => frappe.prompt(fields, async ({notes, rework_type, rework_questions, rework_assignment, replacement_scout, reassignment_reason}) => {
-        const replace = rework_type === "Return to site" && rework_assignment === "Assign another scout";
-        const {message} = await frappe.call("fieldpulse.scout_submissions.review_submission", {response: frm.doc.name, decision, notes, rework_type, rework_questions: JSON.stringify(rework_questions || []), rework_assignment: replace ? "Assign another scout" : "Same scout", replacement_scout: replace ? replacement_scout : null, reassignment_reason: replace ? reassignment_reason : null});
-        await frm.reload_doc();
-        if (message.revisit_request) {
-          frappe.msgprint(__('Revisit request recorded. Complete commercial authorization, then dispatch. No fieldwork or scout dispatch notification has been created.'));
-          frappe.set_route('Form','DD Revisit Request',message.revisit_request);
-        }
-        else if (message.replacement_task) {
-          frappe.msgprint({title: __("Revisit assigned"), message: __("A new assignment was created for the selected scout. The original submission is preserved and the scout notification is queued.")});
-          frappe.set_route("Form", "Field Task", message.replacement_task);
-        }
-        else if (message.report) frappe.show_alert({message: __("Client report draft prepared. Open it from the request to review and publish."), indicator: "green"});
-        else if (decision === "Request rework") frappe.show_alert({message: __("Rework revision created. Scout notification queued."), indicator: "orange"});
-      }, __(decision)));
-    }
+    frm.set_intro(__('Historical questionnaire submission: read-only audit record. New work uses Task Briefs.'));
   }
 });

@@ -11,13 +11,6 @@ EXCEPTION_REASONS = [
 ]
 KINDS = {'Photo', 'Video', 'Document'}
 BLOCKED = re.compile(r'unable|not demonstrated|not confirmed|missing or unreadable|no matching|not found|inaccessible|declined|could not be reached|unwilling|not eligible|no representative', re.I)
-SHARED_V2 = [
-    dict(code='S1', label='Does the site match the assigned location?', answer_type='single', result_options=['Yes', 'No', 'Unable to confirm'], text_when=['No', 'Unable to confirm'], evidence=[dict(id='photo', kind='Photo', subject='One photo showing the location reached.', when=['No', 'Unable to confirm'])]),
-    dict(code='S2', label='What access did you obtain?', answer_type='single', result_options=['Full access', 'Partial access', 'No access'], text_when=['Partial access', 'No access'], evidence=[]),
-]
-CLOSING_V2 = dict(code='S_EXTRA', label='Is there anything else relevant to this task?', answer_type='text', optional=True, evidence=[])
-
-
 def decode(raw, default=None):
     if raw is None or raw == '': return copy.deepcopy(default)
     return json.loads(raw) if isinstance(raw, str) else copy.deepcopy(raw)

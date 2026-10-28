@@ -8,8 +8,6 @@ def after_install():
     create_roles()
     from fieldpulse.alignment_install import sync_dashboard
     sync_dashboard()
-    from fieldpulse.scout_templates import install_templates
-    install_templates()
 
 
 def create_roles():

@@ -172,32 +172,9 @@ class ReworkTests(unittest.TestCase):
         revised.rework_type = 'Correct answers'; revised.rework_of = 'new'
         self.assertFalse(evidence_origin_allowed('new', 'old', get_doc))
 
-    def test_review_rejects_second_decision_before_creating_another_revision(self):
-        module = load('submission_review_tests', 'fieldpulse/scout_submissions.py', self.f)
-        module.require_reviewer = lambda: None
-        self.task.status = 'Submitted'
-        self.f.get_doc.side_effect = lambda dt, name: self.source if dt == 'FP Task Response' else self.task
-        self.f.db.get_value.return_value = None
-        with self.assertRaisesRegex(ValueError, 'outstanding'):
-            module.review_submission('source', 'Request rework', 'Fix the wall description', 'Correct answers', '["1.1"]')
-        self.f.db.set_value.assert_not_called()
-
-    def test_review_records_pending_revisit_without_creating_work_or_notifying_scout(self):
-        review=load('pending_review_tests','fieldpulse/scout_submissions.py',self.f)
-        review.require_reviewer=lambda:None
-        self.source.qa_status='Pending';self.task.status='Submitted';self.task.save=MagicMock()
-        self.f.db.get_value.return_value=None
-        self.f.get_doc.side_effect=lambda dt,name:self.source if dt=='FP Task Response' else self.task
-        self.module.validate_request=MagicMock(return_value=['1.1'])
-        self.module.validate_assignment=MagicMock(return_value='new-scout')
-        self.module.create_revision=MagicMock();self.module.create_replacement=MagicMock()
-        pending=types.SimpleNamespace(create_request=MagicMock(return_value='revisit-request'))
-        notifications=types.SimpleNamespace(queue_rework=MagicMock())
-        with patch.dict(sys.modules,{'fieldpulse.scout_rework':self.module,'fieldpulse.revisit_authorization':pending,'fieldpulse.scout_notifications':notifications}):
-            result=review.review_submission('source','Request rework','Verify the site','Return to site','["1.1"]','Assign another scout','new-scout','Unavailable')
-        self.assertEqual(result['revisit_request'],'revisit-request')
-        self.assertEqual(self.task.status,'Awaiting authorization')
-        self.module.create_revision.assert_not_called();self.module.create_replacement.assert_not_called();notifications.queue_rework.assert_not_called()
+    def test_historical_review_cannot_create_new_questionnaire_work(self):
+        review=load('retired_review_tests','fieldpulse/scout_submissions.py',self.f)
+        self.assertFalse(hasattr(review,'review_submission'))
 
     def test_report_is_prepared_only_after_every_active_task_is_approved(self):
         submissions = types.SimpleNamespace(require_reviewer=lambda: None, submission_detail=lambda response: {})
