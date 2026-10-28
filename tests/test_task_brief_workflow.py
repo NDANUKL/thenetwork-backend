@@ -41,6 +41,30 @@ class WorkflowTests(unittest.TestCase):
         self.frappe.get_doc.side_effect=lambda doctype,name: {'Field Request':self.project,'DD Task Brief':self.brief,'FP Location':self.site}[doctype]
         self.task=Record(name='TASK',field_request='PROJECT',location='SITE',scout_profile='SCOUT',assigned_check_ids='["condition"]')
 
+    def test_initial_seed_selects_only_matching_project_from_four(self):
+        self.frappe.db.exists.return_value=False
+        items=[]
+        for number in range(4):
+            content=copy.deepcopy(self.fixture['brief'])
+            content['title']=f'Project {number}'
+            items.append(dict(id=f'project-{number}',task_brief=content))
+        source=Record(project_details=json.dumps(items))
+        created=[]
+        def get_doc(value, name=None):
+            if isinstance(value, dict):
+                created.append(value)
+                return MagicMock()
+            return source
+        self.frappe.get_doc.side_effect=get_doc
+        for number in range(4):
+            self.module.seed_project_brief(Record(name=f'FIELD-{number}',diaspora_request='REQUEST',project_id=f'project-{number}'))
+        self.assertEqual(len(created),4)
+        for number, draft in enumerate(created):
+            self.assertEqual(draft['project'],f'FIELD-{number}')
+            content=json.loads(draft['content_json'])
+            self.assertEqual(content['title'],f'Project {number}')
+            self.assertEqual(content['checks'],self.fixture['brief']['checks'])
+
     def test_pin_is_independent_of_future_project_changes(self):
         self.module.pin_assignment(self.task)
         original=self.task.task_brief_snapshot
@@ -158,3 +182,46 @@ class WorkflowTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class OpenProjectBriefTests(unittest.TestCase):
+    def setUp(self):
+        WorkflowTests.setUp(self)
+        self.frappe.get_roles.return_value=['Field Operations Coordinator']
+        self.project.check_permission=MagicMock()
+        self.brief.check_permission=MagicMock()
+        self.module.seed_project_brief=MagicMock()
+        self.frappe.db.get_value.return_value=None
+
+    def test_opens_existing_draft_without_creating_empty_duplicate(self):
+        self.frappe.get_list.return_value=[Record(name='GENERATED-DRAFT')]
+        self.assertEqual(self.module.open_project_brief('PROJECT'),'GENERATED-DRAFT')
+        self.module.seed_project_brief.assert_not_called()
+        self.assertEqual(self.frappe.get_list.call_args.kwargs['filters'],{'project':'PROJECT','status':'Draft'})
+
+    def test_recovers_original_project_draft_when_none_exists(self):
+        self.project.approved_task_brief=None
+        self.frappe.get_list.side_effect=[[],[Record(name='RECOVERED')]]
+        self.assertEqual(self.module.open_project_brief('PROJECT'),'RECOVERED')
+        self.module.seed_project_brief.assert_called_once_with(self.project)
+
+    def test_opens_approved_brief_without_mutating_it(self):
+        self.frappe.get_list.return_value=[]
+        self.assertEqual(self.module.open_project_brief('PROJECT'),'BRIEF')
+        self.module.seed_project_brief.assert_not_called()
+
+    def test_access_requires_coordinator_and_project_write(self):
+        self.frappe.get_roles.return_value=['Field Agent']
+        with self.assertRaisesRegex(ValueError,'Only coordinators'):
+            self.module.open_project_brief('PROJECT')
+        self.frappe.get_roles.return_value=['Field Operations Coordinator']
+        self.project.check_permission.side_effect=PermissionError()
+        with self.assertRaises(PermissionError):self.module.open_project_brief('PROJECT')
+
+    def test_dispatched_project_cannot_seed_new_brief(self):
+        self.project.approved_task_brief=None
+        self.frappe.get_list.return_value=[]
+        self.frappe.db.get_value.return_value='TASK'
+        with self.assertRaisesRegex(ValueError,'assigned Task Brief'):
+            self.module.open_project_brief('PROJECT')
+        self.module.seed_project_brief.assert_not_called()

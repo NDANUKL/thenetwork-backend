@@ -15,8 +15,7 @@ frappe.ui.form.on("Field Request", {
     frm.set_df_property("deadline", "description", "Copied to the scout task's Due date. Confirm this date when arranging the work.");
     const missing = [];
     if (!frm.doc.county) missing.push("Add the project county.");
-    if (!frm.doc.evidence_requirements) missing.push("Confirm the project's evidence requirements.");
-    if (frm.doc.alignment_review && !missing.length) missing.push("Review the agreed brief and approve the Task Brief before assigning a scout.");
+    if (!frm.doc.approved_task_brief) missing.push("Review and approve this project's Task Brief before assigning a scout.");
     frm.set_intro(missing.join(" "), "orange");
   },
 });
@@ -111,11 +110,14 @@ frappe.ui.form.on('Field Request', {
     frm.set_query('approved_task_brief', () => ({filters:{project:frm.doc.name,status:'Approved'}}));
     if (frm.is_new()) return;
     frm.add_custom_button(__('Task Briefs'), () => frappe.set_route('List','DD Task Brief',{project:frm.doc.name}));
-    frm.add_custom_button(__('Create Task Brief'), () => frappe.new_doc('DD Task Brief', {
-      project:frm.doc.name,status:'Draft',content_json:JSON.stringify({schema_version:1,
-      category:frm.doc.service_category || 'custom_ground_verification', title:frm.doc.project_title || frm.doc.name,
-      objective:frm.doc.field_brief || 'Review the client request',scope:frm.doc.field_brief || 'Review the client request',
-      instructions:[],deliverables:[],review_required:true,review_reasons:['Review the request and define its field checks'],checks:[]})
-    }));
+    frm.add_custom_button(__('Open Task Brief'), async () => {
+      if (frm.is_dirty()) {
+        frappe.msgprint(__('Save this project before opening its Task Brief.'));
+        return;
+      }
+      const result = await frappe.call({method:'fieldpulse.task_brief_workflow.open_project_brief',
+        args:{project:frm.doc.name},freeze:true});
+      frappe.set_route('Form','DD Task Brief',result.message);
+    });
   }
 });

@@ -46,6 +46,43 @@ def seed_project_brief(project):
         frappe.flags.dd_initial_brief_project = marker
 
 
+@frappe.whitelist(methods=['POST'])
+def open_project_brief(project):
+    """Open this project's draft, recovering the original generated brief if needed."""
+    if not {'System Manager', 'Field Operations Coordinator'}.intersection(frappe.get_roles()):
+        frappe.throw('Only coordinators may prepare Task Briefs', frappe.PermissionError)
+    request = frappe.get_doc('Field Request', project)
+    request.check_permission('write')
+    lock_project(project)
+    drafts = frappe.get_list('DD Task Brief', filters={'project': project, 'status': 'Draft'},
+                           fields=['name'], order_by='version desc', limit_page_length=1)
+    if drafts:
+        return drafts[0].name
+    if request.get('approved_task_brief'):
+        approved = frappe.get_doc('DD Task Brief', request.approved_task_brief)
+        approved.check_permission('read')
+        if approved.project != project or approved.status != 'Approved':
+            frappe.throw('The selected Task Brief does not belong to this project')
+        return approved.name
+    require_undispatched_project(project)
+    seed_project_brief(request)
+    drafts = frappe.get_list('DD Task Brief', filters={'project': project, 'status': 'Draft'},
+                           fields=['name'], order_by='version desc', limit_page_length=1)
+    if drafts:
+        return drafts[0].name
+    # Historical/manual projects may have no initial AI output. Never invent checks.
+    content = dict(schema_version=1, category=request.get('service_category') or 'custom_ground_verification',
+        title=request.get('project_title') or project,
+        objective=request.get('field_brief') or 'Review this project request',
+        scope=request.get('field_brief') or 'Review this project request',
+        instructions=[], deliverables=[], review_required=True,
+        review_reasons=['No generated Task Brief is available for this project. Define its field checks before approval.'], checks=[])
+    draft = frappe.get_doc(dict(doctype='DD Task Brief', project=project, status='Draft',
+                               content_json=json.dumps(content)))
+    draft.insert()
+    return draft.name
+
+
 def pin_assignment(task, method=None):
     if not task.is_new():
         return

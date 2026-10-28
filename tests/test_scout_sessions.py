@@ -172,3 +172,23 @@ class MobileTwoFactorTests(unittest.TestCase):
         with patch.dict('sys.modules',{'fieldpulse.scout_access':access}):result=self.module.request_password_reset(self.user)
         self.assertNotIn('private',str(result));user._reset_password.assert_called_once_with(send_email=False)
         self.assertEqual(self.f.sendmail.call_args.kwargs['subject'],'Reset your Ground Scouts password')
+
+
+class PasswordResetTemplateTests(unittest.TestCase):
+    setUp = MobileTwoFactorTests.setUp
+    def test_reset_renders_installed_template_before_sending(self):
+        from pathlib import Path
+        from jinja2 import Environment, FileSystemLoader
+        root=Path(__file__).parents[1]
+        env=Environment(loader=FileSystemLoader(str(root)))
+        self.f.render_template.side_effect=lambda template, context: env.get_template(template).render(context)
+        user=types.SimpleNamespace(enabled=True,full_name='Scout',
+            _reset_password=lambda **kwargs:'https://example.test/update-password?key=private')
+        self.f.get_doc.return_value=user
+        access=types.SimpleNamespace(check_access=lambda email:None)
+        with patch.dict('sys.modules',{'fieldpulse.scout_access':access}):
+            result=self.module.request_password_reset(self.user)
+        html=self.f.sendmail.call_args.kwargs['message']
+        self.assertIn('https://example.test/update-password?key=private',html)
+        self.assertIn('Reset your password',html)
+        self.assertNotIn('private',str(result))

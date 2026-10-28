@@ -171,7 +171,7 @@ def request_password_reset(email):
     reset_link = user._reset_password(send_email=False)
     full_name = user.full_name or email
     html = frappe.render_template(
-        "emails/password_reset.html",
+        "fieldpulse/templates/emails/password_reset.html",
         {"full_name": full_name, "reset_link": reset_link, "site_url": get_url()},
     )
 
