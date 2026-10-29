@@ -54,6 +54,49 @@ class ScoutRegistrationTests(unittest.TestCase):
                 self.auth.register_field_agent('Pauline Wanjiku', 'scout@example.test', 'password123', county='Nairobi')
         self.frappe.get_doc.assert_not_called()
 
+    def test_safe_codes_and_reference_without_private_error_logs(self):
+        cases = [
+            ({'full_name': 'One'}, 'INVALID_NAME'),
+            ({'county': ''}, 'INVALID_COUNTY'),
+            ({'password': 'short'}, 'INVALID_PASSWORD'),
+            ({'phone': 'private-invalid'}, 'INVALID_PHONE'),
+            ({'email': ''}, 'INVALID_EMAIL'),
+        ]
+        for changed, code in cases:
+            self.frappe.response.clear()
+            args = dict(full_name='Example Scout', email='synthetic@example.test', password='synthetic-password', county='Nairobi')
+            args.update(changed)
+            with self.assertRaises(ValueError):
+                self.auth.register_field_agent(**args)
+            self.assertEqual(self.frappe.response['diagnostic_code'], code)
+            self.assertRegex(self.frappe.response['server_reference'], r'^REG-[a-f0-9]{32}$')
+        self.frappe.log_error.assert_not_called()
+        self.frappe.get_doc.assert_not_called()
+
+    def test_duplicate_codes(self):
+        for exists, code in [([True], 'APPLICATION_EXISTS'), ([False, True], 'ACCOUNT_EXISTS')]:
+            self.frappe.response.clear()
+            self.frappe.db.exists.side_effect = exists
+            with self.assertRaises(ValueError):
+                self.auth.register_field_agent('Example Scout', 'synthetic@example.test', 'synthetic-password', county='Nairobi')
+            self.assertEqual(self.frappe.response['diagnostic_code'], code)
+
+    def test_unexpected_failure_uses_deferred_safe_log_and_preserves_exception(self):
+        self.frappe.db.exists.return_value = False
+        failure = RuntimeError('private credentials synthetic@example.test')
+        self.frappe.get_doc.side_effect = failure
+        with self.assertRaises(RuntimeError) as caught:
+            self.auth.register_field_agent('Example Scout', 'synthetic@example.test', 'synthetic-password', county='Nairobi')
+        self.assertIs(caught.exception, failure)
+        self.assertEqual(self.frappe.response['diagnostic_code'], 'REGISTRATION_FAILED')
+        logged = self.frappe.log_error.call_args.kwargs
+        self.assertTrue(logged['defer_insert'])
+        self.assertIn(self.frappe.response['server_reference'], logged['message'])
+        self.assertIn('auth.py:', logged['message'])
+        self.assertNotIn('credentials', logged['message'])
+        self.assertNotIn('synthetic@', logged['message'])
+        self.frappe.db.commit.assert_not_called()
+
     def test_login_records_activity_after_authentication(self):
         self.frappe.db.exists.return_value = "SCT-00001"
         outer=self

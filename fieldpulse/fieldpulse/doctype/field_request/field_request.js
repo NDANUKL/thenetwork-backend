@@ -2,6 +2,7 @@ if (frappe.boot.dd_native_handover_active) {
 // DD Alignment Project Form
 frappe.ui.form.on("Field Request", {
   refresh(frm) {
+    if (!frm.is_new()) frm.add_custom_button(__("County assignment balance"), () => frappe.set_route("query-report", "County Assignment Balance", {field_request: frm.doc.name}));
     frm.set_df_property("source", "read_only", 1);
     frm.set_df_property("diaspora_request", "hidden", !frm.doc.diaspora_request);
     if (!frm.doc.diaspora_request) {

@@ -86,7 +86,8 @@
       "fieldname": "county",
       "fieldtype": "Data",
       "in_list_view": 1,
-      "label": "County"
+      "label": "County",
+      "in_preview": 1
     },
     {
       "label": "Confirmed Site Navigation",
@@ -130,7 +131,8 @@
       "fieldname": "field_brief",
       "fieldtype": "Long Text",
       "label": "Field Brief",
-      "reqd": 1
+      "reqd": 1,
+      "in_preview": 1
     },
     {
       "fieldname": "deadline",
@@ -295,7 +297,8 @@
       "label": "Project",
       "fieldtype": "Data",
       "read_only": 1,
-      "in_list_view": 0
+      "in_list_view": 0,
+      "in_preview": 1
     },
     {
       "fieldname": "project_key",

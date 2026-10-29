@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 class MobileSyncSecurity(unittest.TestCase):
     def setUp(self):
         self.f = MagicMock()
+        import json
+        self.f.parse_json.side_effect = json.loads
         self.f.whitelist = lambda **kw: lambda fn: fn
         self.f.PermissionError = PermissionError
         def reject(message, *args): raise PermissionError(message)
@@ -31,6 +33,39 @@ class MobileSyncSecurity(unittest.TestCase):
         self.assertTrue(result['authoritative_assignments'])
         self.assertTrue(result['resumable_submission'])
         self.assertEqual(result['visit_workflow_version'], 2)
+
+    def test_approved_history_is_in_full_and_delta_sync_without_questionnaires(self):
+        from datetime import datetime
+        class Row(dict):
+            __getattr__ = dict.get
+        historical = Row(name='old-approved', task_number='TK-2026-00010',
+                         status='Approved', scout_profile='scout', task_brief_version=None)
+        cutover = types.SimpleNamespace(open_legacy_tasks=lambda scout: [], cancelled_legacy_tasks=lambda *args: [])
+        inbox = types.SimpleNamespace(notification_payload=lambda: [])
+        self.api.now_datetime.return_value = datetime(2026, 10, 30, 12)
+        self.api.site_datetime_iso = lambda value: value
+        with patch.dict(sys.modules, {'fieldpulse.task_brief_cutover': cutover, 'fieldpulse.scout_inbox': inbox}):
+            for since in (None, '2026-10-29 12:00:00'):
+                self.f.get_all.reset_mock()
+                self.f.get_all.side_effect = [[], [historical]]
+                result = self.api.sync_pull_assignments(since=since, task_brief_version=1)
+                filters = self.f.get_all.call_args_list[1].kwargs['filters']
+                self.assertEqual(filters['scout_profile'], 'scout')
+                self.assertEqual(filters['status'], 'Approved')
+                self.assertEqual(filters['task_brief_version'], ['is', 'not set'])
+                self.assertEqual(filters.get('modified'), ['>', since] if since else None)
+                self.assertEqual(result['tasks'][0]['status'], 'Approved')
+                self.assertIsNone(result['tasks'][0]['task_brief_version'])
+                self.assertEqual(result['assigned_task_ids'], ['old-approved'] if not since else None)
+                self.assertEqual(result['questionnaires'], [])
+                self.assertEqual(result['questions'], [])
+
+    def test_open_legacy_guard_still_blocks_history_sync(self):
+        cutover = types.SimpleNamespace(open_legacy_tasks=lambda scout: ['unresolved'], cancelled_legacy_tasks=lambda *args: [])
+        with patch.dict(sys.modules, {'fieldpulse.task_brief_cutover': cutover}):
+            with self.assertRaisesRegex(PermissionError, 'cutover is pending'):
+                self.api.sync_pull_assignments(task_brief_version=1)
+        self.f.get_all.assert_not_called()
 
     def test_assignment_times_include_site_offset_but_cursor_stays_site_local(self):
         from datetime import datetime
