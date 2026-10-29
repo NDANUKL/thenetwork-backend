@@ -106,3 +106,6 @@ doc_events['Field Task']['on_update'].append('fieldpulse.scout_notifications.cap
 
 # Native scout sessions have an absolute lifetime and a verified MFA marker.
 on_session_creation = ["fieldpulse.scout_sessions.session_created"]
+
+# Scout recovery never creates a Desk session; staff retain native recovery.
+override_whitelisted_methods['frappe.core.doctype.user.user.update_password'] = 'fieldpulse.scout_password_reset.update_password'

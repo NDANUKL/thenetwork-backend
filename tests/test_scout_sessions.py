@@ -159,7 +159,7 @@ class MobileTwoFactorTests(unittest.TestCase):
     def test_reset_non_scout_user_is_skipped_without_mail(self):
         self.f.db.exists.side_effect=lambda doctype, filters: doctype == 'User'
         result=self.module.request_password_reset(self.user)
-        self.assertIn('Scout Profile',result['message'])
+        self.assertIn('reset instructions',result['message'])
         self.f.db.exists.assert_called_once_with('Scout Profile',{'user':self.user})
         self.f.get_doc.assert_not_called()
         self.f.sendmail.assert_not_called()
