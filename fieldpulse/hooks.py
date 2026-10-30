@@ -109,3 +109,13 @@ on_session_creation = ["fieldpulse.scout_sessions.session_created"]
 
 # Scout recovery never creates a Desk session; staff retain native recovery.
 override_whitelisted_methods['frappe.core.doctype.user.user.update_password'] = 'fieldpulse.scout_password_reset.update_password'
+
+
+# The Expo web beta is an SPA served beneath the existing HTTPS site origin.
+# A catch-all route is required so deep links and refreshes return its entry page.
+website_route_rules = [
+    {"from_route": "/groundscouts", "to_route": "groundscouts"},
+    {"from_route": "/groundscouts/", "to_route": "groundscouts"},
+    {"from_route": "/groundscouts/<path:app_path>", "to_route": "groundscouts"},
+]
+after_request = ["fieldpulse.web_beta.add_sqlite_web_headers"]

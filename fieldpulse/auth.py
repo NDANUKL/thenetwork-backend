@@ -106,6 +106,28 @@ def mobile_login(email, password=None, otp=None, tmp_id=None):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+def web_login(email, password=None, otp=None, tmp_id=None):
+    """Establish the first-party Frappe cookie without returning its session ID.
+
+    Reuses the existing admission and MFA checks used by mobile_login.
+    Frappe LoginManager's post_login sets the HttpOnly session cookie.
+    """
+    email = (email or "").strip().lower()
+    if not email or not (password or (otp and tmp_id)):
+        frappe.throw("Email and password are required.")
+    from fieldpulse.scout_access import check_access
+    check_access(email)
+    if not frappe.db.exists("Scout Profile", {"user": email}):
+        frappe.throw("Your scout application must be approved before signing in.")
+    if not frappe.db.exists("FP Agent", {"user": email, "status": "Active"}):
+        frappe.throw("This account is not an active field agent.")
+    result = _login(email, password, otp, tmp_id)
+    if result.get("two_factor_required"):
+        return result
+    return {"authenticated": True, "full_name": result.get("full_name") or email}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def register_field_agent(full_name, email, password, phone=None, county=None):
     """Submit an application; no scout role, profile or session until staff approval."""
     email = validate_email_address((email or "").strip().lower(), throw=True)
