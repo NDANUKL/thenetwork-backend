@@ -92,17 +92,60 @@ def _perform_login(email, password=None, otp=None, tmp_id=None):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def mobile_login(email, password=None, otp=None, tmp_id=None):
-    """Return a Frappe session ID for a verified Field Agent."""
-    email = (email or "").strip().lower()
-    if not email or not (password or (otp and tmp_id)):
-        frappe.throw("Email and password are required.")
-    from fieldpulse.scout_access import check_access
-    check_access(email)
-    if not frappe.db.exists("Scout Profile", {"user": email}):
-        frappe.throw("Your scout application must be approved before signing in.")
-    if not frappe.db.exists("FP Agent", {"user": email, "status": "Active"}):
-        frappe.throw("This account is not an active field agent.")
-    return _login(email, password, otp, tmp_id)
+    """Preserve login decisions while exposing fixed, privacy-safe diagnostics."""
+    from uuid import uuid4
+    reference = "AUTH-" + uuid4().hex
+    frappe.response["server_reference"] = reference
+    stage = "input"
+    try:
+        email = (email or "").strip().lower()
+        if not email or not (password or (otp and tmp_id)):
+            frappe.throw("Email and password are required.")
+        from fieldpulse.scout_access import check_access
+        stage = "admission"
+        check_access(email)
+        stage = "profile"
+        if not frappe.db.exists("Scout Profile", {"user": email}):
+            frappe.throw("Your scout application must be approved before signing in.")
+        stage = "agent"
+        if not frappe.db.exists("FP Agent", {"user": email, "status": "Active"}):
+            frappe.throw("This account is not an active field agent.")
+        stage = "authentication"
+        return _login(email, password, otp, tmp_id)
+    except Exception as error:
+        # Match only exact messages authored by the access checks. Never return or log
+        # arbitrary exception prose; unknown framework/hook errors remain unexpected.
+        known = {
+            "Email and password are required.": "LOGIN_INPUT_REQUIRED",
+            "Your scout application is awaiting approval.": "SCOUT_APPROVAL_PENDING",
+            "Your scout application was rejected. Contact Diaspora Desk.": "SCOUT_APPLICATION_REJECTED",
+            "Your scout access has been deactivated. Contact Diaspora Desk.": "SCOUT_ACCESS_DEACTIVATED",
+            "This account is disabled. Contact Diaspora Desk.": "LOGIN_ACCOUNT_DISABLED",
+            "Your account has been deactivated. Contact Diaspora Desk.": "LOGIN_ACCOUNT_DEACTIVATED",
+            "Your scout application must be approved before signing in.": "SCOUT_PROFILE_REQUIRED",
+            "This account is not an active field agent.": "SCOUT_AGENT_INACTIVE",
+            "Invalid login credentials": "LOGIN_INVALID_CREDENTIALS",
+            "Invalid or expired verification. Sign in again.": "LOGIN_VERIFICATION_INVALID",
+            "Complete verification in Ground Scouts before signing in.": "LOGIN_VERIFICATION_REQUIRED",
+            "Verification is unavailable. Contact your coordinator.": "LOGIN_VERIFICATION_UNAVAILABLE",
+            "Reset your password before signing in.": "LOGIN_PASSWORD_RESET_REQUIRED",
+        }
+        code = known.get(str(error))
+        expected = code is not None
+        if not code:
+            code = "LOGIN_PERMISSION_DENIED" if isinstance(error, frappe.PermissionError) else "LOGIN_FAILED"
+        frappe.response.update(diagnostic_code=code, auth_stage=stage)
+        if not expected:
+            import traceback
+            from pathlib import PurePath
+            frames = traceback.extract_tb(error.__traceback__)[-12:]
+            locations = "\n".join(f"{PurePath(frame.filename).name}:{frame.lineno}:{frame.name}" for frame in frames)
+            try:
+                frappe.log_error(title="Scout sign-in failed",
+                    message=f"Reference: {reference}\nCode: {code}\nStage: {stage}\n{locations}", defer_insert=True)
+            except Exception:
+                pass  # Do not replace the original denial or commit a partial login.
+        raise
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -129,25 +172,59 @@ def web_login(email, password=None, otp=None, tmp_id=None):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def register_field_agent(full_name, email, password, phone=None, county=None):
-    """Submit an application; no scout role, profile or session until staff approval."""
-    email = validate_email_address((email or "").strip().lower(), throw=True)
+    """Submit an application; expose only fixed codes and an opaque support reference."""
+    from uuid import uuid4
+    reference = "REG-" + uuid4().hex
+    frappe.response["server_reference"] = reference
+    try:
+        return _register_field_agent(full_name, email, password, phone, county)
+    except Exception as error:
+        if not frappe.response.get("diagnostic_code"):
+            frappe.response["diagnostic_code"] = "REGISTRATION_FAILED"
+            # No request body, exception prose, traceback locals or credentials.
+            # File/function/line locations remain useful without containing user data.
+            import traceback
+            from pathlib import PurePath
+            frames = traceback.extract_tb(error.__traceback__)[-12:]
+            locations = "\n".join(f"{PurePath(frame.filename).name}:{frame.lineno}:{frame.name}" for frame in frames)
+            try:
+                frappe.log_error(title="Scout registration failed", message=f"Reference: {reference}\nCode: REGISTRATION_FAILED\n{locations}", defer_insert=True)
+            except Exception:
+                pass  # Logging must not replace the original failure or rollback.
+        raise
+
+
+def _registration_rejected(code, message):
+    frappe.response["diagnostic_code"] = code
+    frappe.throw(message)
+
+
+def _register_field_agent(full_name, email, password, phone=None, county=None):
+    try:
+        email = validate_email_address((email or "").strip().lower(), throw=True)
+    except Exception as error:
+        if type(error).__name__ != "InvalidEmailAddressError":
+            raise
+        _registration_rejected("INVALID_EMAIL", "Enter a valid email address.")
+    if not email:
+        _registration_rejected("INVALID_EMAIL", "Enter a valid email address.")
     full_name = " ".join((full_name or "").split())
     county = " ".join((county or "").split())
     if (len(full_name.split()) < 2 or len(full_name) > 140
             or not all(any(char.isalpha() for char in part) for part in full_name.split())
             or any(char in full_name for char in "<>")):
-        frappe.throw("Enter your full name (at least two names).")
+        _registration_rejected("INVALID_NAME", "Enter your full name (at least two names).")
     if not county or len(county) > 100 or any(char in county for char in "<>"):
-        frappe.throw("Enter your county (up to 100 characters).")
+        _registration_rejected("INVALID_COUNTY", "Enter your county (up to 100 characters).")
     if not password or len(password) < 8:
-        frappe.throw("Use a password with at least 8 characters.")
+        _registration_rejected("INVALID_PASSWORD", "Use a password with at least 8 characters.")
     phone = (phone or "").strip()
     if len(phone) > 40 or any(char not in "+0123456789 ()-" for char in phone):
-        frappe.throw("Enter a valid phone number (up to 40 characters).")
+        _registration_rejected("INVALID_PHONE", "Enter a valid phone number (up to 40 characters).")
     if frappe.db.exists("Scout Application", {"email": email}):
-        frappe.throw("An application already exists for this email. Contact Diaspora Desk for its status.")
+        _registration_rejected("APPLICATION_EXISTS", "An application already exists for this email. Contact Diaspora Desk for its status.")
     if frappe.db.exists("User", email):
-        frappe.throw("An account with this email already exists. Sign in or contact Diaspora Desk.")
+        _registration_rejected("ACCOUNT_EXISTS", "An account with this email already exists. Sign in or contact Diaspora Desk.")
 
     user = frappe.get_doc({
         "doctype": "User",

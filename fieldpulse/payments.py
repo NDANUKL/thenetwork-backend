@@ -349,14 +349,81 @@ def refresh(reference):
         _verify(attempt.name)
     return {'success': True}
 
+def _reconciliation_failure_code(error):
+    """Fixed operational codes only; never provider bodies, URLs or credentials."""
+    if isinstance(error, requests.exceptions.Timeout):
+        return 'PROVIDER_TIMEOUT'
+    if isinstance(error, requests.exceptions.ConnectionError):
+        return 'PROVIDER_CONNECTION'
+    if isinstance(error, requests.exceptions.HTTPError):
+        status = getattr(getattr(error, 'response', None), 'status_code', None)
+        return f'PROVIDER_HTTP_{status}' if isinstance(status, int) and 400 <= status <= 599 else 'PROVIDER_HTTP_ERROR'
+    return {
+        'Configure Pesapal credentials in DD Payment Settings': 'CREDENTIALS_MISSING',
+        'Pesapal authentication failed': 'PROVIDER_AUTHENTICATION',
+        'Configure the HTTPS website origin in DD Payment Settings': 'RETURN_ORIGIN_INVALID',
+        'Pesapal could not complete this action': 'PROVIDER_REJECTED',
+        'Payment reference mismatch': 'REFERENCE_MISMATCH',
+        'Payment amount or currency mismatch': 'AMOUNT_CURRENCY_MISMATCH',
+        'Provider verification failed': 'PROVIDER_REJECTED',
+        'Unknown provider payment state': 'UNVERIFIED_STATUS',
+        'Missing payment confirmation': 'CONFIRMATION_MISSING',
+        'Invalid amount': 'INVALID_PROVIDER_AMOUNT',
+    }.get(str(error), 'VERIFICATION_FAILED')
+
+
 def reconcile():
-    for row in frappe.get_all('DD Payment Attempt', filters={'status': ['in', ['Pending', 'Review']], 'tracking_id': ['is', 'set']}, pluck='name', limit_page_length=100, order_by='modified asc'):
+    # The scheduler may overlap across workers. Keep one bounded batch per site.
+    lock = frappe.cache.lock(frappe.cache.make_key('dd:pesapal:reconcile'), timeout=7200)
+    if not lock.acquire(blocking=False):
+        return
+    try:
+        _reconcile_due()
+    finally:
+        lock.release()
+
+
+def _reconcile_due():
+    from datetime import timedelta
+    settings = frappe.get_doc('DD Payment Settings')
+    if not settings.enabled or settings.environment not in ('sandbox', 'live'):
+        return
+    now = now_datetime()
+    # Filter before LIMIT, so waiting/old-environment attempts cannot starve due work.
+    attempts = frappe.get_all('DD Payment Attempt',
+        filters={'status': ['in', ['Pending', 'Review']], 'tracking_id': ['is', 'set'],
+                 'environment': settings.environment},
+        or_filters=[['next_reconcile_at', 'is', 'not set'], ['next_reconcile_at', '<=', now]],
+        fields=['name', 'reconcile_failures', 'reconcile_error_code'],
+        limit_page_length=100, order_by='modified asc')
+    for row in attempts:
         try:
-            _verify(row)
+            _verify(row.name)
+            frappe.db.set_value('DD Payment Attempt', row.name, {
+                'reconcile_failures': 0, 'next_reconcile_at': None,
+                'reconcile_error_code': None, 'reconcile_failed_at': None,
+            })
             frappe.db.commit()
-        except Exception:
+        except Exception as error:
             frappe.db.rollback()
-            frappe.log_error(title='Pesapal reconciliation failed', message=f'Review payment attempt {row}; provider verification did not complete.')
+            failures = min(int(row.reconcile_failures or 0) + 1, 1000000)
+            delay_minutes = min(15 * (2 ** min(failures - 1, 7)), 1440)
+            code = _reconciliation_failure_code(error)
+            failed_at = now_datetime()
+            # Only retry metadata changes here. Never mark a payment Paid/Failed,
+            # discard tracking IDs, or commit partial verification after failure.
+            frappe.db.set_value('DD Payment Attempt', row.name, {
+                'reconcile_failures': failures,
+                'next_reconcile_at': failed_at + timedelta(minutes=delay_minutes),
+                'reconcile_error_code': code, 'reconcile_failed_at': failed_at,
+            })
+            frappe.db.commit()
+            if failures == 1 or row.reconcile_error_code != code:
+                frappe.log_error(title='Pesapal reconciliation failed',
+                    message=f'Payment attempt: {row.name}\nCode: {code}\nAutomatic retry in {delay_minutes} minutes. See retry details on DD Payment Attempt.',
+                    reference_doctype='DD Payment Attempt', reference_name=row.name,
+                    defer_insert=True)
+
 
 def require_deposit(doc, method=None):
     if not doc.field_request:

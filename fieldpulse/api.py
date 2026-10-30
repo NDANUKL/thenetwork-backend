@@ -52,6 +52,19 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
 
     server_time = now_datetime().isoformat()
     tasks = frappe.get_all("Field Task", filters=filters, fields=["*"])
+    # Closed historical work is still part of this scout's assignment history.
+    # A fresh install must receive the same approved records an older device
+    # retained locally. Do not republish questionnaires or convert their pins.
+    historical_filters = {
+        "scout_profile": scout_profile.name,
+        "status": "Approved",
+        "task_brief_version": ["is", "not set"],
+    }
+    if since:
+        historical_filters["modified"] = [">", since]
+    known = {task['name'] for task in tasks}
+    tasks.extend(task for task in frappe.get_all("Field Task", filters=historical_filters, fields=["*"])
+                 if task['name'] not in known)
     known = {task['name'] for task in tasks}
     tasks.extend(task for task in cancelled_legacy_tasks(scout_profile.name, since) if task['name'] not in known)
     if int(task_brief_version or 0) < 1 and any(task.get('task_brief_version') for task in tasks):

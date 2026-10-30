@@ -592,6 +592,35 @@
       "show_on_timeline": 0,
       "make_attachment_public": 0,
       "doctype": "DocField"
+    },
+    {
+      "fieldname": "reconcile_failures",
+      "label": "Consecutive verification failures",
+      "fieldtype": "Int",
+      "read_only": 1,
+      "no_copy": 1,
+      "default": "0"
+    },
+    {
+      "fieldname": "next_reconcile_at",
+      "label": "Next automatic verification",
+      "fieldtype": "Datetime",
+      "read_only": 1,
+      "no_copy": 1
+    },
+    {
+      "fieldname": "reconcile_error_code",
+      "label": "Verification failure code",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "no_copy": 1
+    },
+    {
+      "fieldname": "reconcile_failed_at",
+      "label": "Last verification failure",
+      "fieldtype": "Datetime",
+      "read_only": 1,
+      "no_copy": 1
     }
   ],
   "links": [],

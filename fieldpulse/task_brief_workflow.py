@@ -211,6 +211,26 @@ def validate_response(doc, task):
 
 
 @frappe.whitelist(methods=['POST'])
+def record_progress(task_name, brief_hash):
+    """Idempotent mobile activity acknowledgement; never reopen closed work."""
+    from fieldpulse.api import _get_scout_profile_for_user
+    scout = _get_scout_profile_for_user()
+    frappe.db.sql('SELECT name FROM `tabField Task` WHERE name=%s FOR UPDATE', [task_name])
+    task = frappe.get_doc('Field Task', task_name)
+    if task.scout_profile != scout.name:
+        frappe.throw('This task belongs to another scout', frappe.PermissionError)
+    if snapshot(task)['content_hash'] != brief_hash:
+        frappe.throw('Sync the approved Task Brief before recording progress')
+    if task.status == 'Assigned':
+        task.status = 'Accepted'
+        task.save(ignore_permissions=True)
+    if task.status == 'Accepted':
+        task.status = 'In Progress'
+        task.save(ignore_permissions=True)
+    return dict(status=task.status, started_at=task.get('started_at'))
+
+
+@frappe.whitelist(methods=['POST'])
 def save_response(payload):
     from fieldpulse.api import _get_scout_profile_for_user
     payload = decoded(payload, {})

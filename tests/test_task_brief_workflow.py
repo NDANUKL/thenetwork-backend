@@ -17,6 +17,30 @@ class Record(dict):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_progress_retries_do_not_regress_terminal_tasks(self):
+        import types
+        task = MagicMock(status='Assigned', scout_profile='SCOUT')
+        self.frappe.get_doc.side_effect = None
+        self.frappe.get_doc.return_value = task
+        self.module.snapshot = lambda task: {'content_hash': 'hash'}
+        transitions = []
+        task.save.side_effect = lambda **kw: transitions.append(task.status)
+        api = types.SimpleNamespace(_get_scout_profile_for_user=lambda: Record(name='SCOUT'))
+        with patch.dict(sys.modules, {'fieldpulse.api': api}):
+            self.module.record_progress('TASK', 'hash')
+            self.module.record_progress('TASK', 'hash')
+            self.assertEqual(transitions, ['Accepted', 'In Progress'])
+            for status in ('Submitted', 'Approved', 'Cancelled', 'Awaiting authorization'):
+                task.status = status
+                self.assertEqual(self.module.record_progress('TASK', 'hash')['status'], status)
+            self.assertEqual(len(transitions), 2)
+            task.scout_profile = 'OTHER'
+            with self.assertRaisesRegex(ValueError, 'another scout'):
+                self.module.record_progress('TASK', 'hash')
+            task.scout_profile = 'SCOUT'
+            with self.assertRaisesRegex(ValueError, 'Sync the approved'):
+                self.module.record_progress('TASK', 'wrong')
+
     def setUp(self):
         from fieldpulse.task_briefs import brief_digest
         self.fixture = json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())

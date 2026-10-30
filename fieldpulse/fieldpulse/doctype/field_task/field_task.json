@@ -189,9 +189,11 @@
     },
     {
       "fieldname": "county",
-      "label": "County",
+      "label": "Project County",
       "fieldtype": "Data",
-      "read_only": 1
+      "read_only": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
     },
     {
       "fieldname": "request_type",

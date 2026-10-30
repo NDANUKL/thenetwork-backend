@@ -1,0 +1,23 @@
+{
+  "doctype": "Report",
+  "name": "County Assignment Balance",
+  "module": "FieldPulse",
+  "ref_doctype": "Field Task",
+  "report_type": "Script Report",
+  "is_standard": "Yes",
+  "disabled": 0,
+  "roles": [
+    {
+      "role": "Field Operations Coordinator"
+    },
+    {
+      "role": "Supervisor"
+    },
+    {
+      "role": "Admin"
+    },
+    {
+      "role": "System Manager"
+    }
+  ]
+}
