@@ -85,8 +85,9 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
             if task.get(field):
                 task[field] = site_datetime_iso(task[field])
         if task.get('task_brief_version'):
-            from fieldpulse.task_brief_workflow import revision_payload
+            from fieldpulse.task_brief_workflow import revision_payload, submitted_progress_payload
             task['brief_revision'] = revision_payload(task)
+            task['brief_summary'] = submitted_progress_payload(task)
 
     location_names = list({t["location"] for t in tasks if t.get("location")})
     locations = (

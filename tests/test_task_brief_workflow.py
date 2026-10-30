@@ -41,6 +41,26 @@ class WorkflowTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Sync the approved'):
                 self.module.record_progress('TASK', 'wrong')
 
+    def test_progress_repairs_missing_server_start_once_without_reopening(self):
+        import types
+        task = Record(name='TASK', status='In Progress', scout_profile='SCOUT', started_at=None)
+        saved = []
+        task.save = lambda **kwargs: saved.append(task.status)
+        self.frappe.get_doc.side_effect = None
+        self.frappe.get_doc.return_value = task
+        self.frappe.utils.now_datetime.return_value = '2026-10-30 10:00:00'
+        self.module.snapshot = lambda task: {'content_hash': 'hash'}
+        api = types.SimpleNamespace(_get_scout_profile_for_user=lambda: Record(name='SCOUT'))
+        with patch.dict(sys.modules, {'fieldpulse.api': api}):
+            first = self.module.record_progress('TASK', 'hash')
+            self.assertEqual(first['started_at'], '2026-10-30 10:00:00')
+            self.module.record_progress('TASK', 'hash')
+            self.assertEqual(saved, ['In Progress'])
+            task.status, task.started_at = 'Cancelled', None
+            self.module.record_progress('TASK', 'hash')
+            self.assertIsNone(task.started_at)
+            self.assertEqual(saved, ['In Progress'])
+
     def setUp(self):
         from fieldpulse.task_briefs import brief_digest
         self.fixture = json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())

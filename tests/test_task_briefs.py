@@ -27,12 +27,42 @@ class TaskBriefTests(unittest.TestCase):
     def test_counts_and_metadata_are_required(self):
         self.assertFalse(self.evaluate(evidence=self.data['evidence'][:1])['complete'])
         for field, value in [('task_id', 'OTHER'), ('scout_id', 'OTHER'), ('check_id', 'OTHER'),
-                             ('accuracy_m', 200), ('source', 'gallery'), ('captured_at', 'bad'),
-                             ('location_sampled_at', '2026-10-28T07:00:00Z'), ('uploaded', False), ('file_id', None)]:
+                             ('source', 'unknown'), ('captured_at', 'bad'),
+                             ('uploaded', False), ('file_id', None)]:
             with self.subTest(field=field):
                 rows = copy.deepcopy(self.data['evidence'])
                 rows[0][field] = value
                 self.assertFalse(self.evaluate(evidence=rows)['complete'])
+
+    def test_capture_gps_uncertainty_counts_but_requires_review(self):
+        for change in [dict(accuracy_m=200), dict(latitude=0),
+                       dict(location_sampled_at='2026-10-28T07:00:00Z')]:
+            with self.subTest(change=change):
+                rows = copy.deepcopy(self.data['evidence'])
+                rows[0].update(change)
+                result = self.evaluate(evidence=rows)
+                self.assertTrue(result['complete'])
+                self.assertFalse(result['verified'])
+                self.assertTrue(any('coordinator review required' in flag for flag in result['flags']))
+
+    def test_gallery_photo_counts_as_unverified_fallback_only(self):
+        rows = copy.deepcopy(self.data['evidence'])
+        rows[0].update(source='gallery', captured_at=None, latitude=None, longitude=None,
+                       accuracy_m=None, location_sampled_at=None)
+        result = self.evaluate(evidence=rows)
+        self.assertTrue(result['complete'])
+        self.assertFalse(result['verified'])
+        self.assertTrue(any('Gallery photo' in flag for flag in result['flags']))
+        video_brief = copy.deepcopy(self.brief)
+        video_brief['checks'][0]['evidence'] = [dict(kind='video', minimum=2, instruction='Record the required views.')]
+        video_rows = copy.deepcopy(rows)
+        for row in video_rows:
+            row.update(kind='video', source='gallery', captured_at=None, latitude=None, longitude=None,
+                       accuracy_m=None, location_sampled_at=None)
+        video_result = evaluate_submission(video_brief, ['condition'], self.data['submission'], video_rows,
+            task_id='TASK-1', scout_id='SCOUT-1', site=self.data['site'])
+        self.assertTrue(video_result['complete'])
+        self.assertTrue(any('Gallery video' in flag for flag in video_result['flags']))
 
     def test_missing_capture_location_is_nonblocking_and_flagged(self):
         rows = copy.deepcopy(self.data['evidence'])

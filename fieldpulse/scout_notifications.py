@@ -14,8 +14,8 @@ def queue_rework(task, response, kind, codes, notes):
     if not user: frappe.throw('The assigned scout needs a linked user to receive rework')
     key = sha256(('rework:' + response.name).encode()).hexdigest()
     if frappe.db.exists(DOCTYPE, key): return key
-    title = f'Rework required: {kind} — {task.get("task_number") or task.name}'
-    body = f'{kind}\nQuestions: {", ".join(codes)}\n\n{notes}\n\nOpen the scout app and sync to receive your response revision.'
+    title = f'Correction requested: {task.get("task_number") or task.name}'
+    body = f'Your coordinator requested a full resubmission. Review the instructions below, update any answers that need correction, and add the requested evidence. Your previous answers and evidence are retained.\n\nChecks: {", ".join(codes)}\n\nCoordinator instructions:\n{notes}\n\nOpen Ground Scouts and sync to continue.'
     if task.get('replaces_task'):
         title = 'Site revisit assigned - ' + (task.get('task_number') or task.name)
         body = f'You have a new site revisit assignment. Record your own arrival, answers and evidence.\nQuestions requiring attention: {", ".join(codes)}\n\n{notes}\n\nOpen the scout app and sync to receive this assignment.'
@@ -103,9 +103,15 @@ def queue_task_event(task, scout, kind):
     if frappe.db.exists(DOCTYPE, key):
         return key
     reference = task.get('task_number') or task.name
-    title = {'Assignment':'New assignment', 'Withdrawal':'Assignment withdrawn', 'Authorization':'Revisit authorization updated'}[kind]
+    rejected = kind == 'Withdrawal' and task.get('submission_review_status') == 'Reject'
+    title = 'Assignment rejected' if rejected else {'Assignment':'New assignment', 'Withdrawal':'Assignment withdrawn', 'Authorization':'Revisit authorization updated'}[kind]
     instruction = 'Open Ground Scouts and sync to read the current assignment.'
-    if kind == 'Withdrawal':
+    if rejected:
+        reason = (task.get('submission_review_reasons') or '').strip()
+        if reason.startswith('Rejected:'):
+            reason = reason[len('Rejected:'):].strip()
+        instruction = f'Your assignment was rejected. Reason: {reason}. This assignment is closed. Open Ground Scouts and sync to review the decision.'
+    elif kind == 'Withdrawal':
         instruction = 'Stop work on this assignment. Keep unsent work on your device and contact your coordinator. Open Ground Scouts and sync.'
     elif task.status == 'Awaiting authorization':
         instruction = 'Do not revisit yet. Await coordinator authorization. Open Ground Scouts and sync for the current status.'

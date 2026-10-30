@@ -398,6 +398,13 @@ def assign_project_scouts(field_request, assignments):
         if not scout or scout in seen:
             frappe.throw("Choose each scout once.")
         seen.append(scout)
+        rejected_task = frappe.db.get_value("Field Task", {
+            "field_request": name,
+            "scout_profile": scout,
+            "submission_review_status": "Reject",
+        }, "name")
+        if rejected_task:
+            frappe.throw("This scout was rejected for this project and cannot be assigned to it again. Choose another scout.")
         profile = frappe.get_doc("Scout Profile", scout)
         profile.check_permission("read")
         existing = frappe.db.get_value("Field Task", {"field_request": name, "scout_profile": scout, "status": ["not in", ["Cancelled", "Approved"]]}, "name")

@@ -1,7 +1,14 @@
+import frappe
 from frappe.model.document import Document
 
 
 class ScoutApplication(Document):
+    def onload(self):
+        # User's generic link formatter otherwise picks this applicant's full_name.
+        reviewer = self.get('reviewed_by')
+        self.set_onload('reviewer_full_name',
+            frappe.db.get_value('User', reviewer, 'full_name') if reviewer else None)
+
     def after_insert(self):
         from fieldpulse.coordinator_notifications import application_received
         application_received(self)

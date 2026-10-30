@@ -182,6 +182,10 @@ def evaluate_submission(brief, check_ids, submission, evidence, *, task_id, scou
             errors.append('A captured file may only count once in a submission')
             continue
         files.add(item['file_id'])
+        if item.get('source') == 'gallery' and item.get('kind') in {'photo', 'video'}:
+            flags.append(f"{identity}: Gallery {item.get('kind')}; original capture time and location are unverified; coordinator review required")
+            usable[check_id].append(item)
+            continue
         point = gps_result(item, site)
         captured, arrived = _timestamp(item.get('captured_at')), _timestamp(arrival.get('captured_at'))
         sampled = _timestamp(item.get('location_sampled_at'))
@@ -192,7 +196,6 @@ def evaluate_submission(brief, check_ids, submission, evidence, *, task_id, scou
             flags.append(f'{identity}: Location unavailable')
         elif point['status'] != 'inside' or abs((sampled-captured).total_seconds()) > 60:
             flags.append(f'{identity}: capture location is outside the site, inaccurate or stale; coordinator review required')
-            continue
         usable[check_id].append(item)
     if exception is not None:
         if answers or evidence:

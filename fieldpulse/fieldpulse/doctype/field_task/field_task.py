@@ -154,6 +154,12 @@ def reassign_field_task(field_task, scout_profile, reason):
     task = frappe.get_doc("Field Task", field_task)
     if task.scout_profile == scout_profile:
         return {"field_task": task.name, "status": "unchanged"}
+    if frappe.db.get_value("Field Task", {
+        "field_request": task.field_request,
+        "scout_profile": scout_profile,
+        "submission_review_status": "Reject",
+    }, "name"):
+        frappe.throw("This scout was rejected for this project and cannot be assigned to it again. Choose another scout.")
     if frappe.db.get_value("Scout Profile", scout_profile, "availability_status") == "On Leave":
         frappe.throw("A task cannot be assigned to a scout who is On Leave")
 

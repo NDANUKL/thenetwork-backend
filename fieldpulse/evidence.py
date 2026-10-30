@@ -124,15 +124,20 @@ def request_evidence_upload(
             frappe.throw('Evidence must belong to this scout\'s open assigned check', frappe.PermissionError)
         if gps_result(decoded(response.arrival_check_json, {}), pinned['site'])['status'] != 'inside':
             frappe.throw('Verify arrival before collecting field evidence')
-        if metadata_origin != 'Camera' or evidence_type not in ('Photo', 'Video'):
-            frappe.throw('Capture field evidence using the app camera')
-        if brief_task.get('rework_type') == 'Correct answers':
-            frappe.throw('Clarify recorded answers here; additional field evidence requires a new allocation')
-        if not captured_at:
-            frappe.throw('Keep the original evidence capture timestamp')
-        from datetime import timedelta
-        if mobile_datetime(captured_at) > frappe.utils.now_datetime() + timedelta(minutes=5):
-            frappe.throw('The capture timestamp cannot be in the future')
+        gallery = metadata_origin == 'Gallery' and evidence_type in ('Photo', 'Video')
+        if not gallery and (metadata_origin != 'Camera' or evidence_type not in ('Photo', 'Video')):
+            frappe.throw('Use an app capture or matching device-library media for coordinator review')
+        if gallery:
+            # Selecting a file now does not establish its original capture provenance.
+            captured_at = gps_lat = gps_lng = accuracy_m = location_sampled_at = None
+            clarification_required = 1
+        else:
+            if not captured_at:
+                frappe.throw('Keep the original evidence capture timestamp')
+            from datetime import timedelta
+            captured = mobile_datetime(captured_at)
+            if not captured or captured > frappe.utils.now_datetime() + timedelta(minutes=5):
+                frappe.throw('The capture timestamp is invalid or in the future')
     if evidence_type in {"Photo", "Video"} and not mime_type.startswith("image/" if evidence_type == "Photo" else "video/"):
         frappe.throw("Evidence media type does not match its content type")
     settings = _r2_settings()

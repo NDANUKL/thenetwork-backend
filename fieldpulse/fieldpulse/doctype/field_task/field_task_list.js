@@ -46,7 +46,7 @@ frappe.listview_settings["Field Task"] = {
     },
     submission_review_status(value, df, doc) {
       const escape = frappe.utils.escape_html;
-      const closedReasons = {Reject: "Rejected", "Request additional evidence": "Additional evidence requested", "Rework reassigned": "Reassigned"};
+      const closedReasons = {Reject: "Rejected", "Request additional evidence": "Returned for reassignment", "Returned for reassignment": "Returned for reassignment", "Rework reassigned": "Reassigned"};
       const label = doc.status === "Cancelled" ? (closedReasons[value] || value || "Assignment closed") : (value || "Awaiting submission");
       return `<span>${escape(label)}</span>${doc.submission_review_reasons ? `<br><small title="${escape(doc.submission_review_reasons)}">${escape(doc.submission_review_reasons)}</small>` : ""}`;
     }

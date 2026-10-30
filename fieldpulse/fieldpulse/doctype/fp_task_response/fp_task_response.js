@@ -11,12 +11,43 @@ frappe.ui.form.on("FP Task Response", {
     const humanize = key => key.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
     const structured = value => {
       if (value == null || value === "") return text("Not recorded");
-      if (Array.isArray(value)) return value.map(structured).join("") || text("None recorded");
+      if (Array.isArray(value)) return value.length ? `<ul class="fp-review-list">${value.map(item => `<li>${structured(item)}</li>`).join("")}</ul>` : text("None recorded");
       if (typeof value === "object") return `<dl class="fp-review-values">${Object.entries(value).map(([key, item]) => `<div><dt>${esc(humanize(key))}</dt><dd>${structured(item)}</dd></div>`).join("")}</dl>`;
       return text(typeof value === "boolean" ? value ? "Yes" : "No" : value);
     };
     const block = (title, value) => `<div class="fp-review-field"><div class="fp-review-label">${esc(title)}</div>${structured(value)}</div>`;
     const card = (title, body, status = "") => `<section class="fp-review-card"><header><h4>${esc(title)}</h4>${status}</header>${body}</section>`;
+    const styles = `<style>
+      .fp-review { color:var(--text-color); }
+      .fp-review .fp-review-card { border:1px solid var(--border-color); border-radius:10px; padding:20px; margin:0 0 18px; background:var(--card-bg,var(--fg-color)); }
+      .fp-review header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+      .fp-review h4 { font-size:16px; line-height:1.5; margin:0; flex:1; min-width:180px; }
+      .fp-review h5 { font-size:13px; font-weight:600; margin:0 0 12px; }
+      .fp-review .fp-review-field { margin:12px 0; }
+      .fp-review .fp-review-label,.fp-review dt { font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:5px; }
+      .fp-review .fp-review-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; }
+      .fp-review .fp-review-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; }
+      .fp-review .fp-review-evidence { border:1px solid var(--border-color); border-radius:8px; padding:14px; min-width:0; }
+      .fp-review .fp-review-evidence-heading { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+      .fp-review .fp-review-meta { font-size:12px; color:var(--text-muted); margin:8px 0; overflow-wrap:anywhere; }
+      .fp-review .fp-review-evidence-section { border-top:1px solid var(--border-color); padding-top:16px; margin-top:20px; }
+      .fp-review .fp-review-badge { display:inline-block; font-size:12px; border-radius:5px; padding:4px 8px; background:var(--subtle-fg); color:var(--text-color); }
+      .fp-review .fp-review-success { background:var(--green-100); color:var(--green-800); }
+      .fp-review .fp-review-warning { background:var(--yellow-100); color:var(--yellow-800); }
+      .fp-review .fp-review-notice { border-left:3px solid var(--yellow-500); padding:1px 12px; margin:12px 0; background:var(--subtle-fg); }
+      .fp-review details { margin:12px 0; }
+      .fp-review summary { cursor:pointer; font-weight:500; }
+      .fp-review .fp-review-values { margin:8px 0; padding-left:12px; border-left:2px solid var(--border-color); }
+      .fp-review .fp-review-answer { background:var(--subtle-fg,#f5f7fa); border-radius:8px; padding:4px 16px; margin-top:16px; }
+      .fp-review .fp-review-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:28px 0 16px; }
+      .fp-review .fp-review-overview { border-bottom:1px solid var(--border-color); margin-bottom:16px; padding-bottom:12px; }
+      .fp-review .fp-review-overview .fp-review-text { font-size:18px; font-weight:600; }
+      .fp-review .fp-review-empty { color:var(--text-muted); padding:14px; background:var(--subtle-fg); border-radius:6px; }
+      .fp-review li + li { margin-top:6px; }
+      .fp-review .fp-review-card,.fp-review .fp-review-field { min-width:0; overflow-wrap:anywhere; }
+      @media (max-width:600px) { .fp-review .fp-review-card { padding:14px; } .fp-review .fp-review-section-heading { flex-wrap:wrap; } }
+      .fp-review dd { margin:0 0 10px; }
+    </style>`;
     wrapper.html(`<p class="text-muted">${__("Loading scout submission…")}</p>`);
     let data;
     try {
@@ -26,26 +57,68 @@ frappe.ui.form.on("FP Task Response", {
       return;
     }
     if (data.brief) {
-      const pinned=data.brief, submitted=data.submission;
-      wrapper.html(card('Approved Task Brief',block('Objective',pinned.brief.objective)+block('Scope',pinned.brief.scope)+block('Instructions',pinned.brief.instructions))+
-        card('Arrival',structured(submitted.arrival))+
-        (submitted.access_issue?card('Access issue',text(submitted.access_issue)):'')+
-        pinned.brief.checks.filter(check=>pinned.check_ids.includes(check.id)).map(check=>card(check.instruction,
-          structured(submitted.answers[check.id]||'No response')+block('Required evidence',check.evidence)+
-          (data.evidence||[]).filter(e=>e.field_check_id===check.id).map(e=>`<p>${esc(e.evidence_type)} · ${esc(e.captured_at)} · GPS ${esc(e.gps_lat)}, ${esc(e.gps_lng)} ± ${esc(e.accuracy_m)} m <button class="btn btn-default btn-sm" data-evidence="${esc(e.name)}">Open evidence</button></p>`).join(''))).join('')+
-        card('Additional observations',text(submitted.additional_observations||'None'))+
-        card('Technical completeness — not evidence verification',structured(data.completion)));
+      const pinned = data.brief, submitted = data.submission || {};
+      const checks = pinned.brief.checks.filter(check => pinned.check_ids.includes(check.id));
+      const evidence = data.evidence || [];
+      const completion = data.completion || {};
+      const summaries = new Map((completion.checks || []).map(check => [check.id, check]));
+      const arrival = submitted.arrival || {};
+      const flags = [...(completion.errors || []), ...(completion.flags || [])];
+      const evidenceCard = e => `<article class="fp-review-evidence">
+        <div class="fp-review-evidence-heading"><strong>${esc(e.evidence_type || "Evidence")}</strong>${badge("Uploaded")}</div>
+        ${text(e.caption || "No caption provided")}
+        ${block("Captured at", e.captured_at || "Not recorded")}
+        <details><summary>Capture details</summary>${block("GPS coordinates", e.gps_lat != null && e.gps_lng != null ? `${e.gps_lat}, ${e.gps_lng}` : "Not recorded")}${block("GPS accuracy", e.accuracy_m != null ? `${e.accuracy_m} m` : "Not recorded")}${e.description ? block("Description", e.description) : ""}</details>
+        <button type="button" class="btn btn-default btn-sm" data-evidence="${esc(e.name)}">Open ${esc(e.evidence_type || "evidence")}</button>
+      </article>`;
+      const responses = checks.map((check, index) => {
+        const answer = submitted.answers?.[check.id];
+        const summary = summaries.get(check.id);
+        const media = evidence.filter(e => e.field_check_id === check.id);
+        const unable = answer?.status === "unable_to_verify";
+        const label = unable ? "Unable to verify" : !answer ? "No response" : summary?.missing?.length ? "Needs attention" : "Recorded";
+        const requirements = (check.evidence || []).map(rule => `<li><strong>${esc(rule.minimum)} ${esc(rule.kind)} capture(s)</strong>${rule.instruction ? ` &mdash; ${esc(rule.instruction)}` : ""}</li>`).join("");
+        return card(`${index + 1}. ${check.instruction}`,
+          `<div class="fp-review-meta">${check.required ? "Required check" : "Optional check"}</div>` +
+          (summary?.missing?.length ? `<div class="fp-review-notice">${block("Needs attention", summary.missing)}</div>` : "") +
+          `<div class="fp-review-answer">${block(unable ? "Why this could not be verified" : "Scout response", unable ? answer.explanation : answer?.value ?? "No response recorded")}${!unable && answer?.explanation ? block("Explanation", answer.explanation) : ""}</div>` +
+          `<div class="fp-review-evidence-section"><h5>Supporting evidence (${media.length})</h5>${requirements ? `<details><summary>Evidence requirements</summary><ul>${requirements}</ul></details>` : ""}${media.length ? `<div class="fp-review-grid">${media.map(evidenceCard).join("")}</div>` : `<div class="fp-review-empty">No uploaded evidence linked to this check.</div>`}</div>`,
+          badge(label, unable || !answer || summary?.missing?.length ? "warning" : "neutral"));
+      }).join("");
+      wrapper.html(styles + `<div class="fp-review">` +
+        card("Submission review", `<div class="fp-review-grid fp-review-overview">${block("Assigned checks", checks.length)}${block("Uploaded evidence", evidence.length)}${block("Submitted", frm.doc.submitted_at || "Not recorded")}</div>` +
+          text("Review the scout's findings and supporting evidence before recording a decision.") +
+          (flags.length ? `<div class="fp-review-notice">${block("Review flags and limitations", flags)}</div>` : "") +
+          (frm.doc.review_notes ? block("Coordinator notes", frm.doc.review_notes) : ""), badge(frm.doc.qa_status || "Pending")) +
+        card(pinned.brief.title || "Approved Task Brief", block("Objective", pinned.brief.objective) +
+          `<details><summary>Scope and assigned instructions</summary>${block("Scope", pinned.brief.scope)}${block("Instructions", pinned.brief.instructions)}</details>`) +
+        card("Arrival", `<div class="fp-review-grid">${block("Distance from site", frm.doc.geofence_distance_m != null ? `${frm.doc.geofence_distance_m} m` : "Not recorded")}${block("GPS accuracy", arrival.accuracy_m != null ? `${arrival.accuracy_m} m` : "Not recorded")}${block("Captured at", arrival.captured_at || "Not recorded")}</div><details><summary>Arrival coordinates</summary>${text(arrival.latitude != null && arrival.longitude != null ? `${arrival.latitude}, ${arrival.longitude}` : "Not recorded")}</details>`, badge(frm.doc.geofence_status || "Not recorded")) +
+        (submitted.access_issue ? card("Access issue", structured(submitted.access_issue), badge("Needs review", "warning")) : "") +
+        `<div class="fp-review-section-heading"><h4>Scout findings</h4><span class="fp-review-meta">${checks.length} assigned checks</span></div>` + responses +
+        card("Additional observations", text(submitted.additional_observations || "No additional observations.")) +
+        card("Submission checks", text("Technical completeness does not verify the findings or evidence.") + block("Scout declaration", submitted.declaration === true ? "Confirmed" : "Not confirmed") +
+          `<details><summary>Technical completeness details</summary>${structured(completion)}</details>`, badge(completion.complete === true ? "Technically complete" : "Incomplete", completion.complete === true ? "neutral" : "warning")) + `</div>`);
       wrapper.find('[data-evidence]').on('click',async function(){
         const {message}=await frappe.call('fieldpulse.evidence.get_evidence_view_url',{evidence_id:this.dataset.evidence});
         window.open(message.view_url,'_blank','noopener,noreferrer');
       });
       if(frm.doc.status==='Submitted'&&!['Passed','Failed'].includes(frm.doc.qa_status)){
-        for(const decision of ['Approve','Reject','Request clarification','Request additional evidence'])frm.add_custom_button(__(decision),()=>frappe.prompt(
-          [{fieldname:'notes',fieldtype:'Small Text',label:__('Review findings and instructions'),reqd:1}],async values=>{
-            await frappe.call({method:'fieldpulse.task_brief_workflow.review_response',args:{response:frm.doc.name,decision,notes:values.notes},freeze:true});
+        const actions=[
+          {decision:'Approve',label:'Approve'},
+          {decision:'Reject',label:'Reject'},
+          {decision:'Request clarification',label:'Request clarification and resubmission'},
+        ];
+        for(const action of actions)frm.add_custom_button(__(action.label),()=>{
+          const askForReason=()=>frappe.prompt(
+          [{fieldname:'notes',fieldtype:'Small Text',label:action.decision==='Reject'?__('Rejection reason'):__('Review findings and instructions'),reqd:1}],async values=>{
+            await frappe.call({method:'fieldpulse.task_brief_workflow.review_response',args:{response:frm.doc.name,decision:action.decision,notes:values.notes},freeze:true});
             await frm.reload_doc();
-            if(decision==='Request additional evidence')frappe.msgprint(__('Original submission retained. Assign a new visit from the project with the checks needing more evidence.'));
-          },__(decision),__('Record decision')));
+            if(action.decision==='Reject')frappe.msgprint(__('This assignment is rejected and closed. The project is now Awaiting Assignment. This scout cannot be assigned to this project again.'));
+            if(action.decision==='Request clarification')frappe.msgprint(__('A full resubmission was sent to the scout. They can update answers and add new evidence using the camera or gallery.'));
+          },__(action.label),__('Record decision'));
+          if(action.decision==='Reject')frappe.confirm(__('Rejecting closes this scout\'s assignment and returns the project to Awaiting Assignment. This scout will not be eligible for this project again. The project can be assigned to another scout. Continue?'),askForReason);
+          else askForReason();
+        });
       }
       return;
     }
@@ -91,29 +164,6 @@ frappe.ui.form.on("FP Task Response", {
       const requirements = (summary?.evidence || []).map(e => `<li><strong>${esc(e.kind)}</strong> · ${esc(e.state)} · ${esc(e.subject)}</li>`).join("");
       return card(`${index + 1}. ${q.label || q.question_code}`, `<div class="fp-review-meta">${esc(q.question_code)}</div>${checks.length ? `<div class="fp-review-notice">${block("Review flags", checks)}</div>` : ""}${q.help_text ? block("Assigned instructions", q.help_text) : ""}${renderAnswer(answer, q)}${requirements ? `<details><summary>Evidence checks</summary><ul>${requirements}</ul></details>` : ""}<div class="fp-review-evidence-section"><h5>Supporting evidence <span class="text-muted">(${media.length})</span></h5>${media.length ? `<div class="fp-review-grid">${media.map(evidenceCard).join("")}</div>` : text("No uploaded evidence linked to this answer.")}</div>`, status);
     }).join("");
-    const styles = `<style>
-      .fp-review { color:var(--text-color); }
-      .fp-review .fp-review-card { border:1px solid var(--border-color); border-radius:10px; padding:20px; margin:0 0 18px; background:var(--card-bg,var(--fg-color)); }
-      .fp-review header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
-      .fp-review h4 { font-size:16px; line-height:1.5; margin:0; flex:1; min-width:180px; }
-      .fp-review h5 { font-size:13px; font-weight:600; margin:0 0 12px; }
-      .fp-review .fp-review-field { margin:12px 0; }
-      .fp-review .fp-review-label,.fp-review dt { font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:5px; }
-      .fp-review .fp-review-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; }
-      .fp-review .fp-review-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; }
-      .fp-review .fp-review-evidence { border:1px solid var(--border-color); border-radius:8px; padding:14px; min-width:0; }
-      .fp-review .fp-review-evidence-heading { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
-      .fp-review .fp-review-meta { font-size:12px; color:var(--text-muted); margin:8px 0; overflow-wrap:anywhere; }
-      .fp-review .fp-review-evidence-section { border-top:1px solid var(--border-color); padding-top:16px; margin-top:20px; }
-      .fp-review .fp-review-badge { display:inline-block; font-size:12px; border-radius:5px; padding:4px 8px; background:var(--subtle-fg); color:var(--text-color); }
-      .fp-review .fp-review-success { background:var(--green-100); color:var(--green-800); }
-      .fp-review .fp-review-warning { background:var(--yellow-100); color:var(--yellow-800); }
-      .fp-review .fp-review-notice { border-left:3px solid var(--yellow-500); padding:1px 12px; margin:12px 0; background:var(--subtle-fg); }
-      .fp-review details { margin:12px 0; }
-      .fp-review summary { cursor:pointer; font-weight:500; }
-      .fp-review .fp-review-values { margin:8px 0; padding-left:12px; border-left:2px solid var(--border-color); }
-      .fp-review dd { margin:0 0 10px; }
-    </style>`;
     wrapper.html(styles + `<div class="fp-review">` +
       card("Submission review", block("Outcome", data.review_status || "Awaiting review") + (data.review_reasons ? `<div class="fp-review-notice">${block("Limitations and review reasons", data.review_reasons)}</div>` : "") + (frm.doc.review_notes ? block("Coordinator notes", frm.doc.review_notes) : ""), badge(frm.doc.qa_status || "Pending")) +
       (context ? card("Client request and agreed scope", context + (request.clarifications || []).map(c => block(c.question, c.answer)).join("")) : "") +

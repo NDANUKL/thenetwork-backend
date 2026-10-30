@@ -227,6 +227,11 @@ def record_progress(task_name, brief_hash):
     if task.status == 'Accepted':
         task.status = 'In Progress'
         task.save(ignore_permissions=True)
+    if task.status == 'In Progress' and not task.get('started_at'):
+        # Repair an incomplete acknowledgement without inventing a historical
+        # device start time. This is when the server first confirms activity.
+        task.started_at = frappe.utils.now_datetime()
+        task.save(ignore_permissions=True)
     return dict(status=task.status, started_at=task.get('started_at'))
 
 
@@ -283,7 +288,11 @@ def submission_detail(doc, task):
 def review_response(response, decision, notes):
     from fieldpulse.scout_submissions import require_reviewer
     require_reviewer()
-    if decision not in ('Approve', 'Reject', 'Request clarification', 'Request additional evidence') or not isinstance(notes, str) or not notes.strip():
+    # Retired review actions are normalized for older Desk clients. Rejection
+    # now closes this scout's assignment and returns the project to the queue.
+    if decision in ('Request additional evidence', 'Return for reassignment'):
+        decision = 'Reject'
+    if decision not in ('Approve', 'Reject', 'Request clarification') or not isinstance(notes, str) or not notes.strip():
         frappe.throw('Choose a decision and record the review findings')
     task_name = frappe.db.get_value('FP Task Response', response, 'task')
     frappe.db.sql('SELECT name FROM `tabField Task` WHERE name=%s FOR UPDATE', [task_name])
@@ -300,7 +309,7 @@ def review_response(response, decision, notes):
         frappe.throw('An incomplete submission or access issue cannot approve fieldwork')
     frappe.db.set_value('FP Task Response', doc.name, dict(qa_status='Passed' if decision == 'Approve' else 'Failed',
         review_notes=notes.strip(), reviewed_by=frappe.session.user, reviewed_at=frappe.utils.now_datetime()))
-    task.submission_review_reasons = notes.strip()
+    task.submission_review_reasons = ('Rejected: ' if decision == 'Reject' else '') + notes.strip()
     task.submission_review_status = 'Approved by coordinator' if decision == 'Approve' else decision
     task.status = 'Approved' if decision == 'Approve' else 'Rejected' if decision == 'Request clarification' else 'Cancelled'
     if decision == 'Request clarification': task.rework_type = 'Correct answers'
@@ -323,7 +332,7 @@ def review_response(response, decision, notes):
         from fieldpulse.scout_notifications import queue_rework
         queue_rework(task, doc, 'Correct answers',
             [check['instruction'] for check in pinned['brief']['checks'] if check['id'] in pinned['check_ids']], notes.strip())
-    elif decision != 'Approve':
+    elif decision == 'Reject':
         frappe.db.set_value('Field Request', task.field_request, 'status', 'Awaiting Assignment')
     else:
         from fieldpulse.scout_reports import prepare_if_ready
@@ -342,7 +351,35 @@ def revision_payload(task):
                     kind=item.evidence_type.lower(), mime_type=item.mime_type, size_bytes=item.file_size,
                     captured_at=site_datetime_iso(item.captured_at), latitude=item.gps_lat, longitude=item.gps_lng,
                     accuracy_m=item.accuracy_m, location_sampled_at=site_datetime_iso(item.location_sampled_at),
-                    metadata_origin='Camera', local_uri='') for item in evidence_rows(response)])
+                    metadata_origin=item.metadata_origin or 'Camera', local_uri='') for item in evidence_rows(response)])
+
+
+def submitted_progress_payload(task):
+    """Small authoritative progress snapshot for submitted/approved Task Briefs."""
+    if task.status not in ('Submitted', 'Approved'):
+        return None
+    filters = {'task': task.name, 'status': 'Submitted'}
+    if task.status == 'Approved':
+        filters['qa_status'] = 'Passed'
+    rows = frappe.get_all('FP Task Response', filters=filters, fields=['name', 'qa_status'],
+        order_by='submitted_at desc, creation desc', limit=1)
+    if not rows:
+        return None
+    response = frappe.get_doc('FP Task Response', rows[0].name)
+    pinned = snapshot(task)
+    completion = decoded(response.get('brief_completion_json'), {})
+    if not isinstance(completion, dict) or not isinstance(completion.get('checks'), list):
+        completion = evaluate_submission(pinned['brief'], pinned['check_ids'], submission_payload(response),
+            evidence_records(response), task_id=task.name, scout_id=task.scout_profile, site=pinned['site'])
+    checks = completion['checks']
+    statuses = [item.get('status') for item in checks if isinstance(item, dict)]
+    arrival = submission_payload(response).get('arrival') or {}
+    return dict(response_id=response.name, response_status=response.status,
+        arrival_verified=gps_result(arrival, pinned['site'])['status'] == 'inside',
+        checks_complete=sum(status == 'complete' for status in statuses),
+        checks_recorded=sum(status in ('complete', 'unable_to_verify') for status in statuses),
+        checks_unable=sum(status == 'unable_to_verify' for status in statuses),
+        check_count=len(pinned['check_ids']), evidence_count=len(evidence_rows(response)))
 
 
 def coverage_ready(project_names):

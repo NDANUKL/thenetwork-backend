@@ -150,7 +150,7 @@
       "fieldname": "metadata_origin",
       "label": "Evidence origin",
       "fieldtype": "Select",
-      "options": "\nCamera\nImported document\nSignature pad",
+      "options": "\nCamera\nGallery\nImported document\nSignature pad",
       "read_only": 1
     },
     {

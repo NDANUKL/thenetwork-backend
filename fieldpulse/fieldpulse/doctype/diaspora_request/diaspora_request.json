@@ -40,7 +40,7 @@
     {
       "fieldname": "submission_id",
       "fieldtype": "Data",
-      "in_list_view": 1,
+      "in_list_view": 0,
       "label": "Submission ID",
       "no_copy": 1,
       "reqd": 1,

@@ -1,8 +1,19 @@
 frappe.listview_settings["Field Request"] = {
-  add_fields: ["field_brief", "project_title"],
-  formatters: {
-    name(value, df, doc) {
-      return `<a href="/app/field-request/${encodeURIComponent(value || '')}" title="${frappe.utils.escape_html(doc.field_brief || '')}">${frappe.utils.escape_html(value || '')}</a>`;
-    }
-  }
+  add_fields: ["project_title"],
+  // Subject formatters return text: Frappe creates the anchor itself.
+  formatters: { name: value => value || "" },
+  onload(listview) {
+    if (listview.dd_request_subject) return;
+    listview.dd_request_subject = true;
+    const subject = listview.get_subject_element.bind(listview);
+    listview.get_subject_element = (doc) => {
+      const element = subject(doc, doc.name);
+      const link = element.querySelector("a");
+      if (link) {
+        link.textContent = doc.name;
+        link.setAttribute("title", doc.project_title || doc.name);
+      }
+      return element;
+    };
+  },
 };
