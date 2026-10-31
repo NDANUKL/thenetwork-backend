@@ -22,13 +22,14 @@ class WorkflowTests(unittest.TestCase):
         task = MagicMock(status='Assigned', scout_profile='SCOUT')
         self.frappe.get_doc.side_effect = None
         self.frappe.get_doc.return_value = task
-        self.module.snapshot = lambda task: {'content_hash': 'hash'}
+        self.module.snapshot = lambda task: {'content_hash': 'hash', 'site': {}}
+        self.module.gps_result = lambda point, site: {'status': 'inside'}
         transitions = []
         task.save.side_effect = lambda **kw: transitions.append(task.status)
         api = types.SimpleNamespace(_get_scout_profile_for_user=lambda: Record(name='SCOUT'))
         with patch.dict(sys.modules, {'fieldpulse.api': api}):
-            self.module.record_progress('TASK', 'hash')
-            self.module.record_progress('TASK', 'hash')
+            self.module.record_progress('TASK', 'hash', arrival={})
+            self.module.record_progress('TASK', 'hash', arrival={})
             self.assertEqual(transitions, ['Accepted', 'In Progress'])
             for status in ('Submitted', 'Approved', 'Cancelled', 'Awaiting authorization'):
                 task.status = status
@@ -49,10 +50,11 @@ class WorkflowTests(unittest.TestCase):
         self.frappe.get_doc.side_effect = None
         self.frappe.get_doc.return_value = task
         self.frappe.utils.now_datetime.return_value = '2026-10-30 10:00:00'
-        self.module.snapshot = lambda task: {'content_hash': 'hash'}
+        self.module.snapshot = lambda task: {'content_hash': 'hash', 'site': {}}
+        self.module.gps_result = lambda point, site: {'status': 'inside'}
         api = types.SimpleNamespace(_get_scout_profile_for_user=lambda: Record(name='SCOUT'))
         with patch.dict(sys.modules, {'fieldpulse.api': api}):
-            first = self.module.record_progress('TASK', 'hash')
+            first = self.module.record_progress('TASK', 'hash', arrival={})
             self.assertEqual(first['started_at'], '2026-10-30 10:00:00')
             self.module.record_progress('TASK', 'hash')
             self.assertEqual(saved, ['In Progress'])

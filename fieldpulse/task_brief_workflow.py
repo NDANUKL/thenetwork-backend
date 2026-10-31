@@ -211,16 +211,25 @@ def validate_response(doc, task):
 
 
 @frappe.whitelist(methods=['POST'])
-def record_progress(task_name, brief_hash):
-    """Idempotent mobile activity acknowledgement; never reopen closed work."""
+def record_progress(task_name, brief_hash, arrival=None):
+    """Acknowledge progress only after the scout verifies arrival inside the pinned site."""
     from fieldpulse.api import _get_scout_profile_for_user
     scout = _get_scout_profile_for_user()
     frappe.db.sql('SELECT name FROM `tabField Task` WHERE name=%s FOR UPDATE', [task_name])
     task = frappe.get_doc('Field Task', task_name)
     if task.scout_profile != scout.name:
         frappe.throw('This task belongs to another scout', frappe.PermissionError)
-    if snapshot(task)['content_hash'] != brief_hash:
+    pinned = snapshot(task)
+    if pinned['content_hash'] != brief_hash:
         frappe.throw('Sync the approved Task Brief before recording progress')
+    if task.status not in ('Assigned', 'Accepted', 'In Progress'):
+        return dict(status=task.status, started_at=task.get('started_at'))
+    # An already started task remains idempotent for older mobile builds that
+    # do not yet send arrival on the progress acknowledgement.
+    if task.status != 'In Progress' or not task.get('started_at'):
+        arrival = decoded(arrival, {})
+        if gps_result(arrival, pinned['site'])['status'] != 'inside':
+            frappe.throw('Verify arrival inside the assigned site before recording task progress')
     if task.status == 'Assigned':
         task.status = 'Accepted'
         task.save(ignore_permissions=True)
