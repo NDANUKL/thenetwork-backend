@@ -4,6 +4,9 @@ import frappe
 
 LOCATION_FIELDS = ["site_label", "location_mode", "county", "area", "map_url", "latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes"]
 LOCATION_LOCKED_TASK_STATUSES = ("Accepted", "In Progress", "Submitted", "Approved", "Cancelled")
+# One-off coordinator correction for a task incorrectly advanced by the mobile
+# arrival-progress sync. Keep the exception tied to this task number and status.
+LOCATION_CORRECTION_EXCEPTION_TASK = "TK-2026-00042"
 
 
 def contact_access_summary(sites):
@@ -30,11 +33,22 @@ def sync_contact_access(doc):
 
 
 def can_correct_project_location(doc):
-    """An Assigned task has not started; accepted or progressed work locks its pin."""
-    return not frappe.db.exists("Field Task", {
+    """Permit the one scoped pin correction while all other started work stays locked."""
+    locked = frappe.get_all("Field Task", filters={
         "field_request": doc.name,
         "status": ["in", list(LOCATION_LOCKED_TASK_STATUSES)],
-    })
+    }, fields=["task_number", "status"])
+    return all(
+        task.task_number == LOCATION_CORRECTION_EXCEPTION_TASK and task.status == "In Progress"
+        for task in locked
+    )
+
+
+def _can_refresh_task_pin(task):
+    return task.get("status") == "Assigned" or (
+        task.get("task_number") == LOCATION_CORRECTION_EXCEPTION_TASK
+        and task.get("status") == "In Progress"
+    )
 
 
 def sync_locations(target, source, project):
@@ -144,18 +158,20 @@ def map_task_navigation(doc, request):
 
 
 def refresh_assigned_task_pins(location):
-    """Refresh only Task Brief pins whose scout work has not started."""
+    """Refresh unstarted pins and the single explicitly authorized correction."""
     tasks = frappe.get_all("Field Task", filters={
         "location": location.name,
-        "status": "Assigned",
+        "status": ["in", ["Assigned", "In Progress"]],
         "task_brief_version": ["is", "set"],
-    }, fields=["name", "task_brief_snapshot"])
+    }, fields=["name", "task_number", "status", "task_brief_snapshot"])
     try:
         latitude, longitude = float(location.latitude), float(location.longitude)
     except (TypeError, ValueError):
         frappe.throw("Correct the location coordinates before syncing assigned tasks.")
 
     for task in tasks:
+        if not _can_refresh_task_pin(task):
+            continue
         try:
             pinned = json.loads(task.task_brief_snapshot or "{}")
         except (TypeError, ValueError):
@@ -180,9 +196,9 @@ def sync_task_navigation(doc, method=None):
         return
     sites = doc.get("project_locations") or []
     verified = bool(sites) and all(site.confirmation_status == "Confirmed for dispatch" for site in sites)
-    for task in frappe.get_all("Field Task", filters={"field_request": doc.name, "status": ["not in", ["Approved", "Cancelled", "Rejected"]]}, fields=["name", "location", "status", "task_brief_snapshot"]):
+    for task in frappe.get_all("Field Task", filters={"field_request": doc.name, "status": ["not in", ["Approved", "Cancelled", "Rejected"]]}, fields=["name", "task_number", "location", "status", "task_brief_snapshot"]):
         values = {"due_at": str(doc.deadline)[:10] + " 23:59:59" if doc.deadline else None}
-        if verified and task.status == "Assigned":
+        if verified and _can_refresh_task_pin(task):
             values["dd_site_locations"] = doc.dd_site_locations
             code = frappe.db.get_value("FP Location", task.location, "location_code") if task.location else None
             site = next((item for item in sites if code == doc.name + "-" + item.name), None)
