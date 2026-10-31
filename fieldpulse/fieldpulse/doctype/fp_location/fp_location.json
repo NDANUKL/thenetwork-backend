@@ -9,9 +9,9 @@
   "fields": [
     {"fieldname": "location_code", "fieldtype": "Data", "in_list_view": 1, "label": "Location Code", "reqd": 1, "unique": 1},
     {"fieldname": "location_name", "fieldtype": "Data", "in_list_view": 1, "label": "Location Name", "reqd": 1},
-    {"fieldname": "latitude", "fieldtype": "Float", "label": "Latitude", "reqd": 1},
-    {"fieldname": "longitude", "fieldtype": "Float", "label": "Longitude", "reqd": 1},
-    {"default": "50", "fieldname": "geofence_radius_m", "fieldtype": "Int", "label": "Geofence Radius M", "reqd": 1},
+    {"fieldname": "latitude", "fieldtype": "Data", "label": "Latitude", "reqd": 1},
+    {"fieldname": "longitude", "fieldtype": "Data", "label": "Longitude", "reqd": 1},
+    {"default": "50", "fieldname": "geofence_radius_m", "fieldtype": "Int", "label": "Geofence Radius M", "read_only": 1, "reqd": 1},
     {"fieldname": "address", "fieldtype": "Small Text", "label": "Address"},
     {"default": "Active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Active\nInactive\nArchived", "reqd": 1}
   ],

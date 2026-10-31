@@ -135,12 +135,45 @@ def map_task_navigation(doc, request):
         code = request.name + "-" + site.name
         location = frappe.db.get_value("FP Location", {"location_code": code}, "name")
         if not location:
-            point = frappe.get_doc({"doctype": "FP Location", "location_code": code, "location_name": site.site_label, "latitude": float(site.latitude), "longitude": float(site.longitude), "address": site.area + ", " + site.county, "status": "Active", "geofence_radius_m": 50})
+            point = frappe.get_doc({"doctype": "FP Location", "location_code": code, "location_name": site.site_label, "latitude": str(site.latitude), "longitude": str(site.longitude), "address": site.area + ", " + site.county, "status": "Active", "geofence_radius_m": 50})
             point.insert(ignore_permissions=True)
             location = point.name
         doc.location = location
     if doc.is_new() and len(sites) > 1 and not doc.location:
         frappe.throw("Choose the verified visit location for this scout task.")
+
+
+def refresh_assigned_task_pins(location):
+    """Refresh only Task Brief pins whose scout work has not started."""
+    tasks = frappe.get_all("Field Task", filters={
+        "location": location.name,
+        "status": "Assigned",
+        "task_brief_version": ["is", "set"],
+    }, fields=["name", "task_brief_snapshot"])
+    try:
+        latitude, longitude = float(location.latitude), float(location.longitude)
+    except (TypeError, ValueError):
+        frappe.throw("Correct the location coordinates before syncing assigned tasks.")
+
+    for task in tasks:
+        try:
+            pinned = json.loads(task.task_brief_snapshot or "{}")
+        except (TypeError, ValueError):
+            continue
+        site = pinned.get("site")
+        if pinned.get("contract_version") != 1 or not isinstance(site, dict):
+            continue
+        site.update(
+            latitude=latitude,
+            longitude=longitude,
+            radius_m=float(location.geofence_radius_m or 50),
+            label=location.get("location_name"),
+            address=location.get("address"),
+        )
+        frappe.db.set_value(
+            "Field Task", task.name,
+            "task_brief_snapshot", json.dumps(pinned, ensure_ascii=False),
+        )
 
 def sync_task_navigation(doc, method=None):
     if not doc.diaspora_request:
@@ -155,7 +188,7 @@ def sync_task_navigation(doc, method=None):
             site = next((item for item in sites if code == doc.name + "-" + item.name), None)
             if site and task.location:
                 address = ", ".join(value for value in (site.area, site.county) if value)
-                location_values = {"latitude": float(site.latitude), "longitude": float(site.longitude), "address": address}
+                location_values = {"latitude": str(site.latitude), "longitude": str(site.longitude), "address": address}
                 frappe.db.set_value("FP Location", task.location, location_values)
                 # A not-yet-started assignment may receive its corrected pin.
                 # Once accepted or started, its Task Brief snapshot stays immutable.

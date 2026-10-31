@@ -44,7 +44,7 @@ class FPTaskResponse(Document):
             return
         location = frappe.get_doc("FP Location", self.location)
         distance = haversine_distance_m(
-            self.latitude, self.longitude, location.latitude, location.longitude
+            float(self.latitude), float(self.longitude), float(location.latitude), float(location.longitude)
         )
         self.geofence_distance_m = distance
         self.geofence_status = "Inside" if distance <= effective_geofence_radius(location.geofence_radius_m) else "Outside"

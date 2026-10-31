@@ -105,7 +105,7 @@ def pin_assignment(task, method=None):
     if not task.get('location'):
         frappe.throw('Confirm the project destination before assigning the Task Brief')
     location = frappe.get_doc('FP Location', task.location)
-    site = dict(latitude=location.latitude, longitude=location.longitude,
+    site = dict(latitude=float(location.latitude), longitude=float(location.longitude),
                 radius_m=location.get('geofence_radius_m') or 50,
                 accuracy_threshold_m=project.get('gps_accuracy_threshold_m') or 20,
                 label=location.get('location_name'), address=location.get('address'))

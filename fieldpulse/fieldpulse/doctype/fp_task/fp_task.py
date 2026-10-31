@@ -80,7 +80,7 @@ def auto_assign_by_proximity(questionnaire, agent, due_date=None, priority="Norm
         if loc["latitude"] and loc["longitude"]
         and haversine_distance_m(
             agent_doc.service_latitude, agent_doc.service_longitude,
-            loc["latitude"], loc["longitude"],
+            float(loc["latitude"]), float(loc["longitude"]),
         ) / 1000 <= agent_doc.service_radius_km
     ]
 
