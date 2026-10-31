@@ -75,8 +75,6 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
         frappe.throw('Update the DiasporaDesk app to open the streamlined questionnaires. Saved work remains on your device.')
     if int(rework_version or 0) < 1 and any(task.get('rework_response') and task.status in ('Assigned', 'Accepted', 'In Progress') for task in tasks):
         frappe.throw('Update the scout app to open response revisions. Your saved work remains on this device.')
-    if int(rework_version or 0) < 2 and any(task.status == 'Awaiting authorization' for task in tasks):
-        frappe.throw('Update the scout app to view revisit authorization holds. Do not start held work.')
     if int(questionnaire_editor_version or 0) < 1 and any((frappe.parse_json(task.get('client_request_snapshot') or '{}') or {}).get('project_questionnaire') for task in tasks):
         frappe.throw('Update the scout app to use the project-specific questionnaire. Saved work remains on this device.')
     for task in tasks:

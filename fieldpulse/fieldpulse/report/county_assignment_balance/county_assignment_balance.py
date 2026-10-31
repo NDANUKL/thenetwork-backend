@@ -8,7 +8,7 @@ def execute(filters=None):
     filters = filters or {}
     if not {'Field Operations Coordinator', 'Supervisor', 'Admin', 'System Manager'}.intersection(frappe.get_roles()):
         frappe.throw('Not permitted', frappe.PermissionError)
-    query = {'status': ['!=', 'Cancelled']}
+    query = {'status': ['not in', ['Cancelled', 'Rejected']]}
     start, end = filters.get('from_date'), filters.get('to_date')
     if start and end and getdate(start) > getdate(end):
         frappe.throw('Choose an end date on or after the start date')

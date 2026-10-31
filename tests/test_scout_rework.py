@@ -114,7 +114,7 @@ class ReworkTests(unittest.TestCase):
         self.assertIsNone(replacement.accepted_at)
         self.assertEqual(replacement.replaces_task, self.task.name)
         self.assertEqual(self.task.replacement_task, replacement.name)
-        self.assertEqual(self.task.status, 'Cancelled')
+        self.assertEqual(self.task.status, 'Rejected')
         self.assertEqual(self.task.scout_profile, 'scout')
         self.assertEqual(self.source.status, 'Submitted')
         self.task.append.assert_called_once()

@@ -62,6 +62,15 @@ class FieldTask(Document):
         is_assignment = self.is_new() or (previous and previous.scout_profile != self.scout_profile)
         if not is_assignment:
             return
+        if self.get('field_request'):
+            frappe.db.sql("SELECT name FROM `tabField Request` WHERE name=%s FOR UPDATE", (self.field_request,))
+            rejected = frappe.db.get_value("Field Task", {
+                "field_request": self.field_request,
+                "scout_profile": self.scout_profile,
+                "submission_review_status": "Reject",
+            }, "name")
+            if rejected:
+                frappe.throw("This scout was rejected for this project and cannot be assigned to it again. Choose another scout.")
         frappe.db.sql("SELECT name FROM `tabScout Profile` WHERE name=%s FOR UPDATE", (self.scout_profile,))
         if frappe.db.get_value("Scout Profile", self.scout_profile, "access_status", for_update=True) == "Deactivated":
             frappe.throw("A task cannot be assigned to a deactivated scout")
@@ -74,25 +83,22 @@ class FieldTask(Document):
 
         old_status = previous.status
         if self.status == "Cancelled":
-            if old_status == 'Awaiting authorization' and self.get('revisit_request'):
-                revisit_status = frappe.db.get_value('DD Revisit Request', self.revisit_request, 'status')
-                if revisit_status in ('Awaiting authorization', 'Authorized') and frappe.flags.dd_authorized_revisit != self.revisit_request:
-                    frappe.throw('Close or dispatch the pending revisit authorization before cancelling its task')
             if old_status == "Approved":
                 frappe.throw("An approved task cannot be cancelled")
             return
 
-        if self.status == 'Awaiting authorization':
-            if old_status != 'Submitted' or not frappe.flags.dd_pending_revisit_response:
-                frappe.throw('Use the submission review to record a revisit request')
-            self.rework_count = (previous.rework_count or 0) + 1
-            return
-        if old_status == 'Awaiting authorization':
-            if self.status != 'In Progress' or not self.get('revisit_request') or frappe.flags.dd_authorized_revisit != self.revisit_request:
-                frappe.throw('Authorize and dispatch the revisit before restarting work')
-            return
+        if self.status == 'Awaiting authorization' or old_status == 'Awaiting authorization':
+            frappe.throw('Awaiting authorization is a retired legacy status; use the current Task Brief review workflow')
         if self.status == "Rejected":
-            if self.get('rework_type') == 'Return to site': frappe.throw('Site revisits require authorization before dispatch')
+            if self.submission_review_status == "Reject":
+                if old_status != "Submitted":
+                    frappe.throw("Only a submitted task can be rejected")
+                return
+            if self.submission_review_status == "Rework reassigned":
+                if old_status == "Approved":
+                    frappe.throw("An approved task cannot be reassigned")
+                return
+            if self.get('rework_type') == 'Return to site': frappe.throw('Questionnaire-based site revisits are retired; use the current Task Brief review workflow')
             if old_status != "Submitted":
                 frappe.throw("Only a submitted task can be rejected for rework")
             self.status = "In Progress"

@@ -31,10 +31,8 @@ class FPTaskResponse(Document):
                 frappe.throw("Not your assigned task", frappe.PermissionError)
             if self.get("qa_status") not in (None, "", "Pending", previous.get("qa_status") if previous else "Pending") or self.get("reviewed_by") or self.get("review_notes"):
                 frappe.throw("Only coordinators can review submissions", frappe.PermissionError)
-        if self.is_new() and frappe.db.get_value("Field Task", self.task, "status") in ("Submitted", "Approved", "Cancelled", "Awaiting authorization"):
+        if self.is_new() and frappe.db.get_value("Field Task", self.task, "status") in ("Submitted", "Approved", "Rejected", "Cancelled"):
             frappe.throw("This task is no longer open for new responses")
-        if frappe.db.get_value('Field Task', self.task, 'status') == 'Awaiting authorization':
-            frappe.throw('This revisit is awaiting authorization')
         self._apply_geofence_check()
         from fieldpulse.scout_submissions import validate_submission
         managed = validate_submission(self)

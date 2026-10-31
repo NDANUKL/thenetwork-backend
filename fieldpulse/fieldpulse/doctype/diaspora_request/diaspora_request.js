@@ -10,12 +10,23 @@ frappe.ui.form.on("Diaspora Request", {
     if (locations) {
       locations.cannot_add_rows = true;
       locations.cannot_delete_rows = true;
-      locations.docfields.forEach(field => {
-        if (field.fieldname) locations.update_docfield_property(field.fieldname, "read_only", field.fieldname === "location_verified" ? 0 : 1);
-      });
-      locations.refresh();
+      const configureLocationInputs = locked => {
+        locations.docfields.forEach(field => {
+          if (field.fieldname) locations.update_docfield_property(field.fieldname, "read_only", locked || field.fieldname !== "location_verified" ? 1 : 0);
+        });
+        locations.refresh();
+      };
+      if (frm.is_new()) configureLocationInputs(false);
+      else frappe.call("frappe.client.get_list", {doctype:"Field Request", filters:{diaspora_request:frm.doc.name}, fields:["name"], limit_page_length:500})
+        .then(async ({message}) => {
+          const requests = (message || []).map(row => row.name);
+          if (!requests.length) return configureLocationInputs(false);
+            const tasks = await frappe.call("frappe.client.get_list", {doctype:"Field Task", filters:{field_request:["in", requests], status:["in",["Accepted","In Progress","Submitted","Approved","Cancelled"]]}, fields:["name"], limit_page_length:1});
+          configureLocationInputs(Boolean(tasks.message?.length));
+        })
+        .catch(() => configureLocationInputs(true));
     }
-    frm.set_df_property("customer_sites", "description", __("Review the destination and access arrangements, tick Location verified for each site, then save. Confirmation carries through to the linked projects."));
+    frm.set_df_property("customer_sites", "description", __("Review and confirm each destination before assigning scouts. You can correct a confirmed destination while tasks remain Assigned; corrections lock after a scout accepts or starts work. Reconfirm corrected details before the scout continues."));
     if (!frm.is_new()) frm.add_custom_button(__("Project field requests"), () => frappe.set_route("List", "Field Request", { diaspora_request: frm.doc.name }));
   },
 });

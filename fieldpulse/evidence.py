@@ -182,7 +182,7 @@ def request_evidence_upload(
         )
         evidence.insert(ignore_permissions=True)
 
-    if frappe.db.get_value("Field Task", field_task, "status") in ("Submitted", "Approved", "Cancelled", "Awaiting authorization"):
+    if frappe.db.get_value("Field Task", field_task, "status") in ("Submitted", "Approved", "Rejected", "Cancelled"):
         frappe.throw("Evidence is frozen after submission; request rework", frappe.PermissionError)
 
     upload_url = _r2_client(settings).generate_presigned_url(
@@ -221,7 +221,7 @@ def confirm_evidence_upload(evidence_id, etag):
         return {"evidence_id": evidence.name, "upload_status": "Uploaded", "etag": evidence.etag}
     if not frappe.db.get_value('Field Task', evidence.field_task, 'task_brief_version'):
         frappe.throw('Historical questionnaire evidence is read-only. Use a Task Brief.')
-    if frappe.db.get_value("Field Task", evidence.field_task, "status") in ("Submitted", "Approved", "Cancelled", "Awaiting authorization"):
+    if frappe.db.get_value("Field Task", evidence.field_task, "status") in ("Submitted", "Approved", "Rejected", "Cancelled"):
         frappe.throw("Evidence is frozen after submission; request rework", frappe.PermissionError)
     settings = _r2_settings()
     try:

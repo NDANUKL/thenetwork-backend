@@ -224,6 +224,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(payload['rework_of'],'RESPONSE')
         self.assertFalse(json.loads(payload['final_review_json'])['declaration'])
 
+    def test_legacy_review_actions_are_rejected_without_becoming_rejection(self):
+        with patch.dict(sys.modules, {'fieldpulse.scout_submissions':type('Review',(),{'require_reviewer':lambda:None})}):
+            for decision in ('Request additional evidence','Return for reassignment'):
+                with self.subTest(decision=decision), self.assertRaisesRegex(ValueError,'Refresh the page'):
+                    self.module.review_response('RESPONSE',decision,'Some notes')
+        self.frappe.db.get_value.assert_not_called()
+
 
 if __name__=='__main__':unittest.main()
 

@@ -24,7 +24,9 @@ class AlignmentTests(unittest.TestCase):
         with patch.dict(sys.modules,{'frappe':fake}): spec.loader.exec_module(cls.m)
     def setUp(self):
         def throw(msg,exc=ValueError): raise exc(msg)
-        self.api=types.SimpleNamespace(throw=throw,PermissionError=PermissionError,has_permission=Mock(return_value=True),get_doc=Mock(),get_all=Mock(),utils=types.SimpleNamespace(now=lambda:'2026-10-09',add_days=lambda d,n:date.fromisoformat(d)+timedelta(days=n)),db=types.SimpleNamespace(sql=Mock(),exists=Mock(return_value=False),get_value=Mock(return_value=None),set_value=Mock()))
+        get_value=Mock(return_value=None)
+        get_value.side_effect=lambda doctype,filters,*args,**kw: None if isinstance(filters,dict) and filters.get('submission_review_status')=='Reject' else get_value.return_value
+        self.api=types.SimpleNamespace(throw=throw,PermissionError=PermissionError,has_permission=Mock(return_value=True),get_doc=Mock(),get_all=Mock(),utils=types.SimpleNamespace(now=lambda:'2026-10-09',add_days=lambda d,n:date.fromisoformat(d)+timedelta(days=n)),db=types.SimpleNamespace(sql=Mock(),exists=Mock(return_value=False),get_value=get_value,set_value=Mock()))
         self.m.frappe=self.api
         self.api.get_all.return_value=[]
         self.api.whitelist=lambda **kw:lambda fn:fn

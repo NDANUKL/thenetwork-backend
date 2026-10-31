@@ -16,20 +16,12 @@ Review each report row, edit findings and summary as needed, and establish the s
 
 The PDF places customer-question findings in the main report, identifies only selected released evidence as E001, E002, etc., and displays recorded scope, visits, limitations and reviewer/version. No public evidence URL or device path is embedded. Private evidence remains in the existing selected-media bundle.
 
-## Revisit authorization
+## Current failed-submission handling
 
-Answer correction stays with the original scout and retains the original visit/evidence. It must not require another site visit or new photo/video capture. New captures are blocked in the app and upload API for a correction; request a revisit instead.
-
-Requesting Return to site now creates **DD Revisit Request** and places the original task in **Awaiting authorization**. It creates no response revision, replacement assignment or scout dispatch notification. Pending work is nonactionable in the app and server APIs. The same-scout/replacement-scout choice remains, with a reason required for a replacement.
-
-Record the cost arrangement (Existing agreement, Business-funded, Additional client charge), contract/arrangement reference, scout compensation agreement reference and authorization notes. Additional client charges require a client acceptance reference. These are coordinator-attested references, not automated verification of an external contract or payment. No financial mutation occurs here. Additional scope must go through the separate agreed scope/change-order process; it cannot be smuggled into a revisit of the original pinned checks.
-
-**Awaiting authorization -> Authorized -> Dispatched**. Authorize signs the exact proposal and commercial terms but creates no fieldwork. Dispatch rechecks the terms hash, source state and scout availability, creates the blank revision/replacement through the existing workflow, and queues the receiving scout's notification atomically. Retrying a completed dispatch returns the same task. Arrival and media capture must occur after dispatch. Same-scout work restarts only through the authorized dispatch action; another scout receives a separate Assigned task and must record their own work.
-
-Decline/Cancel require reasons and leave the failed fieldwork unresolved rather than marking it complete. Return for changes and Reopen return the commercial record to pending review, clear its authorization and require a new sign-off. Changes to proposal or commercial terms after authorization are blocked. Document version history preserves these decisions. Pending authorizations must be resolved before their task is cancelled or another normal assignment is created for that project.
+The questionnaire revisit authorization flow described in older revisions of this guide is retired. New Task Brief submissions are reviewed using Approve, Reject, or Request clarification and resubmission. Reject closes that scout's assignment and returns the project to Awaiting Assignment; clarification asks the same scout for a full resubmission. There is no current Return to site authorization decision. Historical questionnaire records remain read-only.
 
 ## Deployment and acceptance
 
-Run normal Frappe model migration to add DD Customer Check, DD Report Check, DD Revisit Request and the added fields/status. Build Desk assets and restart workers. Release the compatible scout app (`rework_version=2`); older clients receive an update-required response for authorization holds. Existing questionnaire, request, quotation, submission and evidence records are retained.
+Existing questionnaire, request, quotation, submission and evidence records are retained. New assignment and review behavior uses Task Briefs; see [Task Brief source transition](task-brief-transition.md).
 
-Acceptance must verify real Frappe model sync, reviewer roles, scope-link confirmation/reconfirmation, historical mapping, missing answer/media and source-basis handling, PDF regeneration/sign-off, private selected-media downloads, same/replacement scout dispatch, authorization changes, failed/retried requests, original scout holds with queued work, and email worker delivery. No live migration, email delivery or publication is performed by these source changes. PDF QA uses the actual Jinja template with fictional normal/long records; verify the deployed Frappe PDF renderer as part of acceptance.
+Acceptance must verify Task Brief submission review, report preparation/approval, private selected-media downloads, failed/retried requests and email worker delivery. No live migration, email delivery or publication is performed by these source changes. PDF QA uses the actual Jinja template with fictional normal/long records; verify the deployed Frappe PDF renderer as part of acceptance.

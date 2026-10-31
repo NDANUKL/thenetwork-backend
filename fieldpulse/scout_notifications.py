@@ -84,8 +84,8 @@ def delivery_current(record, task):
     kind = record.get('event_kind') or 'Rework'
     if kind == 'Withdrawal':
         # An old assignee must receive withdrawal even after ownership changes.
-        return task.scout_profile != record.scout or task.status == 'Cancelled'
-    if task.scout_profile != record.scout or task.status in ('Approved', 'Cancelled'):
+        return task.scout_profile != record.scout or task.status in ('Cancelled', 'Rejected')
+    if task.scout_profile != record.scout or task.status in ('Approved', 'Cancelled', 'Rejected'):
         return False
     if kind == 'Authorization':
         return task.status == record.get('assignment_status')
@@ -104,7 +104,7 @@ def queue_task_event(task, scout, kind):
         return key
     reference = task.get('task_number') or task.name
     rejected = kind == 'Withdrawal' and task.get('submission_review_status') == 'Reject'
-    title = 'Assignment rejected' if rejected else {'Assignment':'New assignment', 'Withdrawal':'Assignment withdrawn', 'Authorization':'Revisit authorization updated'}[kind]
+    title = 'Assignment rejected' if rejected else {'Assignment':'New assignment', 'Withdrawal':'Assignment withdrawn', 'Authorization':'Revisit authorization updated'}.get(kind, 'Assignment update')
     instruction = 'Open Ground Scouts and sync to read the current assignment.'
     if rejected:
         reason = (task.get('submission_review_reasons') or '').strip()
@@ -113,8 +113,6 @@ def queue_task_event(task, scout, kind):
         instruction = f'Your assignment was rejected. Reason: {reason}. This assignment is closed. Open Ground Scouts and sync to review the decision.'
     elif kind == 'Withdrawal':
         instruction = 'Stop work on this assignment. Keep unsent work on your device and contact your coordinator. Open Ground Scouts and sync.'
-    elif task.status == 'Awaiting authorization':
-        instruction = 'Do not revisit yet. Await coordinator authorization. Open Ground Scouts and sync for the current status.'
     # No client names, findings, payment details or review notes in these alerts.
     message = f'{title}: {reference}. {instruction}'
     frappe.get_doc(dict(doctype=DOCTYPE,event_key=key,task=task.name,scout=scout,recipient=user,
@@ -136,12 +134,8 @@ def capture_task(task, method=None):
     previous = task.get_doc_before_save()
     old_scout = previous.get('scout_profile') if previous else None
     changed_owner = bool(previous and old_scout != task.scout_profile)
-    if old_scout and (changed_owner or task.status == 'Cancelled' and previous.status != 'Cancelled'):
+    if old_scout and (changed_owner or task.status in ('Cancelled', 'Rejected') and previous.status not in ('Cancelled', 'Rejected')):
         queue_task_event(task,old_scout,'Withdrawal')
     if task.scout_profile and task.status in ('Assigned','Accepted','In Progress'):
         if not previous or changed_owner:
             queue_task_event(task,task.scout_profile,'Assignment')
-        elif previous.status == 'Awaiting authorization':
-            queue_task_event(task,task.scout_profile,'Authorization')
-    elif task.scout_profile and task.status == 'Awaiting authorization' and (not previous or changed_owner or previous.status != task.status):
-        queue_task_event(task,task.scout_profile,'Authorization')

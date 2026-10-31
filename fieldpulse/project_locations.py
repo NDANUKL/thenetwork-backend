@@ -3,6 +3,7 @@ import json
 import frappe
 
 LOCATION_FIELDS = ["site_label", "location_mode", "county", "area", "map_url", "latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes"]
+LOCATION_LOCKED_TASK_STATUSES = ("Accepted", "In Progress", "Submitted", "Approved", "Cancelled")
 
 
 def contact_access_summary(sites):
@@ -26,6 +27,14 @@ def contact_access_summary(sites):
 def sync_contact_access(doc):
     if doc.get("diaspora_request"):
         doc.scout_contact_access = contact_access_summary(doc.get("project_locations"))
+
+
+def can_correct_project_location(doc):
+    """An Assigned task has not started; accepted or progressed work locks its pin."""
+    return not frappe.db.exists("Field Task", {
+        "field_request": doc.name,
+        "status": ["in", list(LOCATION_LOCKED_TASK_STATUSES)],
+    })
 
 
 def sync_locations(target, source, project):
@@ -78,6 +87,11 @@ def validate_locations(doc):
         doc.dd_site_locations = "[]"
         return
     previous = doc.get_doc_before_save() if not doc.is_new() else None
+    if previous and not can_correct_project_location(doc):
+        for site in doc.get("project_locations") or []:
+            prior = next((row for row in previous.get("project_locations") or [] if row.name == site.name), None)
+            if prior and any(site.get(key) != prior.get(key) for key in ["latitude", "longitude", "pin_type", "contact_name", "contact_phone", "access_notes"]):
+                frappe.throw("Location corrections are available only before a scout accepts or starts the task.")
     destinations = []
     for site in doc.get("project_locations") or []:
         if site.get("location_verified") is not None:
@@ -133,11 +147,24 @@ def sync_task_navigation(doc, method=None):
         return
     sites = doc.get("project_locations") or []
     verified = bool(sites) and all(site.confirmation_status == "Confirmed for dispatch" for site in sites)
-    for task in frappe.get_all("Field Task", filters={"field_request": doc.name, "status": ["not in", ["Approved", "Cancelled"]]}, fields=["name", "location"]):
+    for task in frappe.get_all("Field Task", filters={"field_request": doc.name, "status": ["not in", ["Approved", "Cancelled", "Rejected"]]}, fields=["name", "location", "status", "task_brief_snapshot"]):
         values = {"due_at": str(doc.deadline)[:10] + " 23:59:59" if doc.deadline else None}
-        if verified:
+        if verified and task.status == "Assigned":
             values["dd_site_locations"] = doc.dd_site_locations
-            if len(sites) == 1 and task.location and frappe.db.get_value("FP Location", task.location, "location_code") == doc.name + "-" + sites[0].name:
-                site = sites[0]
-                frappe.db.set_value("FP Location", task.location, {"latitude": float(site.latitude), "longitude": float(site.longitude), "address": site.area + ", " + site.county})
+            code = frappe.db.get_value("FP Location", task.location, "location_code") if task.location else None
+            site = next((item for item in sites if code == doc.name + "-" + item.name), None)
+            if site and task.location:
+                address = ", ".join(value for value in (site.area, site.county) if value)
+                location_values = {"latitude": float(site.latitude), "longitude": float(site.longitude), "address": address}
+                frappe.db.set_value("FP Location", task.location, location_values)
+                # A not-yet-started assignment may receive its corrected pin.
+                # Once accepted or started, its Task Brief snapshot stays immutable.
+                if task.status == "Assigned" and task.task_brief_snapshot:
+                    pinned = json.loads(task.task_brief_snapshot)
+                    if pinned.get("contract_version") == 1 and isinstance(pinned.get("site"), dict):
+                        pinned["site"].update(latitude=location_values["latitude"], longitude=location_values["longitude"],
+                            radius_m=frappe.db.get_value("FP Location", task.location, "geofence_radius_m") or 50,
+                            accuracy_threshold_m=doc.get("gps_accuracy_threshold_m") or 20,
+                            label=site.site_label, address=address)
+                        frappe.db.set_value("Field Task", task.name, "task_brief_snapshot", json.dumps(pinned, ensure_ascii=False))
         frappe.db.set_value("Field Task", task.name, values)

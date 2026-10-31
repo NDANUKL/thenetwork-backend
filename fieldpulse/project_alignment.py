@@ -325,7 +325,7 @@ def map_task(doc, method=None):
 def rollup_tasks(doc, method=None):
     if doc.field_request:
         request = frappe.get_doc("Field Request", doc.field_request)
-        tasks = frappe.get_all("Field Task", filters={"field_request": request.name, "status": ["!=", "Cancelled"]}, fields=["status"])
+        tasks = frappe.get_all("Field Task", filters={"field_request": request.name, "status": ["not in", ["Cancelled", "Rejected"]]}, fields=["status"])
         if tasks and request.status != "Cancelled":
             status = "Assigned"
             if all(task.status == "Approved" for task in tasks):
@@ -333,7 +333,7 @@ def rollup_tasks(doc, method=None):
                 if request.get('approved_task_brief'):
                     from fieldpulse.task_brief_workflow import coverage_ready
                     if not coverage_ready([request.name]): status = 'In Progress'
-            elif any(task.status in ["In Progress", "Submitted", "Rejected", "Approved", "Awaiting authorization"] for task in tasks):
+            elif any(task.status in ["In Progress", "Submitted", "Rejected", "Approved"] for task in tasks):
                 status = "In Progress"
             if request.status != status:
                 # Derived status only: a scout task update must not require
@@ -407,7 +407,7 @@ def assign_project_scouts(field_request, assignments):
             frappe.throw("This scout was rejected for this project and cannot be assigned to it again. Choose another scout.")
         profile = frappe.get_doc("Scout Profile", scout)
         profile.check_permission("read")
-        existing = frappe.db.get_value("Field Task", {"field_request": name, "scout_profile": scout, "status": ["not in", ["Cancelled", "Approved"]]}, "name")
+        existing = frappe.db.get_value("Field Task", {"field_request": name, "scout_profile": scout, "status": ["not in", ["Cancelled", "Rejected", "Approved"]]}, "name")
         if existing:
             previous = frappe.get_doc('Field Task', existing)
             if previous.get('task_brief_version') != approved.name or json.loads(previous.get('assigned_check_ids') or '[]') != assignment.get('check_ids'):

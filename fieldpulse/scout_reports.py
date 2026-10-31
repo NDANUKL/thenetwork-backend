@@ -8,7 +8,7 @@ from fieldpulse.scout_submissions import require_reviewer, submission_detail
 
 def prepare_if_ready(reference):
     projects = frappe.get_all('Field Request', filters={'diaspora_request': reference, 'status': ['!=', 'Cancelled']}, pluck='name')
-    tasks = frappe.get_all('Field Task', filters={'field_request': ['in', projects], 'status': ['!=', 'Cancelled']}, fields=['name', 'status', 'task_brief_version']) if projects else []
+    tasks = frappe.get_all('Field Task', filters={'field_request': ['in', projects], 'status': ['not in', ['Cancelled', 'Rejected']]}, fields=['name', 'status', 'task_brief_version']) if projects else []
     if not tasks or any(task.status != 'Approved' for task in tasks): return None
     if any(getattr(task, 'task_brief_version', None) for task in tasks):
         from fieldpulse.task_brief_workflow import coverage_ready

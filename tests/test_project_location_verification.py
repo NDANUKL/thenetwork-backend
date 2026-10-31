@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).parents[1]
 
@@ -21,7 +21,10 @@ class ProjectLocationVerificationTests(unittest.TestCase):
         def throw(message):
             raise ValueError(message)
         api = SimpleNamespace(throw=throw, session=SimpleNamespace(user='coordinator'),
-                              utils=SimpleNamespace(now_datetime=lambda: '2026-10-25 12:00:00'))
+                              utils=SimpleNamespace(now_datetime=lambda: '2026-10-25 12:00:00'),
+                              db=SimpleNamespace(exists=Mock(return_value=False), get_value=Mock(), set_value=Mock()),
+                              get_all=Mock(return_value=[]))
+        self.api = api
         spec = importlib.util.spec_from_file_location('location_verification_test', ROOT / 'fieldpulse/project_locations.py')
         self.module = importlib.util.module_from_spec(spec)
         with patch.dict('sys.modules', {'frappe': api}):
@@ -55,6 +58,40 @@ class ProjectLocationVerificationTests(unittest.TestCase):
         project = Row(requires_verified_location=1, project_locations=[Row(confirmation_status='Needs confirmation')])
         with self.assertRaisesRegex(ValueError, 'Location verified'):
             self.module.map_task_navigation(task, project)
+
+    def test_location_edit_cutoff_allows_assigned_and_cancelled_but_locks_started_statuses(self):
+        project = Row(name='FR-1')
+        for status in ('Assigned', 'Rejected'):
+            with self.subTest(status=status):
+                self.api.db.exists.return_value = None
+                self.assertTrue(self.module.can_correct_project_location(project))
+                self.assertEqual(self.api.db.exists.call_args.args[1]['status'],
+                    ['in', list(self.module.LOCATION_LOCKED_TASK_STATUSES)])
+        for status in self.module.LOCATION_LOCKED_TASK_STATUSES:
+            with self.subTest(status=status):
+                self.api.db.exists.return_value = 'TASK'
+                self.assertFalse(self.module.can_correct_project_location(project))
+
+    def test_confirmed_coordinate_correction_updates_assigned_task_pin(self):
+        pinned = {'contract_version':1,'site':{'latitude':-1.0,'longitude':36.0,'radius_m':50,'accuracy_threshold_m':20},'brief':{'title':'Brief'}}
+        task = Row(name='TASK',location='LOC',status='Assigned',task_brief_snapshot=json.dumps(pinned))
+        site = Row(name='SITE',site_label='Entrance',confirmation_status='Confirmed for dispatch',latitude=-1.3,
+                   longitude=36.9,area='Westlands',county='Nairobi')
+        project = Row(name='FR',diaspora_request='REQUEST',project_locations=[site],dd_site_locations='[]',
+                      deadline=None,gps_accuracy_threshold_m=10)
+        self.api.get_all.return_value=[task]
+        self.api.db.get_value.side_effect=lambda doctype,name,field: 'FR-SITE' if field=='location_code' else 75 if field=='geofence_radius_m' else None
+        self.module.sync_task_navigation(project)
+        snapshot_call=next(call for call in self.api.db.set_value.call_args_list
+                           if call.args[0]=='Field Task' and call.args[2]=='task_brief_snapshot')
+        updated=json.loads(snapshot_call.args[3])
+        self.assertEqual(updated['site'],{'latitude':-1.3,'longitude':36.9,'radius_m':75,'accuracy_threshold_m':10,
+                                          'label':'Entrance','address':'Westlands, Nairobi'})
+
+    def test_desk_locks_only_after_acceptance_or_start(self):
+        source=(ROOT/'fieldpulse/fieldpulse/doctype/diaspora_request/diaspora_request.js').read_text()
+        self.assertIn('status:["in",["Accepted","In Progress","Submitted","Approved","Awaiting authorization","Cancelled"]]',source)
+        self.assertNotIn('status:["not in",["Cancelled"]]',source)
 
 
     def test_arrangements_follow_each_project_location_and_refresh_when_changed(self):

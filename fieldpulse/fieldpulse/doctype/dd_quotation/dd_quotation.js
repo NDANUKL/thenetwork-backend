@@ -58,6 +58,9 @@ frappe.ui.form.on("DD Quotation", {
   async refresh(frm) {
     frm.set_df_property("terms", "hidden", 1);
     frm.set_df_property("currency", "read_only", 1);
+    // Frappe's date control uses this option to disable dates before today.
+    frm.set_df_property("valid_until", "min_date", frappe.datetime.get_today());
+    if (frm.fields_dict.valid_until?.date_picker) frm.fields_dict.valid_until.date_picker.update({ minDate: frappe.datetime.get_today() });
     frm.set_df_property('pricing_mode', 'read_only', !frm.is_new() && frm.doc.status !== 'Draft');
     if (frm.is_new()) {
       if (!frm.doc.pricing_mode) await frm.set_value('pricing_mode', 'Live - USD 100 per project');

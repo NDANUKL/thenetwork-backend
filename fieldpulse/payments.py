@@ -126,8 +126,8 @@ def validate_quote(doc, method=None):
         frappe.throw('Select a pricing mode explicitly before repricing this draft')
     doc.pricing_mode = pricing_mode
     doc.currency, project_rate, inclusive = prices[pricing_mode]
-    if not doc.items or getdate(doc.valid_until) < getdate(doc.quotation_date):
-        frappe.throw('Add projects and a valid quotation expiry')
+    if not doc.items or getdate(doc.valid_until) < getdate() or getdate(doc.valid_until) < getdate(doc.quotation_date):
+        frappe.throw('Add projects and set Valid until to today or later, on or after the quotation date')
     sequence_value_2 = (set(), money(0))
     seen = sequence_value_2[0]
     total = sequence_value_2[1]
@@ -199,7 +199,7 @@ def _billing(request):
         return {'quote': None, 'payments': [], 'documents': []}
     projects = []
     for item in quote.items:
-        scouts = frappe.get_all('Field Task', filters={'field_request': item.field_request, 'status': ['!=', 'Cancelled']}, pluck='scout_profile')
+        scouts = frappe.get_all('Field Task', filters={'field_request': item.field_request, 'status': ['not in', ['Cancelled', 'Rejected']]}, pluck='scout_profile')
         projects.append({'project': item.field_request, 'title': item.project_title, 'scope': item.description, 'planned_scouts': item.get('planned_scouts'), 'assigned_scouts': len(set(scouts)), 'amount': float(item.amount)})
     payments = _obligations(quote)
     deposit_paid = any((p.kind == 'deposit' and p.status == 'Paid' for p in payments))
@@ -429,8 +429,8 @@ def require_deposit(doc, method=None):
     if not doc.field_request:
         return
     previous = doc.get_doc_before_save()
-    entering = doc.is_new() or (previous and (previous.scout_profile != doc.scout_profile or previous.field_request != doc.field_request or (previous.status == 'Cancelled' and doc.status != 'Cancelled')))
-    if not entering or doc.status == 'Cancelled':
+    entering = doc.is_new() or (previous and (previous.scout_profile != doc.scout_profile or previous.field_request != doc.field_request or (previous.status in ('Cancelled', 'Rejected') and doc.status not in ('Cancelled', 'Rejected'))))
+    if not entering or doc.status in ('Cancelled', 'Rejected'):
         return
     reference = frappe.db.get_value('Field Request', doc.field_request, 'diaspora_request')
     if not reference:

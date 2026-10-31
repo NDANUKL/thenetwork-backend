@@ -25,3 +25,17 @@ test('submission ID is retained in schema but excluded from saved table layouts'
  const schema=JSON.parse(fs.readFileSync('fieldpulse/fieldpulse/doctype/diaspora_request/diaspora_request.json','utf8'));
  const field=schema.fields.find(f=>f.fieldname==='submission_id');assert.equal(field.in_list_view,0);assert.equal(field.unique,1);assert.equal(field.reqd,1);
 });
+test('Field Task Desk filters hide internal closure states and label ended tasks clearly',()=>{
+ const frappe={listview_settings:{},utils:{escape_html:value=>String(value)}};load('field_task/field_task_list.js',frappe);
+ const settings=frappe.listview_settings['Field Task'];
+ const view={page:{fields_dict:{status:{df:{},refresh(){} }},add_inner_button(){}},get_filters_for_args:()=>[['Field Task','status','=','Rejected']]};
+ settings.onload(view);
+ assert.equal(view.page.fields_dict.status.df.options,'\nAssigned\nIn Progress\nSubmitted\nCorrections\nApproved\nRejected');
+ assert.deepEqual(JSON.parse(JSON.stringify(view.get_filters_for_args())),[['Field Task','status','in',['Rejected','Cancelled']],['Field Task','submission_review_status','=','Reject']]);
+ assert.equal(settings.get_indicator({status:'Rejected',submission_review_status:'Reject'})[0],'Rejected');
+ assert.equal(settings.get_indicator({status:'Rejected',submission_review_status:'Rework reassigned'})[0],'Reassigned');
+ assert.match(settings.formatters.submission_review_status('Rework reassigned',{}, {status:'Rejected'}),/Reassigned/);
+ const schema=JSON.parse(fs.readFileSync('fieldpulse/fieldpulse/doctype/field_task/field_task.json','utf8'));
+ assert.equal(schema.fields.find(field=>field.fieldname==='status').read_only,1);
+ assert.ok(!schema.fields.find(field=>field.fieldname==='status').options.split('\n').includes('Cancelled'));
+});

@@ -17,7 +17,7 @@ def task_team(**kwargs):
     if not scout or not task_name:
         frappe.throw("Task unavailable.", frappe.PermissionError)
     task = frappe.db.get_value("Field Task", {
-        "name": task_name, "scout_profile": scout, "status": ["!=", "Cancelled"]
+        "name": task_name, "scout_profile": scout, "status": ["not in", ["Cancelled", "Rejected"]]
     }, ["name", "field_request"], as_dict=True)
     if not task:
         frappe.throw("Task unavailable.", frappe.PermissionError)
@@ -26,7 +26,7 @@ def task_team(**kwargs):
     seen = [scout]
     if task.field_request:
         assignments = frappe.get_all("Field Task", filters={
-            "field_request": task.field_request, "status": ["!=", "Cancelled"]
+            "field_request": task.field_request, "status": ["not in", ["Cancelled", "Rejected"]]
         }, fields=["scout_profile"], order_by="creation asc")
         for assignment in assignments:
             colleague = assignment.scout_profile

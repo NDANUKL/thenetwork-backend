@@ -183,7 +183,7 @@ def dispatch_guard(task,method=None):
     if previous and task.get('finance_offer')!=previous.get('finance_offer') and not revisit and getattr(frappe.flags,'dd_finance_binding',None)!=task.name:
         frappe.throw('Use the audited finance binding action to change the assignment arrangement')
     entering=task.is_new() or bool(revisit and previous and previous.status=='Awaiting authorization' and task.status=='In Progress')
-    if not entering or task.status=='Cancelled':return
+    if not entering or task.status in ('Cancelled','Rejected'):return
     reference=frappe.db.get_value('Field Request',task.field_request,'diaspora_request')
     if reference:assert_customer_open(reference,dispatch=True)
     lock('Field Request',task.field_request)

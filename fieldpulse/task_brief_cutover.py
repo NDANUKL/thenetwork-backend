@@ -31,22 +31,16 @@ def cancel_authorized_legacy_tasks():
         for task in tasks:
             previous_status = task.status
             revisits = []
-            if frappe.db.exists('DocType', 'DD Revisit Request'):
-                revisits = frappe.get_all('DD Revisit Request', filters={
-                    'task': task.name, 'status': ['in', ['Awaiting authorization', 'Authorized']]}, pluck='name')
-                for name in revisits:
-                    frappe.db.set_value('DD Revisit Request', name, 'status', 'Cancelled')
-            frappe.db.set_value('Field Task', task.name, 'status', 'Cancelled')
+            frappe.db.set_value('Field Task', task.name, 'status', 'Rejected')
             frappe.get_doc(dict(doctype='Comment', comment_type='Info',
                 reference_doctype='Field Task', reference_name=task.name,
                 content='Owner-authorized Task Brief cutover cancellation (28 October 2026). '
-                    f'Previous status: {previous_status}. Submissions, evidence and assignment history retained. '
-                    'Pending revisit authorizations cancelled: ' + (', '.join(revisits) or 'none')
+                    f'Previous status: {previous_status}. Submissions, evidence and assignment history retained.'
             )).insert(ignore_permissions=True)
             if task.field_request: projects.add(task.field_request)
             if task.scout_profile: scouts.add(task.scout_profile)
         for project in sorted(projects):
-            if not frappe.db.exists('Field Task', {'field_request': project, 'status': ['!=', 'Cancelled']}):
+            if not frappe.db.exists('Field Task', {'field_request': project, 'status': ['not in', ['Cancelled', 'Rejected']]}):
                 status = frappe.db.get_value('Field Request', project, 'status')
                 if status and status not in ('Completed', 'Cancelled'):
                     frappe.db.set_value('Field Request', project, 'status', 'Awaiting Assignment')
@@ -63,13 +57,13 @@ def cancelled_legacy_tasks(scout, since=None):
     """Send explicit terminal states, so devices do not infer withdrawal."""
     if frappe.local.site != AUTHORIZED_SITE:
         return []
-    filters = {'name': ['in', list(AUTHORIZED_TASKS)], 'scout_profile': scout, 'status': 'Cancelled'}
+    filters = {'name': ['in', list(AUTHORIZED_TASKS)], 'scout_profile': scout, 'status': ['in', ['Cancelled', 'Rejected']]}
     if since: filters['modified'] = ['>', since]
     return frappe.get_all('Field Task', filters=filters, fields=['*'])
 
 
 def open_legacy_tasks(scout=None):
-    filters = {'status': ['not in', ['Approved', 'Cancelled']]}
+    filters = {'status': ['not in', ['Approved', 'Cancelled', 'Rejected']]}
     if scout:
         filters['scout_profile'] = scout
     if frappe.db.has_column('Field Task', 'task_brief_version'):

@@ -92,7 +92,7 @@ def act(doctype,name,action,data=None):
             require_notes(data)
             if doc.status!='Accepted' or doc.task:frappe.throw('Bind an accepted arrangement that has not been assigned')
             lock('Field Task',data.get('task'));task=frappe.get_doc('Field Task',data.get('task'))
-            if task.field_request!=doc.project or task.scout_profile!=doc.scout or task.get('finance_offer') or task.status=='Cancelled':frappe.throw('Select this scout/project existing assignment without another arrangement')
+            if task.field_request!=doc.project or task.scout_profile!=doc.scout or task.get('finance_offer') or task.status in ('Cancelled','Rejected'):frappe.throw('Select this scout/project existing assignment without another arrangement')
             if doc.revisit:frappe.throw('Revisit arrangements bind through authorised revisit dispatch')
             doc.task=task.name;save_action(doc)
             previous=getattr(frappe.flags,'dd_finance_binding',None);frappe.flags.dd_finance_binding=task.name

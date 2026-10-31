@@ -5,7 +5,7 @@ from uuid import uuid4
 import frappe
 from fieldpulse.scout_protocol import parsed
 
-TYPES = {'Correct answers', 'Return to site'}
+TYPES = {'Correct answers'}
 
 
 def validate_assignment(task, kind, choice='Same scout', scout=None, reason=None):
@@ -15,7 +15,7 @@ def validate_assignment(task, kind, choice='Same scout', scout=None, reason=None
         if scout or reason:
             frappe.throw('A replacement scout and reassignment reason require Assign another scout')
         return None
-    if kind != 'Return to site':
+    if kind != 'Correct answers':
         frappe.throw('Answer corrections must stay with the original scout')
     if not isinstance(reason, str) or not reason.strip():
         frappe.throw('Explain why the revisit is being assigned to another scout')
@@ -29,13 +29,14 @@ def validate_assignment(task, kind, choice='Same scout', scout=None, reason=None
     profile.check_permission('read')
     if profile.availability_status == 'On Leave' or not profile.user or not frappe.db.get_value('User', profile.user, 'enabled'):
         frappe.throw('Choose an available scout with an enabled user account')
-    if frappe.db.exists('Field Task', {'field_request': task.field_request, 'scout_profile': scout, 'status': ['not in', ['Cancelled', 'Approved']]}):
+    if frappe.db.exists('Field Task', {'field_request': task.field_request, 'scout_profile': scout, 'status': ['not in', ['Cancelled', 'Rejected', 'Approved']]}):
         frappe.throw('This scout already has an active assignment for the project')
     return profile.name
 
 
 def create_replacement(task, source, scout, reason, codes, notes):
     """Preserve ownership of the original task; dispatch independent fieldwork."""
+    frappe.throw('Questionnaire-based site revisits are retired; use the current Task Brief allocation workflow')
     values = {key: task.get(key) for key in ('field_request', 'location', 'questionnaire',
         'questionnaire_version', 'questionnaire_scope', 'client_request_snapshot', 'due_at', 'priority')}
     values.update(doctype='Field Task', scout_profile=scout, status='Assigned',
@@ -59,7 +60,7 @@ def create_replacement(task, source, scout, reason, codes, notes):
     task.submission_review_reasons = 'Revisit assigned to another scout. ' + reason.strip()
     task.append('reassignment_history', dict(from_scout=task.scout_profile, to_scout=scout,
         reassigned_by=frappe.session.user, reassigned_at=frappe.utils.now_datetime(), reason=reason.strip()))
-    task.status = 'Cancelled'
+    task.status = 'Rejected'
     task.save(ignore_permissions=True)
     old_user = frappe.db.get_value('Scout Profile', task.scout_profile, 'user')
     if old_user:
@@ -90,17 +91,17 @@ def require_fresh_capture(response, captured_at):
 def validate_request(doc, task, kind, questions):
     from fieldpulse.scout_submissions import assigned_questions
     if kind not in TYPES:
-        frappe.throw('Choose Correct answers or Return to site')
+        frappe.throw('Questionnaire-based site revisits are retired. Use the current Task Brief review workflow.')
     codes = parsed(questions, [])
     valid = {q.question_code for q in assigned_questions(task)}
     if not isinstance(codes, list) or not codes or any(not isinstance(c, str) or c not in valid for c in codes):
         frappe.throw('Select the assigned questions that need rework')
     if kind == 'Correct answers':
         if (parsed(task.get('client_request_snapshot'), {}) or {}).get('protocol_version') != 2:
-            frappe.throw('Answer corrections require a version 2 questionnaire; use Return to site for this older assignment')
+            frappe.throw('Answer corrections require a version 2 questionnaire; use the current Task Brief review workflow')
         from fieldpulse.scout_visit import strict, verified_arrival
         if (parsed(doc.get('final_review_json'), {}) or {}).get('visit_route') == 'arrival_exception' or (strict(task) and verified_arrival(doc, task)['status'] != 'Inside'):
-            frappe.throw('Unverified fieldwork requires Return to site')
+            frappe.throw('Unverified fieldwork cannot use the retired questionnaire revisit workflow')
     return list(dict.fromkeys(codes))
 
 
@@ -140,7 +141,7 @@ def create_revision(source, task, kind):
 
 def revision_payload(task):
     name = task.get('rework_response')
-    if not name or task.status in ('Approved', 'Cancelled'):
+    if not name or task.status in ('Approved', 'Cancelled', 'Rejected'):
         return None
     doc = frappe.get_doc('FP Task Response', name)
     if doc.task != task.name or doc.agent != task.scout_profile or doc.status != 'Draft':

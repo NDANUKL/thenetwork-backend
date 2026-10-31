@@ -288,10 +288,9 @@ def submission_detail(doc, task):
 def review_response(response, decision, notes):
     from fieldpulse.scout_submissions import require_reviewer
     require_reviewer()
-    # Retired review actions are normalized for older Desk clients. Rejection
-    # now closes this scout's assignment and returns the project to the queue.
+    # A stale Desk tab must not turn a less-severe legacy action into rejection.
     if decision in ('Request additional evidence', 'Return for reassignment'):
-        decision = 'Reject'
+        frappe.throw('This review action is no longer supported. Refresh the page and choose Reject or Request clarification and resubmission.')
     if decision not in ('Approve', 'Reject', 'Request clarification') or not isinstance(notes, str) or not notes.strip():
         frappe.throw('Choose a decision and record the review findings')
     task_name = frappe.db.get_value('FP Task Response', response, 'task')
@@ -311,7 +310,7 @@ def review_response(response, decision, notes):
         review_notes=notes.strip(), reviewed_by=frappe.session.user, reviewed_at=frappe.utils.now_datetime()))
     task.submission_review_reasons = ('Rejected: ' if decision == 'Reject' else '') + notes.strip()
     task.submission_review_status = 'Approved by coordinator' if decision == 'Approve' else decision
-    task.status = 'Approved' if decision == 'Approve' else 'Rejected' if decision == 'Request clarification' else 'Cancelled'
+    task.status = 'Approved' if decision == 'Approve' else 'Rejected'
     if decision == 'Request clarification': task.rework_type = 'Correct answers'
     task.save(ignore_permissions=True)
     if decision == 'Request clarification':
