@@ -148,6 +148,12 @@ def mobile_login(email, password=None, otp=None, tmp_id=None):
         raise
 
 
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def web_csrf_token():
+    """Return the CSRF token for the browser session that made this request."""
+    return frappe.sessions.get_csrf_token()
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def web_login(email, password=None, otp=None, tmp_id=None):
     """Establish the first-party Frappe cookie without returning its session ID.
