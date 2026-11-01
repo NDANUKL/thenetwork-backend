@@ -26,6 +26,7 @@
     "submission_review",
     "technical_details",
     "client_uuid",
+    "draft_version",
     "client_updated_at",
     "device_id",
     "app_version",
@@ -51,6 +52,13 @@
       "label": "Client UUID",
       "reqd": 1,
       "unique": 1,
+      "read_only": 1
+    },
+    {
+      "default": 0,
+      "fieldname": "draft_version",
+      "fieldtype": "Int",
+      "label": "Draft Version",
       "read_only": 1
     },
     {

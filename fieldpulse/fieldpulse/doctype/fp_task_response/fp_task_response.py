@@ -17,7 +17,7 @@ class FPTaskResponse(Document):
             for key in ('brief_answers_json', 'brief_completion_json'):
                 if self.get(key) != previous.get(key):
                     frappe.throw('Submitted field checks are immutable')
-            for key in ("task", "agent", "location", "status", "arrival_check_json", "final_review_json", "latitude", "longitude", "accuracy_m", "submitted_at", "started_at", "client_uuid", "device_id", "app_version", "client_updated_at", "geofence_status", "geofence_distance_m", "rejection_reason"):
+            for key in ("task", "agent", "location", "status", "arrival_check_json", "final_review_json", "latitude", "longitude", "accuracy_m", "submitted_at", "started_at", "client_uuid", "draft_version", "device_id", "app_version", "client_updated_at", "geofence_status", "geofence_distance_m", "rejection_reason"):
                 if self.get(key) != previous.get(key):
                     frappe.throw("Submitted scout findings are immutable; request rework for a new response")
             for key in ("qa_status", "review_status", "review_reasons", "reviewed_by", "reviewed_at", "review_notes"):

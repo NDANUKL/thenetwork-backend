@@ -263,26 +263,37 @@ def save_response(payload):
     if existing and (doc.task != task.name or doc.agent != scout.name):
         frappe.throw('The submission ID belongs to another assignment', frappe.PermissionError)
     if existing and doc.status == 'Submitted':
-        return dict(response=doc.name, status='Submitted', task_status=task.status)
+        return dict(response=doc.name, status='Submitted', task_status=task.status,
+            draft_version=int(doc.get('draft_version') or 0))
     if payload.get('reconcile_only'):
-        return dict(response=doc.name if existing else None, status=doc.status if existing else 'Missing', task_status=task.status)
+        return dict(response=doc.name if existing else None, status=doc.status if existing else 'Missing', task_status=task.status,
+            draft_version=int(doc.get('draft_version') or 0) if existing else 0)
     if task.status not in ('Assigned', 'Accepted', 'In Progress'):
         frappe.throw('This assignment is not open for submission')
     if not existing and frappe.db.exists('FP Task Response', {'task': task.name, 'status': 'Draft'}):
         frappe.throw('Resume the existing draft for this assignment')
     if payload.get('status') not in ('Draft', 'Submitted'):
         frappe.throw('Scouts may save a draft or submit for coordinator review')
+    expected_version = payload.get('draft_version', 0)
+    current_version = int(doc.get('draft_version') or 0) if existing else 0
+    if isinstance(expected_version, bool) or not isinstance(expected_version, int) or expected_version < 0:
+        frappe.throw('A valid draft version is required. Sync this task and try again.')
+    if expected_version != current_version:
+        return dict(conflict=True, response=doc.name if existing else None, status=doc.status if existing else 'Missing',
+            draft_version=current_version,
+            message='This task changed on another device. Sync and review the latest draft before continuing.')
     doc.client_uuid = payload['client_uuid']
     doc.task, doc.agent, doc.location = task.name, scout.name, task.location
     doc.status = payload['status']
     doc.client_updated_at = frappe.utils.now_datetime()
+    doc.draft_version = current_version + 1
     if doc.status == 'Submitted':
         doc.submitted_at = frappe.utils.now_datetime()
     doc.arrival_check_json = json.dumps(payload.get('arrival') or {})
     doc.brief_answers_json = json.dumps(payload.get('answers') or {})
     doc.final_review_json = json.dumps({key: payload[key] for key in ('declaration', 'additional_observations', 'access_issue') if key in payload})
     doc.save(ignore_permissions=True)
-    return dict(response=doc.name, status=doc.status)
+    return dict(response=doc.name, status=doc.status, draft_version=int(doc.draft_version))
 
 
 def submission_detail(doc, task):
@@ -354,7 +365,7 @@ def revision_payload(task):
     if not task.get('rework_response'): return None
     response = frappe.get_doc('FP Task Response', task.rework_response)
     if response.status != 'Draft': return None
-    return dict(id=response.client_uuid, server_id=response.name, submission=submission_payload(response),
+    return dict(id=response.client_uuid, server_id=response.name, draft_version=int(response.get('draft_version') or 0), submission=submission_payload(response),
         media=[dict(id=item.client_uuid, server_id=item.name, check_id=item.field_check_id,
                     kind=item.evidence_type.lower(), mime_type=item.mime_type, size_bytes=item.file_size,
                     captured_at=site_datetime_iso(item.captured_at), latitude=item.gps_lat, longitude=item.gps_lng,
@@ -382,12 +393,42 @@ def submitted_progress_payload(task):
     checks = completion['checks']
     statuses = [item.get('status') for item in checks if isinstance(item, dict)]
     arrival = submission_payload(response).get('arrival') or {}
-    return dict(response_id=response.name, response_status=response.status,
+    return dict(response_id=response.name, response_status=response.status, draft_version=int(response.get('draft_version') or 0),
         arrival_verified=gps_result(arrival, pinned['site'])['status'] == 'inside',
         checks_complete=sum(status == 'complete' for status in statuses),
         checks_recorded=sum(status in ('complete', 'unable_to_verify') for status in statuses),
         checks_unable=sum(status == 'unable_to_verify' for status in statuses),
         check_count=len(pinned['check_ids']), evidence_count=len(evidence_rows(response)))
+
+
+def resumable_draft_payload(task):
+    """Return the scout's active server draft so another installation can resume it."""
+    if task.status not in ('Assigned', 'Accepted', 'In Progress'):
+        return None
+    rows = frappe.get_all('FP Task Response', filters={
+        'task': task.name, 'agent': task.scout_profile, 'status': 'Draft',
+    }, fields=['name', 'client_uuid', 'rework_of'], order_by='modified desc', limit=20)
+    active_name = task.get('rework_response')
+    if active_name:
+        row = next((item for item in rows if item.name == active_name), None)
+    else:
+        candidates = [item for item in rows if not item.get('rework_of')]
+        row = candidates[0] if candidates else None
+    if not row:
+        return None
+    response = frappe.get_doc('FP Task Response', row.name)
+    if response.status != 'Draft' or response.task != task.name or response.agent != task.scout_profile:
+        return None
+    media = []
+    for item in evidence_rows(response):
+        media.append(dict(id=item.client_uuid, server_id=item.name, check_id=item.field_check_id,
+            kind='photo' if item.evidence_type == 'Photo' else 'video', mime_type=item.mime_type,
+            size_bytes=item.file_size, captured_at=site_datetime_iso(item.captured_at),
+            latitude=item.gps_lat, longitude=item.gps_lng, accuracy_m=item.accuracy_m,
+            location_sampled_at=site_datetime_iso(item.location_sampled_at),
+            metadata_origin=item.metadata_origin or 'Camera', local_uri=''))
+    return dict(id=response.client_uuid, server_id=response.name, draft_version=int(response.get('draft_version') or 0),
+        submission=submission_payload(response), media=media)
 
 
 def coverage_ready(project_names):

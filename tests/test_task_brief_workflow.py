@@ -193,6 +193,26 @@ class WorkflowTests(unittest.TestCase):
             response.agent='OTHER'
             with self.assertRaisesRegex(ValueError,'another assignment'):self.module.save_response(payload)
 
+    def test_stale_draft_version_is_rejected_without_mutating_response(self):
+        import types
+        self.task.status='In Progress'
+        response=Record(name='RESPONSE',task='TASK',agent='SCOUT',status='Draft',draft_version=4)
+        response.save=MagicMock()
+        self.frappe.db.exists.return_value='RESPONSE'
+        self.frappe.get_doc.side_effect=lambda kind,name:self.task if kind=='Field Task' else response
+        api=types.SimpleNamespace(_get_scout_profile_for_user=lambda:Record(name='SCOUT'))
+        payload=dict(client_uuid='uuid',task='TASK',brief_hash='hash',status='Draft',draft_version=3,answers={'condition':{'value':'stale'}})
+        with patch.dict(sys.modules,{'fieldpulse.api':api}),patch.object(self.module,'snapshot',return_value={'content_hash':'hash'}):
+            conflict=self.module.save_response(payload)
+            self.assertTrue(conflict['conflict'])
+            self.assertEqual(conflict['draft_version'],4)
+            response.save.assert_not_called()
+            payload['draft_version']=4
+            accepted=self.module.save_response(payload)
+        self.assertEqual(accepted['draft_version'],5)
+        self.assertEqual(response.draft_version,5)
+        response.save.assert_called_once_with(ignore_permissions=True)
+
     def test_closed_unsubmitted_retry_does_not_write(self):
         self.module.pin_assignment(self.task);self.task.status='Cancelled'
         self.frappe.db.exists.return_value=None
