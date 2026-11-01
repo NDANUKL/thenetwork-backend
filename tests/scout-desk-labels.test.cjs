@@ -39,3 +39,14 @@ test('Field Task Desk filters hide internal closure states and label ended tasks
  assert.equal(schema.fields.find(field=>field.fieldname==='status').read_only,1);
  assert.ok(!schema.fields.find(field=>field.fieldname==='status').options.split('\n').includes('Cancelled'));
 });
+test('failed Task Brief responses distinguish rejection from requested rework',()=>{
+ const frappe={listview_settings:{}};load('fp_task_response/fp_task_response_list.js',frappe);
+ const settings=frappe.listview_settings['FP Task Response'];
+ const status={df:{},refresh(){this.refreshed=true;}};
+ settings.onload({page:{fields_dict:{status}}});
+ assert.equal(status.df.options,'\nDraft\nSubmitted');assert.equal(status.refreshed,true);
+ assert.ok(settings.add_fields.includes('reviewed_by'));
+ assert.equal(settings.get_indicator({qa_status:'Failed',reviewed_by:'coordinator@example.test'})[0],'Rejected');
+ assert.equal(settings.get_indicator({qa_status:'Failed',reviewed_by:'coordinator@example.test',rework_of:'OLD-RESPONSE'})[0],'Rework requested');
+ assert.equal(settings.get_indicator({qa_status:'Failed'})[0],'Rework requested');
+});

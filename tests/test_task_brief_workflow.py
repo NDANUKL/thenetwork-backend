@@ -213,6 +213,25 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(response.draft_version,5)
         response.save.assert_called_once_with(ignore_permissions=True)
 
+    def test_stale_versions_are_rejected_during_reconcile_and_submitted_retry(self):
+        import types
+        self.task.status='Approved'
+        response=Record(name='RESPONSE',task='TASK',agent='SCOUT',status='Submitted',draft_version=4)
+        response.save=MagicMock()
+        self.frappe.db.exists.return_value='RESPONSE'
+        self.frappe.get_doc.side_effect=lambda kind,name:self.task if kind=='Field Task' else response
+        api=types.SimpleNamespace(_get_scout_profile_for_user=lambda:Record(name='SCOUT'))
+        with patch.dict(sys.modules,{'fieldpulse.api':api}),patch.object(self.module,'snapshot',return_value={'content_hash':'hash'}):
+            for extra in ({'reconcile_only':True},{'status':'Submitted'}):
+                stale=dict(client_uuid='uuid',task='TASK',brief_hash='hash',draft_version=3,**extra)
+                result=self.module.save_response(stale)
+                self.assertTrue(result['conflict'])
+                self.assertEqual(result['draft_version'],4)
+            current=self.module.save_response(dict(client_uuid='uuid',task='TASK',brief_hash='hash',draft_version=4,reconcile_only=True))
+        self.assertFalse(current.get('conflict',False))
+        self.assertEqual(current['status'],'Submitted')
+        response.save.assert_not_called()
+
     def test_closed_unsubmitted_retry_does_not_write(self):
         self.module.pin_assignment(self.task);self.task.status='Cancelled'
         self.frappe.db.exists.return_value=None

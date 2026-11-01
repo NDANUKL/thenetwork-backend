@@ -84,3 +84,34 @@ class MobileSyncSecurity(unittest.TestCase):
         self.assertEqual(result['tasks'][0]['assigned_at'],'2026-10-26T09:00:00+03:00')
         self.assertEqual(result['tasks'][0]['server_updated_at'],'2026-10-26T10:00:00+03:00')
         self.assertEqual(result['server_time'],'2026-10-26T12:00:00')
+
+    def test_closed_task_statuses_never_return_resumable_brief_drafts(self):
+        from datetime import datetime
+        class Row(dict):
+            __getattr__ = dict.get
+        cutover = types.SimpleNamespace(open_legacy_tasks=lambda scout: [], cancelled_legacy_tasks=lambda *args: [])
+        inbox = types.SimpleNamespace(notification_payload=lambda: [])
+        utils = types.ModuleType('frappe.utils')
+        utils.get_system_timezone = lambda: 'Africa/Nairobi'
+        self.api.now_datetime.return_value = datetime(2026, 10, 31, 12)
+        self.api.site_datetime_iso = lambda value: value
+        workflow = types.ModuleType('fieldpulse.task_brief_workflow')
+        calls=[]
+        workflow.revision_payload=lambda task:(calls.append(('revision',task.status)) or {'id':'revision'})
+        workflow.resumable_draft_payload=lambda task:(calls.append(('draft',task.status)) or {'id':'draft'})
+        workflow.submitted_progress_payload=lambda task:(calls.append(('summary',task.status)) or {'response_id':'response'} if task.status in ('Submitted','Approved') else None)
+        with patch.dict(sys.modules, {'frappe.utils':utils,'fieldpulse.task_brief_workflow':workflow,
+                'fieldpulse.task_brief_cutover':cutover,'fieldpulse.scout_inbox':inbox}):
+            for status in ('Assigned','Accepted','In Progress','Submitted','Approved','Rejected','Cancelled','Withdrawn','Awaiting authorization'):
+                calls.clear()
+                task=Row(name='TASK-'+status.replace(' ',''),status=status,scout_profile='scout',task_brief_version='BRIEF',modified=datetime(2026,10,31,10))
+                self.f.get_all.return_value=[task]
+                result=self.api.sync_pull_assignments(protocol_version=2,visit_workflow_version=2,rework_version=2,
+                    questionnaire_editor_version=1,task_brief_version=1)
+                pulled=result['tasks'][0]
+                is_editing=status == 'In Progress'
+                self.assertEqual(bool(pulled['brief_draft']),is_editing,status)
+                self.assertEqual(bool(pulled['brief_revision']),is_editing,status)
+                self.assertEqual(any(kind=='draft' for kind,_ in calls),is_editing)
+                self.assertEqual(any(kind=='revision' for kind,_ in calls),is_editing)
+                self.assertEqual(bool(pulled['brief_summary']),status in ('Submitted','Approved'))

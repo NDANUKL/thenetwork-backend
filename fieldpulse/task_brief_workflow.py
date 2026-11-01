@@ -262,26 +262,29 @@ def save_response(payload):
     doc = frappe.get_doc('FP Task Response', existing) if existing else frappe.new_doc('FP Task Response')
     if existing and (doc.task != task.name or doc.agent != scout.name):
         frappe.throw('The submission ID belongs to another assignment', frappe.PermissionError)
+    current_version = int(doc.get('draft_version') or 0) if existing else 0
+    expected_version = payload.get('draft_version', 0)
+    if isinstance(expected_version, bool) or not isinstance(expected_version, int) or expected_version < 0:
+        frappe.throw('A valid draft version is required. Sync this task and try again.')
+    # Version checks also guard idempotent retry/reconciliation responses. A
+    # delayed acknowledgement from one device must not certify a newer draft.
+    if expected_version != current_version:
+        return dict(conflict=True, response=doc.name if existing else None,
+            status=doc.status if existing else 'Missing', task_status=task.status,
+            draft_version=current_version,
+            message='This task changed on another device. Sync and review the latest draft before continuing.')
     if existing and doc.status == 'Submitted':
         return dict(response=doc.name, status='Submitted', task_status=task.status,
-            draft_version=int(doc.get('draft_version') or 0))
+            draft_version=current_version)
     if payload.get('reconcile_only'):
         return dict(response=doc.name if existing else None, status=doc.status if existing else 'Missing', task_status=task.status,
-            draft_version=int(doc.get('draft_version') or 0) if existing else 0)
+            draft_version=current_version)
     if task.status not in ('Assigned', 'Accepted', 'In Progress'):
         frappe.throw('This assignment is not open for submission')
     if not existing and frappe.db.exists('FP Task Response', {'task': task.name, 'status': 'Draft'}):
         frappe.throw('Resume the existing draft for this assignment')
     if payload.get('status') not in ('Draft', 'Submitted'):
         frappe.throw('Scouts may save a draft or submit for coordinator review')
-    expected_version = payload.get('draft_version', 0)
-    current_version = int(doc.get('draft_version') or 0) if existing else 0
-    if isinstance(expected_version, bool) or not isinstance(expected_version, int) or expected_version < 0:
-        frappe.throw('A valid draft version is required. Sync this task and try again.')
-    if expected_version != current_version:
-        return dict(conflict=True, response=doc.name if existing else None, status=doc.status if existing else 'Missing',
-            draft_version=current_version,
-            message='This task changed on another device. Sync and review the latest draft before continuing.')
     doc.client_uuid = payload['client_uuid']
     doc.task, doc.agent, doc.location = task.name, scout.name, task.location
     doc.status = payload['status']
