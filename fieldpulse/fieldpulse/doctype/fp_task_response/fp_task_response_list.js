@@ -5,10 +5,7 @@ frappe.listview_settings["FP Task Response"] = {
       return [__("Rework in progress"), "orange", "status,=,Draft|rework_of,is,set"];
     }
     if (doc.qa_status === "Passed") return [__("Reviewed"), "green", "qa_status,=,Passed"];
-    if (doc.qa_status === "Failed") {
-      if (doc.reviewed_by && !doc.rework_of) return [__("Rejected"), "red", "qa_status,=,Failed"];
-      return [__("Rework requested"), "red", "qa_status,=,Failed"];
-    }
+    if (doc.qa_status === "Failed") return [__("Rework requested"), "red", "qa_status,=,Failed"];
     if (doc.status === "Submitted") {
       return [__(doc.review_status || "Pending review"), doc.review_status === "Needs review" ? "orange" : "blue", "status,=,Submitted"];
     }
