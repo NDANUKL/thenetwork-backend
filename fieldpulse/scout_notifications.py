@@ -49,7 +49,7 @@ def send(notification):
         key, sender, _ = delivery_config()
         email = frappe.db.get_value('User', record.recipient, 'email') or record.recipient
         from fieldpulse.email_branding import render_email, sender_address
-        origin = (frappe.conf.get('dd_scout_public_url') or frappe.conf.get('host_name') or 'https://diaspora-desk.com').rstrip('/')
+        origin = 'https://groundscouts.diaspora-desk.com'
         action_url = origin + '/groundscouts'
         branded = render_email(title=record.subject, eyebrow='GROUND SCOUTS', body=record.message.replace('\n', '<br>'),
             origin=origin, link=action_url, label='Open Ground Scouts')
@@ -111,9 +111,13 @@ def queue_task_event(task, scout, kind):
         return key
     reference = task.get('task_number') or task.name
     rejected = kind == 'Withdrawal' and task.get('submission_review_status') == 'Reject'
-    title = 'Assignment rejected' if rejected else {'Assignment':'New assignment', 'Withdrawal':'Assignment withdrawn', 'Authorization':'Revisit authorization updated'}.get(kind, 'Assignment update')
+    title = 'Assignment rejected' if rejected else {'Assignment':'New assignment', 'Withdrawal':'Assignment withdrawn', 'Authorization':('Revisit awaiting authorization' if task.status == 'Awaiting authorization' else 'Revisit authorized'), 'Approval':'Work approved'}.get(kind, 'Assignment update')
     instruction = 'Open Ground Scouts and sync to read the current assignment.'
-    if rejected:
+    if kind == 'Approval':
+        instruction = 'Your submitted work was approved. Open Ground Scouts to review the task.'
+    elif kind == 'Authorization':
+        instruction = 'Your revisit authorization changed. Open Ground Scouts and sync to review the task.'
+    elif rejected:
         reason = (task.get('submission_review_reasons') or '').strip()
         if reason.startswith('Rejected:'):
             reason = reason[len('Rejected:'):].strip()
@@ -146,3 +150,10 @@ def capture_task(task, method=None):
     if task.scout_profile and task.status in ('Assigned','Accepted','In Progress'):
         if not previous or changed_owner:
             queue_task_event(task,task.scout_profile,'Assignment')
+    if previous and not changed_owner and task.scout_profile:
+        if task.status == 'Approved' and previous.status != 'Approved':
+            queue_task_event(task,task.scout_profile,'Approval')
+        if task.status == 'Awaiting authorization' and previous.status != 'Awaiting authorization':
+            queue_task_event(task,task.scout_profile,'Authorization')
+        elif previous.status == 'Awaiting authorization' and task.status in ('Assigned','Accepted','In Progress'):
+            queue_task_event(task,task.scout_profile,'Authorization')

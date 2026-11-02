@@ -117,6 +117,13 @@ def sync_pull_assignments(since=None, protocol_version=1, visit_workflow_version
 
 
 @frappe.whitelist(methods=["POST"])
+def mark_notification_read(notification_id):
+    """Persist a read receipt for a notification owned by the current scout."""
+    from fieldpulse.scout_inbox import mark_notification_read as mark
+    return mark(notification_id)
+
+
+@frappe.whitelist(methods=["POST"])
 def sync_log(agent=None, device_id=None, direction="Mixed", status="Success",
              pulled_count=0, pushed_count=0, accepted_count=0, rejected_count=0,
              error_count=0, summary_json=None):

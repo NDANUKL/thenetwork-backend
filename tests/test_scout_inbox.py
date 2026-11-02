@@ -29,6 +29,24 @@ class ScoutInboxTests(unittest.TestCase):
         self.f.session.user='other@example.test';self.f.db.exists.return_value=False
         with self.assertRaises(PermissionError):self.payload()
         self.f.get_all.assert_not_called()
+    def test_mark_read_is_idempotent_and_scoped_to_current_recipient(self):
+        self.f.db.get_value.return_value={'name':'NOTICE-1','read':0}
+        self.assertEqual(self.module.mark_notification_read('NOTICE-1'),{'id':'NOTICE-1','read':True})
+        self.f.db.get_value.assert_called_once_with('Notification Log',{'name':'NOTICE-1','for_user':'scout@example.test'},['name','read'],as_dict=True)
+        self.f.db.set_value.assert_called_once_with('Notification Log','NOTICE-1','read',1,update_modified=False)
+        self.f.db.get_value.return_value={'name':'NOTICE-1','read':1}
+        self.f.db.set_value.reset_mock()
+        self.module.mark_notification_read('NOTICE-1')
+        self.f.db.set_value.assert_not_called()
+    def test_mark_read_rejects_notifications_owned_by_another_user(self):
+        self.f.db.get_value.return_value=None
+        with self.assertRaises(PermissionError):self.module.mark_notification_read('NOTICE-OTHER')
+        self.f.db.set_value.assert_not_called()
+    def test_mark_read_rejects_guest_and_invalid_ids(self):
+        self.f.session.user='Guest'
+        with self.assertRaises(PermissionError):self.module.mark_notification_read('NOTICE-1')
+        self.f.session.user='scout@example.test'
+        with self.assertRaises(ValueError):self.module.mark_notification_read('')
     def test_task_event_normalization_and_body_bounds(self):
         self.f.get_all.return_value=[dict(name='task-alert',subject='Rework required: Correct answers',email_content='x'*3000,creation=datetime(2026,10,26,9),read=1,document_type='Field Task',document_name='task')]
         row=self.payload()[0]

@@ -23,6 +23,21 @@ def plain(value,limit):
     return ' '.join(''.join(parser.parts).split())[:limit]
 
 
+def mark_notification_read(notification_id):
+    """Mark one of the authenticated scout's notifications as read."""
+    user=frappe.session.user
+    if user=='Guest' or not frappe.db.exists('Scout Profile',{'user':user}):
+        frappe.throw('Sign in as a scout.',frappe.PermissionError)
+    if not isinstance(notification_id,str) or not notification_id or len(notification_id)>140:
+        frappe.throw('A valid notification ID is required')
+    row=frappe.db.get_value('Notification Log',{'name':notification_id,'for_user':user},['name','read'],as_dict=True)
+    if not row:
+        frappe.throw('Notification not found.',frappe.PermissionError)
+    if not row.get('read'):
+        frappe.db.set_value('Notification Log',notification_id,'read',1,update_modified=False)
+    return {'id':notification_id,'read':True}
+
+
 def notification_payload():
     user=frappe.session.user
     if user=='Guest' or not frappe.db.exists('Scout Profile',{'user':user}):
@@ -38,8 +53,8 @@ def notification_payload():
         target='task' if doctype=='Field Task' else 'earnings' if doctype in ('DD Scout Offer','DD Scout Expense','DD Scout Earning','DD Scout Payout','DD Payout Beneficiary','DD Earning Adjustment') else 'privacy' if doctype=='Scout Data Request' else 'profile' if doctype in ('Scout Profile','Scout Application','User') else 'none'
         kind=subject
         if target=='task':
-            if subject.startswith('Correction requested:'):kind='Correction requested'
-            elif subject.startswith('Rework required:'):kind='Correction requested'
+            if subject.startswith(('Correction requested:', 'Rework required:')):kind='Review feedback updated'
+            elif subject.startswith('Site revisit assigned'):kind='New assignment'
             elif subject=='Revisit authorization updated':kind='Revisit authorized'
         result.append(dict(id=row['name'],subject=subject,body=plain(row.get('email_content'),2000),
             event_kind=kind,created_at=site_datetime_iso(row['creation']),read=bool(row.get('read')),
