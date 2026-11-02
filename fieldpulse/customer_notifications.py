@@ -97,10 +97,10 @@ def event_message(kind, doc, reference, origin):
         title, body, path, label = ("Confirm access for your upcoming check",
             f"Your recurring visit is scheduled for {doc.due_date} to {doc.window_end}. Confirm access and review the arrangements. Each visit needs its own accepted quotation and verified deposit before dispatch.",
             f"/dashboard/recurring/{quote(doc.plan,safe='')}", "Review upcoming check")
-        values = dict(origin=origin, title=title, eyebrow="RECURRING CHECK", preheader=title,
-            body=body,link=origin+path,label=label,note="Manage your recurring plan and email preferences from your dashboard.")
-        shell=json.loads((Path(__file__).parent / "templates/emails/dd_shell.json").read_text(encoding="utf-8"))
-        return {"subject":title,"html":re.sub(r"{{(\w+)}}",lambda m:escape(values[m[1]],quote=True),shell),"text":body+"\n\n"+values['link']}
+        link = origin + path
+        from fieldpulse.email_branding import render_email
+        return {"subject":title,"html":render_email(title=title, eyebrow="RECURRING CHECK", preheader=title,
+            body=body, link=link, label=label, note="Manage your recurring plan and email preferences from your dashboard.", origin=origin),"text":body+"\n\n"+link}
     if kind == "payment":
         from fieldpulse.payment_receipts import verified_attempt
         attempt = verified_attempt(doc)
@@ -115,8 +115,9 @@ def event_message(kind, doc, reference, origin):
     values = dict(origin=origin, title=title, eyebrow="REQUEST UPDATE", preheader=title + " - " + reference,
         body=body + " Request: " + reference + ".", link=origin + path, label=label,
         note="Manage important request email preferences from Account in your dashboard.")
-    shell = json.loads((Path(__file__).parent / "templates/emails/dd_shell.json").read_text(encoding="utf-8"))
-    html = re.sub(r"{{(\w+)}}", lambda match: escape(values[match[1]], quote=True), shell)
+    from fieldpulse.email_branding import render_email
+    html = render_email(title=title, eyebrow="REQUEST UPDATE", preheader=title + " - " + reference,
+        body=values["body"], link=values["link"], label=label, note=values["note"], origin=origin)
     return {"subject": title + " - " + reference, "html": html, "text": values["body"] + "\n\n" + values["link"]}
 
 
@@ -152,8 +153,9 @@ def send(notification):
     attempts = int(record.attempts or 0) + 1
     try:
         key, sender, origin = delivery_config()
+        from fieldpulse.email_branding import sender_address
         payload = json.loads(record.payload) if record.get("payload") else {
-            "from": sender, "to": [account.user], **event_message(record.kind, doc, record.request, origin)}
+            "from": sender_address(sender), "to": [account.user], **event_message(record.kind, doc, record.request, origin)}
         # Freeze the exact provider payload before sending; all retries use it.
         frappe.db.set_value(DOCTYPE, record.name, {"payload": json.dumps(payload), "first_attempt_at": record.first_attempt_at or now, "attempts": attempts})
         frappe.db.commit()

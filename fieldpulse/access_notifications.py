@@ -29,9 +29,10 @@ def send_approval(account_name):
     parsed = urlsplit(origin)
     if not key or not settings.resend_from_email or parsed.scheme != "https" or not parsed.hostname or parsed.path or parsed.query or parsed.fragment or parsed.username:
         frappe.throw("Configure the website origin and email delivery in DD Access Settings")
+    from fieldpulse.email_branding import sender_address
     response = requests.post("https://api.resend.com/emails", timeout=20,
         headers={"Authorization": "Bearer " + key, "Idempotency-Key": "dd-access-" + account.approval_email_id},
-        json={"from": settings.resend_from_email, "to": [account.user], "subject": "Your Diaspora Desk early access is ready",
+        json={"from": sender_address(settings.resend_from_email), "to": [account.user], "subject": "Your Diaspora Desk early access is ready",
               "html": render_approval(origin), "text": "Good news, your account is approved. Log in to start your journey: " + origin + "/request"})
     if not response.ok:
         # Do not put provider response bodies, recipient addresses or credentials in logs.

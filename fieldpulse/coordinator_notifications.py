@@ -15,12 +15,11 @@ def application_received(doc):
         frappe.log_error(title='Scout application notification',
                          message='No enabled coordinator email recipient is configured.')
         return
-    html = frappe.render_template(
-        'fieldpulse/templates/emails/scout_application.html',
-        dict(applicant_name=doc.full_name or 'New applicant',
-             county=doc.county or 'County unconfirmed',
-             review_link=get_url_to_form('Scout Application', doc.name)),
-    )
+    from fieldpulse.email_branding import render_email
+    html = render_email(title='New scout application', eyebrow='COORDINATOR UPDATE',
+        body=f"A new scout application is ready for review.<br><strong>{frappe.utils.escape_html(doc.full_name or 'New applicant')}</strong><br>{frappe.utils.escape_html(doc.county or 'County unconfirmed')}",
+        origin=frappe.utils.get_url(), link=get_url_to_form('Scout Application', doc.name),
+        label='Review application', note='Sign in to Frappe to review this application. You received this email because you are a Field Operations Coordinator.')
     frappe.sendmail(
         recipients=recipients,
         subject='New scout application',

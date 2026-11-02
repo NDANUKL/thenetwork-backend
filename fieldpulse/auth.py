@@ -267,10 +267,11 @@ def request_password_reset(email):
 
     reset_link = user._reset_password(send_email=False)
     full_name = user.full_name or email
-    html = frappe.render_template(
-        "fieldpulse/templates/emails/password_reset.html",
-        {"full_name": full_name, "reset_link": reset_link, "site_url": get_url()},
-    )
+    from fieldpulse.email_branding import render_email
+    html = render_email(title="Reset your password", eyebrow="GROUND SCOUTS",
+        body=f"Hello {full_name}, use the button below to choose a new password for your field account.",
+        origin=get_url(), link=reset_link, label="Reset password",
+        note="After resetting, return to Ground Scouts and sign in with your new password. If you didn't request this, you can ignore this email.")
 
     frappe.sendmail(
         recipients=[email],

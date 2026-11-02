@@ -79,8 +79,13 @@ def email_deletion_link(email, reason=''):
     key = 'scout-deletion:' + hashlib.sha256(token.encode()).hexdigest()
     frappe.cache().set_value(key, {'user': user, 'reason': str(reason or '').strip()}, expires_in_sec=1800)
     link = site + '/scout-data-deletion#' + urlencode({'token': token})
-    frappe.sendmail(recipients=[user], subject='Confirm your Ground Scouts account deletion request',
-                    message='Someone requested deletion of your Ground Scouts account. If this was you, open the link and confirm within 30 minutes. Opening the link alone does not submit the request. Ignore this email if you did not request it.<br><a href="' + link + '">Review and confirm request</a>')
+    from fieldpulse.email_branding import render_email
+    origin = site
+    message = render_email(title='Confirm your account deletion request', eyebrow='GROUND SCOUTS',
+        body='Someone requested deletion of your Ground Scouts account. If this was you, open the link and confirm within 30 minutes. Opening the link alone does not submit the request. Ignore this email if you did not request it.',
+        origin=origin, link=link, label='Review and confirm request',
+        note='The deletion request is submitted only after you confirm on the secure page.')
+    frappe.sendmail(recipients=[user], subject='Confirm your Ground Scouts account deletion request', message=message)
     return reply
 
 
