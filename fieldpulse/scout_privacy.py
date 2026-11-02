@@ -83,8 +83,7 @@ def email_deletion_link(email, reason=''):
     origin = site
     message = render_email(title='Confirm your account deletion request', eyebrow='GROUND SCOUTS',
         body='Someone requested deletion of your Ground Scouts account. If this was you, open the link and confirm within 30 minutes. Opening the link alone does not submit the request. Ignore this email if you did not request it.',
-        origin=origin, link=link, label='Review and confirm request',
-        note='The deletion request is submitted only after you confirm on the secure page.')
+        origin=origin, link=link, label='Review and confirm request')
     frappe.sendmail(recipients=[user], subject='Confirm your Ground Scouts account deletion request', message=message)
     return reply
 
