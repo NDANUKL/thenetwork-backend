@@ -49,13 +49,13 @@ def send(notification):
         key, sender, _ = delivery_config()
         email = frappe.db.get_value('User', record.recipient, 'email') or record.recipient
         from fieldpulse.email_branding import render_email, sender_address
-        origin = (frappe.conf.get('dd_scout_public_url') or frappe.conf.get('host_name') or 'https://diaspora-desk.com').rstrip('/')
-        action_url = origin + '/scout'
         branded = render_email(title=record.subject, eyebrow='GROUND SCOUTS', body=record.message.replace('\n', '<br>'),
-            origin=origin, link=action_url, label='Open Ground Scouts', note='Sync the app to continue with your assigned work.')
+            origin='https://diaspora-desk.com')
         payload = json.loads(record.payload) if record.get('payload') else dict(
             **{'from': sender_address(sender)}, to=[email], subject=record.subject,
-            html=branded, text=record.message + '\n\n' + action_url)
+            html=branded, text=record.message)
+        # Retry rows can contain a sender frozen before branded sender handling.
+        payload['from'] = sender_address(sender)
         frappe.db.set_value(DOCTYPE, record.name, dict(payload=json.dumps(payload),
             attempts=attempts, first_attempt_at=record.first_attempt_at or now))
         # Persist the stable provider payload before network IO, then regain the lock.

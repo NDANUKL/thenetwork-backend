@@ -28,9 +28,14 @@ def render_email(*, title, body, origin, eyebrow="DIASPORA DESK", link="", label
         "eyebrow": eyebrow,
         "preheader": preheader or title,
         "body": body,
-        "link": link or origin,
-        "label": label or "Open Diaspora Desk",
-        "note": note or "Diaspora Desk · Follow Your Pesa",
+        "link": link or "",
+        "label": label or "",
+        "note": note or "",
     }
     shell = json.loads((Path(__file__).parent / "templates/emails/dd_shell.json").read_text(encoding="utf-8"))
-    return re.sub(r"{{(\w+)}}", lambda match: escape(str(values[match[1]]), quote=True), shell)
+    rendered = re.sub(r"{{(\w+)}}", lambda match: escape(str(values[match[1]]), quote=True), shell)
+    if not label or not link:
+        rendered = re.sub(r'<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto">.*?</table>', "", rendered, count=1)
+    if not note:
+        rendered = re.sub(r'<p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#607383">.*?</p>', "", rendered, count=1)
+    return rendered

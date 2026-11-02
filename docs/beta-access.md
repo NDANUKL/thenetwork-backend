@@ -14,6 +14,8 @@ In Desk, search for DD Access Settings (System Manager only):
 - Website origin: the deployed website HTTPS origin.
 - Email sender and Resend API key: use the same verified sender and provider credentials as the website.
 
+Keep **Email sender** as the plain verified mailbox address (for example, `no-reply@diaspora-desk.com`). Backend email delivery adds the `Diaspora Desk` display name when it submits messages to Resend, so do not enter HTML-escaped angle brackets in this setting. Retries also refresh the sender while preserving the original message content. Customer verification's password-set security notice uses this same branded sender and email shell; the verification link itself is still sent by the website.
+
 The password field stores the provider key using Frappe encryption. Do not put it in source control.
 Keep the normal scheduler and background workers running for approval delivery and retries.
 The website continues to use its existing Resend environment variables for verification, recovery and request-details messages.

@@ -156,6 +156,9 @@ def send(notification):
         from fieldpulse.email_branding import sender_address
         payload = json.loads(record.payload) if record.get("payload") else {
             "from": sender_address(sender), "to": [account.user], **event_message(record.kind, doc, record.request, origin)}
+        # Persisted retry payloads may predate the branded sender configuration.
+        # Keep the current shared sender policy even when reusing their frozen content.
+        payload["from"] = sender_address(sender)
         # Freeze the exact provider payload before sending; all retries use it.
         frappe.db.set_value(DOCTYPE, record.name, {"payload": json.dumps(payload), "first_attempt_at": record.first_attempt_at or now, "attempts": attempts})
         frappe.db.commit()

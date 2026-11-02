@@ -34,13 +34,13 @@
       "label": "Email sender",
       "fieldtype": "Data",
       "default": "Diaspora Desk <no-reply@diaspora-desk.com>",
-      "description": "Used for account approvals and important customer request emails. Configure a verified Resend sender."
+      "description": "Used for account security, approvals and important customer request emails. Configure a verified Resend sender."
     },
     {
       "fieldname": "resend_api_key",
       "label": "Resend API key",
       "fieldtype": "Password",
-      "description": "Used for account approvals and important customer request emails. Configure a verified Resend sender."
+      "description": "Used for account security, approvals and important customer request emails. Configure a verified Resend sender."
     }
   ]
 }

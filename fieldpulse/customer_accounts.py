@@ -1,8 +1,36 @@
 """Native customer accounts behavior, ported from the audited production definitions."""
 import json
+from urllib.parse import urlsplit
+
 import frappe
+import requests
 from fieldpulse.native_ownership import owned_event, owned_api
 from fieldpulse.beta_access import registration_access, access_status
+
+
+def send_password_security_notice(email):
+    """Send the customer password-set alert through the branded Resend path."""
+    settings = frappe.get_doc("DD Access Settings")
+    key = settings.get_password("resend_api_key", raise_exception=False)
+    origin = (settings.customer_origin or "").rstrip("/")
+    parsed = urlsplit(origin)
+    if (not key or not settings.resend_from_email or parsed.scheme != "https" or not parsed.hostname
+            or parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password):
+        frappe.throw("Configure the website origin and email delivery in DD Access Settings")
+
+    from fieldpulse.email_branding import render_email, sender_address
+    title = "Your Diaspora Desk password was set"
+    body = "A password was set for your Diaspora Desk account after email verification. If you did not complete this, reset your password or contact Diaspora Desk."
+    response = requests.post("https://api.resend.com/emails", timeout=20,
+        headers={"Authorization": "Bearer " + key},
+        json={"from": sender_address(settings.resend_from_email), "to": [email],
+              "subject": title,
+              "html": render_email(title=title, eyebrow="ACCOUNT SECURITY", body=body,
+                  origin=origin, link=origin + "/request", label="Open your account",
+                  note="This notice was sent after your email verification."),
+              "text": body + "\n\n" + origin + "/request"})
+    if not response.ok:
+        frappe.throw("Password security email delivery failed")
 
 @frappe.whitelist()
 @owned_api('DD Customer Registration Bridge')
@@ -55,13 +83,20 @@ def registration(**kwargs):
             password = frappe.form_dict.get("password") or ""
             if len(password) < 8 or len(password) > 128 or not any("a" <= char <= "z" for char in password) or not any("A" <= char <= "Z" for char in password) or not any("0" <= char <= "9" for char in password):
                 frappe.throw("Invalid password")
-            user.new_password = password
+            # Store the password directly so Frappe does not send its generic
+            # password-changed alert from the unrelated default Email Account.
+            from frappe.utils import today
+            from frappe.utils.password import update_password
+            update_password(user=email, pwd=password, logout_all_sessions=True)
+            frappe.db.set_value("User", email, "last_password_reset_date", today(), update_modified=False)
             user.enabled = 1
             user.send_welcome_email = 0
             user.save()
             profile.email_verified = 1
             profile.verified_at = frappe.utils.now_datetime()
             profile.save()
+            frappe.enqueue("fieldpulse.customer_accounts.send_password_security_notice",
+                email=email, enqueue_after_commit=True)
         if not profile.email_verified or not user.enabled:
             frappe.throw("Invalid account", frappe.PermissionError)
         frappe.response["message"] = {"verified": True, "access_status": access_status(profile)}
