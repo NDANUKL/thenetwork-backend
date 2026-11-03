@@ -165,7 +165,9 @@ def requests(**kwargs):
             filters["name"] = ""
         search = (frappe.form_dict.get("search") or "")[:100]
         search_filters = [["name", "like", "%" + search + "%"], ["summary", "like", "%" + search + "%"]] if search else []
-        items = frappe.get_all("Diaspora Request", filters=filters, or_filters=search_filters, fields=fields, order_by="modified desc, name desc", limit_start=(page - 1) * page_size, limit_page_length=page_size + 1)
+        sort = frappe.form_dict.get("sort") or "updated"
+        order_by = "creation asc, name asc" if sort == "created" else "modified desc, name desc"
+        items = frappe.get_all("Diaspora Request", filters=filters, or_filters=search_filters, fields=fields, order_by=order_by, limit_start=(page - 1) * page_size, limit_page_length=page_size + 1)
         frappe.response["message"] = {"requests": [row(item) for item in items[:page_size]], "has_more": len(items) > page_size}
     else:
         frappe.throw("Invalid action")
