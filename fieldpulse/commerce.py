@@ -1,3 +1,4 @@
+import re
 import frappe
 from urllib.parse import quote as urlquote
 from frappe.utils import now_datetime
@@ -121,8 +122,8 @@ def validate_report(doc):
 @frappe.whitelist()
 def update_settings(full_name, phone, timezone, email_notifications):
     account = ddcustomer()
-    if not isinstance(full_name, str) or not 1 <= len(full_name.strip()) <= 140 or (not isinstance(phone, str)) or (len(phone) > 30):
-        frappe.throw('Enter a valid name and phone number')
+    if not isinstance(full_name, str) or not 1 <= len(full_name.strip()) <= 140 or not isinstance(phone, str) or (phone and not re.fullmatch(r'\+[1-9][0-9]{6,14}', phone)):
+        frappe.throw('Enter a valid name and international phone number')
     allowed = ['Africa/Nairobi', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Asia/Dubai', 'Australia/Sydney', 'UTC']
     if timezone not in allowed or not isinstance(email_notifications, bool):
         frappe.throw('Invalid timezone or notification preference')

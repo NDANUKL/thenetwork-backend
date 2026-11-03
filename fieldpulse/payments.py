@@ -61,7 +61,7 @@ def csrf():
     token = secrets.token_hex(24)
     frappe.db.set_value(doctype, account, {'portal_csrf_hash': hashlib.sha256(token.encode()).hexdigest(), 'portal_csrf_expires': frappe.utils.add_to_date(now_datetime(), minutes=10)})
     frappe.db.commit()
-    return {'csrf_token': frappe.session.data.get('csrf_token') or '', 'mutation_token': token}
+    return {'csrf_token': frappe.sessions.get_csrf_token(), 'mutation_token': token}
 
 def mutation_proof():
     staff = 'System Manager' in roles() or 'Field Operations Coordinator' in roles()
