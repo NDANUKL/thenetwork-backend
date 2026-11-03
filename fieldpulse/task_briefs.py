@@ -205,7 +205,7 @@ def evaluate_submission(brief, check_ids, submission, evidence, *, task_id, scou
         identity = check['id']
         answer = answers.get(identity)
         missing = []
-        if answer is None and not check['required']:
+        if answer is None and not check['required'] and not usable[identity]:
             summary.append(dict(id=identity, status='optional', missing=[]))
             continue
         if not isinstance(answer, dict):
@@ -216,7 +216,7 @@ def evaluate_submission(brief, check_ids, submission, evidence, *, task_id, scou
             status = 'unable_to_verify'
         else:
             status = 'complete'
-            if answer.get('status') != 'observed':
+            if check['response_type'] != 'none' and answer.get('status') != 'observed':
                 missing.append('Record the observation or select Unable to Verify')
             value, kind = answer.get('value'), check['response_type']
             if kind == 'text' and (not isinstance(value, str) or not value.strip() or len(value) > 10000):
