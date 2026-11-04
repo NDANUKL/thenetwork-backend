@@ -52,7 +52,7 @@ def send(notification):
         origin = 'https://groundscouts.diaspora-desk.com'
         action_url = origin + '/groundscouts'
         branded = render_email(title=record.subject, eyebrow='GROUND SCOUTS', body=record.message.replace('\n', '<br>'),
-            origin=origin, link=action_url, label='Open Ground Scouts')
+            origin=origin, link=action_url, label='Open Ground Scouts', body_is_html=True)
         payload = json.loads(record.payload) if record.get('payload') else dict(
             **{'from': sender_address(sender)}, to=[email], subject=record.subject,
             html=branded, text=record.message + '\n\n' + action_url)

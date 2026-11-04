@@ -19,8 +19,9 @@ def sender_address(address):
     return f"{DISPLAY_NAME} <{address}>" if address else ""
 
 
-def render_email(*, title, body, origin, eyebrow="DIASPORA DESK", link="", label="", note="", preheader=None):
-    """Render plain text or HTML content in the branded email shell."""
+def render_email(*, title, body, origin, eyebrow="DIASPORA DESK", link="", label="", note="", preheader=None,
+                 body_is_html=False):
+    """Render content in the branded email shell, escaping body text by default."""
     origin = (origin or "https://diaspora-desk.com").rstrip("/")
     values = {
         "origin": origin,
@@ -33,7 +34,10 @@ def render_email(*, title, body, origin, eyebrow="DIASPORA DESK", link="", label
         "note": note or "",
     }
     shell = json.loads((Path(__file__).parent / "templates/emails/dd_shell.json").read_text(encoding="utf-8"))
-    rendered = re.sub(r"{{(\w+)}}", lambda match: escape(str(values[match[1]]), quote=True), shell)
+    rendered = re.sub(r"{{(\w+)}}", lambda match: (
+        str(values[match[1]]) if body_is_html and match[1] == "body"
+        else escape(str(values[match[1]]), quote=True)
+    ), shell)
     if not label or not link:
         rendered = re.sub(r'<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto">.*?</table>', "", rendered, count=1)
     if not note:
