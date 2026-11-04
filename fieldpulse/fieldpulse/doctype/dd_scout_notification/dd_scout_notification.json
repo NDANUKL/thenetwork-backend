@@ -27,7 +27,7 @@
       "fieldname": "event_kind",
       "fieldtype": "Select",
       "label": "Event kind",
-      "options": "Rework\nAssignment\nWithdrawal\nAuthorization",
+      "options": "Rework\nAssignment\nWithdrawal\nAuthorization\nApproval",
       "read_only": 1
     },
     {
