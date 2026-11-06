@@ -18,7 +18,7 @@ This records local source and verification. It is not evidence of a deployment o
 | Separate client downloads | Download report returns PDF; Download evidence returns a media-only ZIP. Both URLs identify the same approved report and enforce ownership. |
 | Multiple approved submissions | The portal retains the newest published report for each submission, with separate matched downloads. It does not hide earlier submissions when another report is released. |
 | Agreed PDF branding | Uses the same logo, embedded Carlito fonts, teal/navy palette and production renderer as quotations/receipts. PDF lists selected photo/video counts and directs the client to the ZIP. |
-| No displayed internal IDs | PDF does not render request/task/brief references. Old automatically generated ID-bearing report titles are replaced in PDF context. ZIP filenames use neutral photo/video names instead of device filenames/UUIDs. Internal URL parameters are still used for authenticated routing. |
+| No displayed internal IDs | PDF does not render request/task/brief references. The duplicate report title is omitted from the PDF. ZIP filenames use neutral photo/video names instead of device filenames/UUIDs. Internal URL parameters are still used for authenticated routing. |
 
 ## Native ownership correction
 
@@ -36,3 +36,7 @@ The earlier explanation that standard DocType form JavaScript requires an explic
 ## Remaining rollout evidence
 
 Follow the controlling policy: read-only Task Brief cutover inventory before deployment, ordinary backend migration/model sync, compatible frontend deployment, and real Desk/download checks. Check both a newly approved submission and a previously approved response without a draft. Verify cross-customer denial, selected media, multiple submission reports, and production PDF pagination. Existing approved report files are not rewritten by source changes.
+
+## Report layout follow-up
+
+The customer PDF omits internal scout operating instructions, including list-valued instructions, and the duplicate Field verification report title. The FIELD REPORT brand header remains. Report PDF generation opts into Page X of Y footers in the existing shared renderer; quotation/receipt defaults are unchanged. Five renderer tests and 34 report tests pass. One-page, four-page and no-remarks previews were checked for removed text and page counters on every page. The production wkhtmltopdf footer still requires normal deployed verification; local visual previews used Chrome. Regenerate draft PDFs after deployment to apply the layout update.

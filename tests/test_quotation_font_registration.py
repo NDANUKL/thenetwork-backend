@@ -46,10 +46,26 @@ class FontEnvironmentTests(unittest.TestCase):
             pdfkit.configuration.side_effect = configuration
             self.assertEqual(fonts.render_quotation_pdf("<html>quote</html>"), b"%PDF-verified")
         options = pdfkit.from_string.call_args.kwargs["options"]
+        self.assertNotIn("footer-right", options)
         self.assertIn("disable-javascript", options)
         self.assertIn("disable-local-file-access", options)
         self.assertEqual(pdfkit.from_string.call_args.kwargs["configuration"], "isolated-configuration")
         frappe_pdf.prepare_options.assert_called_once()
+        frappe_pdf.cleanup.assert_called_once_with(options)
+
+    def test_report_pagination_is_enabled_without_changing_default_documents(self):
+        pdfkit = MagicMock()
+        pdfkit.from_string.return_value = b'%PDF-paginated'
+        frappe_pdf = types.ModuleType('frappe.utils.pdf')
+        frappe_pdf.prepare_options = MagicMock(return_value=('<html>report</html>', {}))
+        frappe_pdf.cleanup = MagicMock()
+        with patch.dict(sys.modules, {'pdfkit': pdfkit, 'frappe.utils.pdf': frappe_pdf}):
+            fonts.render_quotation_pdf('<html>report</html>', page_numbers=True)
+        options = pdfkit.from_string.call_args.kwargs['options']
+        self.assertEqual(options['footer-right'], 'Page [page] of [topage]')
+        self.assertEqual(options['footer-font-name'], 'Carlito')
+        self.assertEqual(options['footer-spacing'], '5')
+        self.assertIn('disable-javascript', options)
         frappe_pdf.cleanup.assert_called_once_with(options)
 
     def test_cleanup_runs_after_renderer_failure(self):

@@ -139,7 +139,7 @@ def generate_pdf(report):
     report_context.update(quotation_assets=quotation_assets(), photo_count=sum(e.evidence_type == "Photo" for _, e in selected), video_count=sum(e.evidence_type == "Video" for _, e in selected))
     html = frappe.render_template((Path(__file__).parent / "templates/reports/service_report.html").read_text(encoding="utf-8"), {"doc": doc, "request": request, "evidence": media, **report_context})
     from frappe.utils.file_manager import save_file
-    pdf = render_quotation_pdf(html)
+    pdf = render_quotation_pdf(html, page_numbers=True)
     file = save_file(f"{doc.request}-report-v{doc.report_version or 1}.pdf", pdf, doc.doctype, doc.name, is_private=1)
     doc.report_file = file.file_url
     doc.generated_from_hash = report_content_hash(doc)

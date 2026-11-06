@@ -9,9 +9,8 @@ h2{font-size:14pt;color:#00857c;margin:7mm 0 3mm;page-break-after:avoid;}h3{font
 </style></head><body>
 <table class="header"><tr><td><img class="logo" src="{{ quotation_assets.logo }}" alt="Diaspora Desk"></td><td class="heading"><h1>FIELD REPORT</h1><div class="muted">Coordinator-reviewed findings</div></td></tr></table>
 <div class="rule"></div>
-<h2>{{ report_title | default('Field verification report') | e }}</h2>
 <h2>Objective and field brief</h2>
-{% for scope in scopes %}<section class="scope"><h3>{{ scope.title | e }}</h3>{% if scope.objective %}<div class="text">{{ scope.objective | e }}</div>{% endif %}<div class="text">{{ scope.scope | e }}</div>{% if scope.instructions %}<div class="text">{{ scope.instructions | e }}</div>{% endif %}</section>{% else %}<div class="text">{{ request.original_brief | e }}</div>{% endfor %}
+{% for scope in scopes %}<section class="scope"><h3>{{ scope.title | e }}</h3>{% if scope.objective %}<div class="text">{{ scope.objective | e }}</div>{% endif %}<div class="text">{{ scope.scope | e }}</div></section>{% else %}<div class="text">{{ request.original_brief | e }}</div>{% endfor %}
 <h2>Field checks and scout answers</h2>
 {% for check in checks %}<section class="finding"><h3>{{ loop.index }}. {{ check.question | e }}</h3><div class="text answer">{{ check.findings | e }}</div></section>{% endfor %}
 <h2>Evidence</h2>

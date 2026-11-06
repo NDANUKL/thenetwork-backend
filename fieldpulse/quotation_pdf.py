@@ -48,7 +48,7 @@ def quotation_font_environment():
         yield environment
 
 
-def render_quotation_pdf(html):
+def render_quotation_pdf(html, *, page_numbers=False):
     """Preserve Frappe PDF preparation/security with per-render font settings."""
     import pdfkit
     from frappe.utils.pdf import prepare_options, cleanup
@@ -61,6 +61,11 @@ def render_quotation_pdf(html):
         "disable-javascript": "", "disable-local-file-access": "",
         "disable-smart-shrinking": "",
     })
+    if page_numbers:
+        options.update({
+            "footer-right": "Page [page] of [topage]",
+            "footer-font-name": "Carlito", "footer-font-size": "9", "footer-spacing": "5",
+        })
     try:
         with quotation_font_environment() as environment:
             configuration = pdfkit.configuration(environ=environment)
