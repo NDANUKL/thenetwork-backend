@@ -42,10 +42,9 @@ class ClientEvidenceTests(unittest.TestCase):
         photo = Record(original_filename='../unsafe/photo.jpg', evidence_type='Photo', file_size=3)
         video = Record(original_filename='C:\\private\\clip.mp4', evidence_type='Video', file_size=5)
         with patch.object(self.module, 'selected_evidence', return_value=[(self.row, photo), (self.row, video)]), patch.object(self.module, 'evidence_bytes', side_effect=[b'jpg', b'video']):
-            data = self.module.build_report_bundle(self.report, b'%PDF-1.7 test')
+            data = self.module.build_evidence_bundle(self.report)
         with ZipFile(BytesIO(data)) as archive:
-            self.assertEqual(archive.namelist(), ['report.pdf', 'Photos/001-photo.jpg', 'Videos/002-clip.mp4'])
-            self.assertEqual(archive.read('report.pdf'), b'%PDF-1.7 test')
+            self.assertEqual(archive.namelist(), ['Photos/001-photo.jpg', 'Videos/002-clip.mp4'])
             self.assertEqual(archive.read('Videos/002-clip.mp4'), b'video')
 
     def test_bundle_rejects_invalid_pdf_and_oversized_media_before_download(self):
@@ -57,7 +56,11 @@ class ClientEvidenceTests(unittest.TestCase):
 
     def test_pdf_template_has_no_images(self):
         template = (ROOT / 'fieldpulse/templates/reports/service_report.html').read_text()
-        self.assertNotIn('<img', template)
+        self.assertEqual(template.count('<img'), 1)
+        self.assertIn('quotation_assets.logo', template)
+        self.assertIn('photo_count', template)
+        self.assertNotIn('doc.request', template)
+        self.assertNotIn('scope.reference', template)
         self.assertNotIn('item.image', template)
 
     def test_only_explicitly_selected_reviewed_evidence_is_released(self):

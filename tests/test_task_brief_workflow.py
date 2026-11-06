@@ -265,6 +265,22 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(payload['rework_of'],'RESPONSE')
         self.assertFalse(json.loads(payload['final_review_json'])['declaration'])
 
+    def test_approval_creates_draft_for_the_selected_response(self):
+        self.module.pin_assignment(self.task)
+        self.task.status = 'Submitted'
+        self.task.check_permission = MagicMock()
+        self.task.save = MagicMock()
+        response = Record(name='RESPONSE', task='TASK', status='Submitted', qa_status='Pending',
+            arrival_check_json='{}', brief_answers_json='{}', final_review_json='{}')
+        self.frappe.get_doc.side_effect = lambda kind, name: self.task if kind == 'Field Task' else response
+        self.frappe.db.get_value.side_effect = lambda kind, *args: 'REQUEST' if kind == 'Field Request' else 'TASK'
+        reports = MagicMock()
+        with patch.dict(sys.modules, {'fieldpulse.scout_submissions': type('Review', (), {'require_reviewer': lambda: None}),
+                'fieldpulse.scout_reports': reports}), patch.object(self.module, 'evidence_records', return_value=[]), patch.object(self.module, 'evaluate_submission', return_value={'complete': True, 'status': 'pending_coordinator_review'}):
+            self.module.review_response('RESPONSE', 'Approve', 'Reviewed the findings')
+        self.assertEqual(self.task.status, 'Approved')
+        reports.prepare_report.assert_called_once_with('REQUEST', source_response='RESPONSE')
+
     def test_legacy_review_actions_are_rejected_without_becoming_rejection(self):
         with patch.dict(sys.modules, {'fieldpulse.scout_submissions':type('Review',(),{'require_reviewer':lambda:None})}):
             for decision in ('Request additional evidence','Return for reassignment'):

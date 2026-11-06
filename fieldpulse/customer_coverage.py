@@ -151,20 +151,13 @@ def validate_report(doc, approving=False):
     expected = snapshot.get('checks') or []
     rows = doc.get('report_checks') or []
     if not snapshot.get('complete') or not expected or not rows:
-        if approving: frappe.throw('Refresh this draft from the approved assigned questionnaire before approval')
+        if approving: frappe.throw('Refresh this draft from the approved Task Brief before approval')
         return
     by_id = {row.check_id: row for row in rows}
-    if len(by_id) != len(rows) or set(by_id) != {item['check_id'] for item in expected}: frappe.throw('Every assigned questionnaire question must remain in the report')
+    if len(by_id) != len(rows) or set(by_id) != {item['check_id'] for item in expected}: frappe.throw('Every assigned Task Brief check must remain in the report')
     for item in expected:
         row = by_id[item['check_id']]
-        for key in ('project', 'task', 'customer_question', 'answer_refs_json', 'evidence_ids_json', 'recorded_gaps_json'):
+        for key in ('project', 'task', 'customer_question', 'findings', 'assessment', 'basis', 'answer_refs_json', 'evidence_ids_json', 'recorded_gaps_json'):
             if row.get(key) != item.get(key): frappe.throw('Report coverage sources are frozen; refresh the draft from approved submissions')
-        if row.assessment not in {'Supported finding', 'Not verified'}: frappe.throw('Choose a finding or an explicit Not verified limitation')
-        if not str(row.get('findings') or '').strip(): frappe.throw('Retain a finding or explanation for every customer question')
-        if row.assessment == 'Supported finding':
-            if decode(item.get('recorded_gaps_json'), []) or not decode(item.get('answer_refs_json'), []): frappe.throw('Unresolved recorded gaps cannot be represented as verified findings')
-            if row.basis not in {'Directly observed', 'Reported by others', 'Independently checked', 'Mixed sources'}: frappe.throw('Record the source basis of each supported finding')
-            if row.basis != item.get('basis') and not str(row.get('basis_detail') or '').strip(): frappe.throw('Explain changes to a finding\'s source basis')
-        elif approving and (row.get('limitation_acknowledged') not in (1, True, '1') or not str(row.get('limitations') or '').strip()):
-            frappe.throw('Explain and acknowledge every Not verified finding before approval')
-    if approving and doc.get('scope_coverage_reviewed') not in (1, True, '1'): frappe.throw('Confirm review of the findings, evidence and limitations before report approval')
+        if not str(row.get('findings') or '').strip(): frappe.throw('Retain the scout answer or explanation for every check')
+    if approving and doc.get('scope_coverage_reviewed') not in (1, True, '1'): frappe.throw('Confirm review of the Task Brief findings and selected evidence before report approval')

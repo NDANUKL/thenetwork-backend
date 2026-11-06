@@ -44,11 +44,11 @@ class CoverageTests(unittest.TestCase):
         row = self.row(); doc = self.report(row)
         self.assertEqual(row.assessment, 'Not verified')
         self.assertIn('No approved answer', row.limitations)
-        with self.assertRaisesRegex(ValueError,'acknowledge'): self.validate(doc)
+        self.validate(doc)
         row.limitation_acknowledged = 1
         self.validate(doc)
         row.assessment = 'Supported finding'
-        with self.assertRaisesRegex(ValueError,'recorded gaps'): self.validate(doc)
+        with self.assertRaisesRegex(ValueError,'frozen'): self.validate(doc)
 
     def test_report_cannot_drop_relabel_or_change_frozen_coverage_sources(self):
         row = self.row(); doc = self.report(row)
@@ -62,14 +62,12 @@ class CoverageTests(unittest.TestCase):
         row=self.row();doc=self.report(row)
         self.assertEqual(row.basis,'Not recorded')
         row.assessment='Supported finding';row.basis='Independently checked'
-        with self.assertRaisesRegex(ValueError,'Explain changes'):self.validate(doc)
-        row.basis_detail='Reviewer compared the documented result with the approved reference record.'
-        self.validate(doc)
+        with self.assertRaisesRegex(ValueError,'frozen'):self.validate(doc)
         self.assertEqual(coverage.source_basis([{'source_role':'Site caretaker','text':'Roof finished'}]),'Reported by others')
 
     def test_legacy_mapping_must_be_confirmed_before_approval(self):
         row=self.row();doc=self.report(row);doc.coverage_snapshot_json='{"complete":false}'
-        with self.assertRaisesRegex(ValueError,'questionnaire'):self.validate(doc)
+        with self.assertRaisesRegex(ValueError,'Task Brief'):self.validate(doc)
 
     def test_dispatch_pin_takes_precedence_over_later_project_mapping(self):
         self.task.client_request_snapshot=json.dumps({'customer_coverage':{'complete':True,'reference':'accepted-quote','checks':[self.check]}})

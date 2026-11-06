@@ -357,10 +357,10 @@ def review_response(response, decision, notes):
     elif decision == 'Reject':
         frappe.db.set_value('Field Request', task.field_request, 'status', 'Awaiting Assignment')
     else:
-        from fieldpulse.scout_reports import prepare_if_ready
+        from fieldpulse.scout_reports import prepare_report
         reference = frappe.db.get_value('Field Request', task.field_request, 'diaspora_request')
         if reference:
-            prepare_if_ready(reference)
+            prepare_report(reference, source_response=doc.name)
     return dict(task=task.name, status=task.status)
 
 

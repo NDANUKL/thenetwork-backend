@@ -4,12 +4,15 @@ import frappe
 from fieldpulse.customer_coverage import build_check, decode, answer_present
 
 
-def prepare_content(reference):
+def prepare_content(reference, source_response=None):
     from fieldpulse.scout_submissions import submission_detail
     projects = frappe.get_all('Field Request', filters={'diaspora_request': reference, 'status': ['!=', 'Cancelled']}, pluck='name')
     tasks = frappe.get_all('Field Task', filters={'field_request': ['in', projects], 'status': ['not in', ['Cancelled', 'Rejected']]}, fields=['name', 'status', 'field_request', 'task_brief_version']) if projects else []
+    if source_response:
+        source_task = frappe.db.get_value('FP Task Response', source_response, 'task')
+        tasks = [task for task in tasks if task.name == source_task]
     if not tasks or any(task.status != 'Approved' for task in tasks): frappe.throw('All active scout tasks must be approved')
-    if any(getattr(task, 'task_brief_version', None) for task in tasks):
+    if not source_response and any(getattr(task, 'task_brief_version', None) for task in tasks):
         from fieldpulse.task_brief_workflow import coverage_ready
         if not coverage_ready(projects): frappe.throw('Approve allocations covering every required Task Brief check')
     rows, sources, visits, scopes, media = [], [], [], [], {}
@@ -18,12 +21,13 @@ def prepare_content(reference):
         task = frappe.get_doc('Field Task', item.name)
         project = frappe.get_doc('Field Request', task.field_request)
         response = frappe.db.get_value('FP Task Response', {'task': task.name, 'status': 'Submitted', 'qa_status': 'Passed', 'reviewed_by': ['is', 'set']}, 'name', order_by='creation desc')
+        if source_response and response != source_response: frappe.throw('Use the latest coordinator-approved submission for this task')
         if not response: frappe.throw('A task is missing its reviewed, approved submission')
         detail = submission_detail(response)
         sources.append(dict(task=task.name, response=response))
         if detail.get('brief'):
             pinned, submission = detail['brief'], detail['submission']
-            scopes.append(dict(project=project.name, title=pinned['brief']['title'], reference=pinned['brief_id'],
+            scopes.append(dict(project=project.name, title=pinned['brief']['title'], objective=pinned['brief'].get('objective'), instructions=pinned['brief'].get('instructions'), reference=pinned['brief_id'],
                 version=pinned['version'], scope=pinned['brief']['scope'], retrospective=False))
             site, arrival = pinned['site'], submission.get('arrival') or {}
             visits.append(dict(task=task.name, site=site.get('label'), address=site.get('address'),
@@ -35,7 +39,9 @@ def prepare_content(reference):
                 # An inability retracts any earlier observation. Keep the original
                 # value in the source response for audit, never as a report finding.
                 value = answer.get('value') if observed else None
-                findings = ', '.join(value) if isinstance(value, list) else str(value or '')
+                findings = ', '.join(str(item) for item in value) if isinstance(value, list) else str(value) if value is not None else ''
+                if observed and answer.get('explanation'):
+                    findings = (findings + '\n' + answer['explanation']).strip()
                 if not findings:
                     findings = 'See the recorded field evidence.' if observed else answer.get('explanation') or 'No observation recorded.'
                 gaps = [] if observed else [answer.get('explanation') or 'This check was not verified.']
@@ -50,7 +56,7 @@ def prepare_content(reference):
                 visits[-1]['methods'] += '\nAdditional observations: '+submission['additional_observations']
             for evidence in detail['evidence']:
                 media[evidence.name] = dict(evidence=evidence.name, evidence_type=evidence.evidence_type,
-                    caption=evidence.caption or next((check['instruction'] for check in pinned['brief']['checks'] if check['id']==evidence.field_check_id), ''), include_client=0)
+                    caption=evidence.caption or next((check['instruction'] for check in pinned['brief']['checks'] if check['id']==evidence.field_check_id), ''), include_client=1)
             continue
         assigned = detail.get('client_request') or decode(task.get('client_request_snapshot'), {}) or {}
         review = assigned.get('questionnaire_review') or {}
@@ -76,8 +82,8 @@ def prepare_content(reference):
         visits.append(dict(task=task.name, site=site.get('location_name') or assigned.get('site_or_item') or project.get('project_title') or 'Site not recorded',
             address=site.get('address') or 'Address not recorded', date=arrival.get('captured_at') or 'Visit date not recorded',
             arrival=arrival.get('status') or 'Arrival not recorded',
-            methods='Recorded questionnaire answers. ' + ('Verified media types: ' + ', '.join(sorted({e.evidence_type for e in detail.get('evidence') or []})) + '. ' if detail.get('evidence') else 'No verified media records. ') + 'Source basis is stated separately for each finding.'))
-        checks = mapping.get('checks') or [dict(check_id='unmapped', customer_question='Assigned questionnaire unavailable', question_codes=[])]
+            methods='Recorded field check answers. ' + ('Verified media types: ' + ', '.join(sorted({e.evidence_type for e in detail.get('evidence') or []})) + '. ' if detail.get('evidence') else 'No verified media records. ') + 'Source basis is stated separately for each finding.'))
+        checks = mapping.get('checks') or [dict(check_id='unmapped', customer_question='Assigned Task Brief unavailable', question_codes=[])]
         for check in checks:
             row = build_check(check, detail, project, task)
             row['check_id'] = task.name + ':' + check['check_id']
@@ -91,16 +97,13 @@ def prepare_content(reference):
         for evidence in detail.get('evidence') or []:
             if evidence.evidence_type in {'Photo', 'Video'}:
                 media[evidence.name] = dict(evidence=evidence.name, evidence_type=evidence.evidence_type,
-                    caption=evidence.caption or '', include_client=0)
-    supported = sum(row['assessment'] == 'Supported finding' for row in rows)
-    pending = len(rows) - supported
-    summary = f'{len(tasks)} approved scout submission(s) cover {len(scopes)} recorded site assignment(s). Of {len(rows)} field checks, {supported} have recorded supporting findings and {pending} require a limitation or source-basis review.'
-    # Add actual findings, rather than a generic introduction or inferred conclusions.
-    summary += '\n\n' + '\n\n'.join(row['customer_question'] + '\n' + (row['findings'][:700] if row['assessment'] == 'Supported finding' else 'Not verified / requires review: ' + (row['limitations'] or 'Source basis not recorded')) for row in rows[:4])
-    return dict(executive_summary=summary, findings='\n\n'.join(row['customer_question'] + '\n' + row['findings'] for row in rows),
+                    caption=evidence.caption or '', include_client=1)
+    summary = f'{len(rows)} field checks from coordinator-approved scout submissions.'
+    return dict(objective='\n\n'.join(scope.get('objective') or '' for scope in scopes if scope.get('objective')),
+        field_brief='\n\n'.join(scope.get('scope') or '' for scope in scopes), executive_summary=summary, findings='\n\n'.join(row['customer_question'] + '\n' + row['findings'] for row in rows),
         limitations='\n\n'.join(row['customer_question'] + ': ' + row['limitations'] for row in rows if row['limitations']),
         report_checks=rows, report_evidence=list(media.values()), review_sources_json=json.dumps(sources),
-        coverage_snapshot_json=json.dumps(dict(kind="assigned_questionnaire", complete=complete, checks=rows)), scope_snapshot_json=json.dumps(scopes),
+        coverage_snapshot_json=json.dumps(dict(kind="task_brief", complete=complete, checks=rows)), scope_snapshot_json=json.dumps(scopes),
         visit_snapshot_json=json.dumps(visits), scope_coverage_reviewed=0, evidence_selection_reviewed=0,
         report_file=None, generated_from_hash=None, review_signatory=None, review_signed_at=None)
 
@@ -110,7 +113,7 @@ def validate_snapshot(doc):
         frappe.throw('Create sourced report drafts through report preparation')
     previous = doc.get_doc_before_save() if not doc.is_new() else None
     if previous and not frappe.flags.dd_preparing_report:
-        for key in ('coverage_snapshot_json', 'scope_snapshot_json', 'visit_snapshot_json', 'review_sources_json', 'review_signatory', 'review_signed_at'):
+        for key in ('coverage_snapshot_json', 'scope_snapshot_json', 'visit_snapshot_json', 'review_sources_json', 'review_signatory', 'review_signed_at', 'source_response', 'objective', 'field_brief'):
             if doc.get(key) != previous.get(key): frappe.throw('Report source snapshots and sign-off are managed by report preparation')
     from fieldpulse.customer_coverage import validate_report
     validate_report(doc, approving=doc.status == 'Approved')

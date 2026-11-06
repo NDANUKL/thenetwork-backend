@@ -17,7 +17,7 @@ def prepare_if_ready(reference):
 
 
 def report_content_hash(doc):
-    values = {key: doc.get(key) for key in ("request", "title", "executive_summary", "findings", "limitations", "next_steps", "review_sources_json", "report_version", "coverage_snapshot_json", "scope_snapshot_json", "visit_snapshot_json", "scope_coverage_reviewed", "review_signatory", "review_signed_at")}
+    values = {key: doc.get(key) for key in ("request", "title", "executive_summary", "findings", "limitations", "next_steps", "coordinator_remarks", "source_response", "objective", "field_brief", "review_sources_json", "report_version", "coverage_snapshot_json", "scope_snapshot_json", "visit_snapshot_json", "scope_coverage_reviewed", "review_signatory", "review_signed_at")}
     values["evidence"] = [{key: row.get(key) for key in ("evidence", "caption", "include_client")} for row in doc.get("report_evidence") or []]
     values["evidence_selection_reviewed"] = doc.get("evidence_selection_reviewed")
     values['checks'] = [{key: row.get(key) for key in ('check_id','project','task','customer_question','findings','assessment','basis','basis_detail','limitations','limitation_acknowledged','answer_refs_json','evidence_ids_json','recorded_gaps_json')} for row in doc.get('report_checks') or []]
@@ -25,17 +25,17 @@ def report_content_hash(doc):
 
 
 @frappe.whitelist(methods=["POST"])
-def prepare_report(reference):
+def prepare_report(reference, source_response=None):
     require_reviewer()
     frappe.db.sql("SELECT name FROM `tabDiaspora Request` WHERE name=%s FOR UPDATE", [reference])
     request = frappe.get_doc("Diaspora Request", reference)
-    if request.status != "Completed": frappe.throw("Review all scout work before preparing the client report")
-    existing = frappe.db.get_value("DD Service Report", {"request": reference, "status": ["!=", "Approved"]}, "name", order_by="creation desc")
+    if not source_response and request.status != "Completed": frappe.throw("Review all scout work before preparing the client report")
+    existing = frappe.db.get_value("DD Service Report", {"request": reference, "source_response": source_response or ["is", "not set"], "status": ["!=", "Approved"]}, "name", order_by="creation desc")
     if existing: return {"report": existing}
     from fieldpulse.report_preparation import prepare_content
-    content = prepare_content(reference)
+    content = prepare_content(reference, source_response=source_response)
     version = frappe.db.count("DD Service Report", {"request": reference}) + 1
-    doc = frappe.get_doc(dict(doctype="DD Service Report", request=reference, status="Draft", title="Verification report - " + reference, report_version=version, **content))
+    doc = frappe.get_doc(dict(doctype="DD Service Report", request=reference, status="Draft", title="Field verification report", source_response=source_response, report_version=version, **content))
     marker = frappe.flags.dd_preparing_report
     frappe.flags.dd_preparing_report = True
     try: doc.insert(ignore_permissions=True)
@@ -53,7 +53,7 @@ def refresh_draft(report):
     doc.check_permission('write')
     if doc.status == 'Approved': frappe.throw('Approved reports are locked; prepare a new version')
     from fieldpulse.report_preparation import prepare_content
-    for key, value in prepare_content(reference).items(): doc.set(key, value)
+    for key, value in prepare_content(reference, source_response=doc.get('source_response')).items(): doc.set(key, value)
     marker = frappe.flags.dd_preparing_report
     frappe.flags.dd_preparing_report = True
     try: doc.save()
@@ -135,10 +135,11 @@ def generate_pdf(report):
              for index, (row, evidence) in enumerate(selected, 1)]
     from fieldpulse.report_preparation import pdf_context
     report_context = pdf_context(doc, selected)
+    from fieldpulse.quotation_pdf import quotation_assets, render_quotation_pdf
+    report_context.update(quotation_assets=quotation_assets(), photo_count=sum(e.evidence_type == "Photo" for _, e in selected), video_count=sum(e.evidence_type == "Video" for _, e in selected))
     html = frappe.render_template((Path(__file__).parent / "templates/reports/service_report.html").read_text(encoding="utf-8"), {"doc": doc, "request": request, "evidence": media, **report_context})
-    from frappe.utils.pdf import get_pdf
     from frappe.utils.file_manager import save_file
-    pdf = get_pdf(html, options={"footer-right": "Page [page] of [topage]", "footer-font-size": "8", "footer-spacing": "6"})
+    pdf = render_quotation_pdf(html)
     file = save_file(f"{doc.request}-report-v{doc.report_version or 1}.pdf", pdf, doc.doctype, doc.name, is_private=1)
     doc.report_file = file.file_url
     doc.generated_from_hash = report_content_hash(doc)
@@ -169,6 +170,38 @@ def build_report_bundle(doc, pdf):
     output = BytesIO()
     with ZipFile(output, "w", compression=ZIP_STORED) as archive:
         archive.writestr("report.pdf", pdf)
+        for index, (_, evidence) in enumerate(selected, 1):
+            archive.writestr(evidence_archive_name(index, evidence), evidence_bytes(evidence))
+    return output.getvalue()
+
+
+@frappe.whitelist()
+def draft_for_response(response):
+    require_reviewer()
+    doc = frappe.get_doc('FP Task Response', response)
+    doc.check_permission('read')
+    return frappe.db.get_value('DD Service Report', {'source_response': response}, 'name', order_by='creation desc')
+
+
+@frappe.whitelist()
+def download_evidence_zip(reference):
+    from fieldpulse.payments import _owned
+    _owned(reference)
+    name = frappe.db.get_value('DD Service Report', {'request': reference, 'status': 'Approved'}, 'name', order_by='creation desc')
+    if not name: frappe.throw('An approved report is not available', frappe.PermissionError)
+    doc = frappe.get_doc('DD Service Report', name)
+    frappe.response.update(type='download', filename='report-evidence.zip', content_type='application/zip',
+        filecontent=build_evidence_bundle(doc), display_content_as='attachment')
+
+
+def build_evidence_bundle(doc):
+    from io import BytesIO
+    from zipfile import ZipFile, ZIP_STORED
+    selected = selected_evidence(doc)
+    if sum(e.file_size or 0 for _, e in selected) > 500000000:
+        frappe.throw('Evidence download exceeds 500 MB; ask the coordinator to reduce the selected evidence')
+    output = BytesIO()
+    with ZipFile(output, 'w', compression=ZIP_STORED) as archive:
         for index, (_, evidence) in enumerate(selected, 1):
             archive.writestr(evidence_archive_name(index, evidence), evidence_bytes(evidence))
     return output.getvalue()

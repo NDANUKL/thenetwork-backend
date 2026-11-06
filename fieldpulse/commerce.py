@@ -64,7 +64,7 @@ def report(reference):
         return {'report': None}
     doc = frappe.get_doc('DD Service Report', name)
     evidence = [{'id': row.name, 'kind': row.evidence_type, 'title': row.caption, 'download_url': '/api/customer/requests/' + urlquote(reference, safe='') + '/report/evidence/' + urlquote(row.name, safe='')} for row in (getattr(doc, 'report_evidence', None) or []) if row.include_client]
-    return {'report': {'name': name, 'title': doc.title, 'released': True, 'approved_at': doc.approved_at, 'download_url': '/api/customer/requests/' + urlquote(reference, safe='') + '/report', 'evidence': evidence}}
+    return {'report': {'name': name, 'title': doc.title, 'released': True, 'approved_at': doc.approved_at, 'download_url': '/api/customer/requests/' + urlquote(reference, safe='') + '/report', 'evidence': evidence, 'evidence_download_url': '/api/customer/requests/' + urlquote(reference, safe='') + '/report/evidence'}}
 
 @frappe.whitelist()
 def download_report(reference):
@@ -77,10 +77,9 @@ def download_report(reference):
         frappe.throw('Private report file is unavailable')
     file = frappe.get_doc('File', file_name)
     frappe.response['type'] = 'download'
-    from fieldpulse.scout_reports import build_report_bundle
-    frappe.response['filename'] = 'approved-report.zip'
-    frappe.response['content_type'] = 'application/zip'
-    frappe.response['filecontent'] = build_report_bundle(doc, file.get_content())
+    frappe.response['filename'] = 'approved-report.pdf'
+    frappe.response['content_type'] = 'application/pdf'
+    frappe.response['filecontent'] = file.get_content()
     frappe.response['display_content_as'] = 'attachment'
 
 def validate_report(doc):
@@ -91,15 +90,14 @@ def validate_report(doc):
         if 'Field Operations Coordinator' not in frappe.get_roles() and 'System Manager' not in frappe.get_roles():
             frappe.throw('Only a coordinator can approve a report', frappe.PermissionError)
         if not doc.report_file or not frappe.db.exists('File', {'file_url': doc.report_file, 'is_private': 1, 'attached_to_doctype': 'DD Service Report', 'attached_to_name': doc.name}):
-            frappe.throw('Attach a private report file before approval')
+            frappe.throw('Generate the report PDF before approval')
         file_name = frappe.db.get_value('File', {'file_url': doc.report_file, 'is_private': 1, 'attached_to_doctype': 'DD Service Report', 'attached_to_name': doc.name}, 'name')
         file = frappe.get_doc('File', file_name)
         if file.attached_to_doctype != 'DD Service Report' or file.attached_to_name != doc.name:
             frappe.throw('Attach this report PDF to its own Service Report record')
-        if doc.get('generated_from_hash'):
-            from fieldpulse.scout_reports import report_content_hash
-            if doc.generated_from_hash != report_content_hash(doc):
-                frappe.throw('Report content changed; generate its PDF again before approval')
+        from fieldpulse.scout_reports import report_content_hash
+        if not doc.get('generated_from_hash') or doc.generated_from_hash != report_content_hash(doc):
+            frappe.throw('Report content changed; generate its PDF again before approval')
         if not file.file_name.lower().endswith('.pdf') or (file.file_size or 0) > 20000000:
             frappe.throw('Approved customer reports must be private PDF files up to 20 MB')
         if doc.get('report_evidence'):

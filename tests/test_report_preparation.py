@@ -35,11 +35,11 @@ class PreparationTests(unittest.TestCase):
 
     def test_draft_contains_actual_project_findings_scope_version_visit_and_unselected_media(self):
         content=self.content()
-        self.assertIn('Roof framing installed',content['executive_summary'])
+        self.assertIn('Roof framing installed',content['findings'])
         self.assertEqual(content['report_checks'][0]['customer_question'],'Has roofing started?')
         self.assertEqual(json.loads(content['scope_snapshot_json'])[0]['version'],'2')
         self.assertEqual(json.loads(content['visit_snapshot_json'])[0]['site'],'Main house')
-        self.assertEqual(content['report_evidence'][0]['include_client'],0)
+        self.assertEqual(content['report_evidence'][0]['include_client'],1)
         self.assertTrue(json.loads(content['coverage_snapshot_json'])['complete'])
 
     def test_questionnaire_report_needs_no_separate_customer_mapping(self):
@@ -70,6 +70,20 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(context['checks'][0]['evidence_refs'],[])
         context=self.module.pdf_context(doc,[(Record(),Record(name='photo'))])
         self.assertEqual(context['checks'][0]['evidence_refs'],['E001'])
+
+    def test_response_draft_can_be_created_while_other_tasks_await_review(self):
+        pending = Record(name='other-task', status='Submitted', field_request='project')
+        self.f.get_all.side_effect = lambda dt, **kw: ['project'] if dt == 'Field Request' else [self.task, pending]
+        self.f.db.get_value.side_effect = lambda dt, *args, **kw: 'task' if dt == 'FP Task Response' and isinstance(args[0], str) else 'approved-response'
+        with patch.dict(sys.modules, {'fieldpulse.scout_submissions': types.SimpleNamespace(submission_detail=lambda response: self.detail)}):
+            content = self.module.prepare_content('request', source_response='approved-response')
+        self.assertEqual(json.loads(content['review_sources_json']), [{'task': 'task', 'response': 'approved-response'}])
+        self.assertEqual(len(content['report_checks']), 1)
+
+    def test_foreign_response_cannot_populate_this_request_draft(self):
+        self.f.db.get_value.return_value = 'foreign-task'
+        with patch.dict(sys.modules, {'fieldpulse.scout_submissions': types.SimpleNamespace(submission_detail=lambda response: self.detail)}):
+            with self.assertRaises(ValueError): self.module.prepare_content('request', source_response='foreign-response')
 
     def test_task_brief_reports_keep_unable_to_verify_as_a_limitation(self):
         fixture=json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())

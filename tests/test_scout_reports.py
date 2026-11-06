@@ -40,10 +40,10 @@ class ReportSecurityTests(unittest.TestCase):
         bundle.build_report_bundle = MagicMock(return_value=b'PK-test-bundle')
         with patch.dict(sys.modules, {'fieldpulse.scout_reports': bundle}):
             self.module.download_report('request')
-        bundle.build_report_bundle.assert_called_once_with(report, b'%PDF-1.7\ncomplete approved report')
+        bundle.build_report_bundle.assert_not_called()
         self.owned.assert_called_with('request')
-        self.assertEqual(self.api.response['filecontent'], b'PK-test-bundle')
-        self.assertEqual(self.api.response['content_type'], 'application/zip')
+        self.assertEqual(self.api.response['filecontent'], b'%PDF-1.7\ncomplete approved report')
+        self.assertEqual(self.api.response['content_type'], 'application/pdf')
         self.assertFalse(any(call.args[0]=='DD Payment' for call in self.api.db.get_value.call_args_list))
 
     def test_foreign_request_is_rejected_before_report_lookup(self):

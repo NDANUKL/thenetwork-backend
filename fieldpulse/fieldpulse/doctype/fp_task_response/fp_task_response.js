@@ -1,6 +1,10 @@
 frappe.ui.form.on("FP Task Response", {
   async refresh(frm) {
     if (frm.is_new() || !["Field Operations Coordinator", "System Manager"].some(r => frappe.user.has_role(r))) return;
+    if (frm.doc.qa_status === "Passed") {
+      const {message: report} = await frappe.call("fieldpulse.scout_reports.draft_for_response", {response: frm.doc.name});
+      if (report) frm.add_custom_button(__("View draft report"), () => frappe.set_route("Form", "DD Service Report", report));
+    }
     const wrapper = frm.fields_dict.submission_review.$wrapper;
     const esc = value => frappe.utils.escape_html(String(value ?? ""));
     const parse = (raw, fallback = {}) => {

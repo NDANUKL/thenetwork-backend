@@ -27,7 +27,7 @@
     },
     {
       "fieldname": "customer_question",
-      "label": "Assigned question",
+      "label": "Task Brief check",
       "fieldtype": "Small Text",
       "read_only": 1,
       "in_list_view": 1
@@ -37,37 +37,56 @@
       "label": "Assessment",
       "fieldtype": "Select",
       "options": "Supported finding\nNot verified",
-      "reqd": 1,
-      "in_list_view": 1
+      "reqd": 0,
+      "in_list_view": 0,
+      "hidden": 1,
+      "read_only": 1
     },
     {
       "fieldname": "findings",
-      "label": "Reviewed finding",
+      "label": "Scout answer",
       "fieldtype": "Long Text",
-      "reqd": 1
+      "reqd": 1,
+      "in_list_view": 1,
+      "read_only": 1
     },
     {
       "fieldname": "basis",
       "label": "Source basis",
       "fieldtype": "Select",
       "options": "Not recorded\nDirectly observed\nReported by others\nIndependently checked\nMixed sources",
-      "reqd": 1
+      "reqd": 0,
+      "hidden": 1,
+      "read_only": 1,
+      "in_list_view": 0
     },
     {
       "fieldname": "basis_detail",
       "label": "How the source basis was established",
-      "fieldtype": "Small Text"
+      "fieldtype": "Small Text",
+      "hidden": 1,
+      "read_only": 1,
+      "reqd": 0,
+      "in_list_view": 0
     },
     {
       "fieldname": "limitations",
       "label": "Limitations / why not verified",
-      "fieldtype": "Long Text"
+      "fieldtype": "Long Text",
+      "hidden": 1,
+      "read_only": 1,
+      "reqd": 0,
+      "in_list_view": 0
     },
     {
       "fieldname": "limitation_acknowledged",
       "label": "I acknowledge this Not verified limitation",
       "fieldtype": "Check",
-      "default": "0"
+      "default": "0",
+      "hidden": 1,
+      "read_only": 1,
+      "reqd": 0,
+      "in_list_view": 0
     },
     {
       "fieldname": "answer_refs_json",
