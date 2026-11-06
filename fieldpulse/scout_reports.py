@@ -151,11 +151,15 @@ def generate_pdf(report):
 
 
 def evidence_archive_name(index, evidence):
-    import re
-    original = (evidence.original_filename or "evidence").replace("\\", "/").rsplit("/", 1)[-1]
-    safe = re.sub(r"[^A-Za-z0-9._-]", "_", original).strip(".")[:140] or "evidence"
-    folder = {"Photo":"Photos", "Video":"Videos", "Document":"Documents"}.get(evidence.evidence_type, 'Documents')
-    return f"{folder}/{index:03d}-{safe}"
+    # Device filenames can contain task IDs and upload UUIDs. Give clients
+    # stable, readable filenames without exposing those internal references.
+    original = (evidence.original_filename or '').replace('\\', '/').rsplit('/', 1)[-1]
+    extension = Path(original).suffix.lower()
+    permitted = {'.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.mp4', '.mov', '.m4v', '.webm', '.avi'}
+    if extension not in permitted: extension = '.bin'
+    kind = 'photo' if evidence.evidence_type == 'Photo' else 'video'
+    folder = 'Photos' if kind == 'photo' else 'Videos'
+    return f'{folder}/{kind}-{index:03d}{extension}'
 
 
 def build_report_bundle(doc, pdf):
@@ -183,13 +187,30 @@ def draft_for_response(response):
     return frappe.db.get_value('DD Service Report', {'source_response': response}, 'name', order_by='creation desc')
 
 
+@frappe.whitelist(methods=['POST'])
+def open_draft_for_response(response):
+    """Open the native draft, including for work approved before this release."""
+    require_reviewer()
+    doc = frappe.get_doc('FP Task Response', response)
+    doc.check_permission('read')
+    task = frappe.get_doc('Field Task', doc.task)
+    task.check_permission('read')
+    if doc.status != 'Submitted' or doc.qa_status != 'Passed' or not doc.get('reviewed_by') or task.status != 'Approved':
+        frappe.throw('Approve this submission before opening its draft report')
+    reference = frappe.db.get_value('Field Request', task.field_request, 'diaspora_request')
+    if not reference:
+        frappe.throw('This submission has no linked client request')
+    existing = draft_for_response(response)
+    if existing:
+        frappe.get_doc('DD Service Report', existing).check_permission('read')
+        return {'report': existing}
+    return prepare_report(reference, source_response=response)
+
+
 @frappe.whitelist()
-def download_evidence_zip(reference):
-    from fieldpulse.payments import _owned
-    _owned(reference)
-    name = frappe.db.get_value('DD Service Report', {'request': reference, 'status': 'Approved'}, 'name', order_by='creation desc')
-    if not name: frappe.throw('An approved report is not available', frappe.PermissionError)
-    doc = frappe.get_doc('DD Service Report', name)
+def download_evidence_zip(reference, report_name=None):
+    from fieldpulse.commerce import approved_report
+    doc = approved_report(reference, report_name)
     frappe.response.update(type='download', filename='report-evidence.zip', content_type='application/zip',
         filecontent=build_evidence_bundle(doc), display_content_as='attachment')
 

@@ -2,8 +2,13 @@ frappe.ui.form.on("FP Task Response", {
   async refresh(frm) {
     if (frm.is_new() || !["Field Operations Coordinator", "System Manager"].some(r => frappe.user.has_role(r))) return;
     if (frm.doc.qa_status === "Passed") {
-      const {message: report} = await frappe.call("fieldpulse.scout_reports.draft_for_response", {response: frm.doc.name});
-      if (report) frm.add_custom_button(__("View draft report"), () => frappe.set_route("Form", "DD Service Report", report));
+      frm.add_custom_button(__("View draft report"), async () => {
+        const {message} = await frappe.call({
+          method: "fieldpulse.scout_reports.open_draft_for_response",
+          args: {response: frm.doc.name}, freeze: true,
+        });
+        frappe.set_route("Form", "DD Service Report", message.report);
+      });
     }
     const wrapper = frm.fields_dict.submission_review.$wrapper;
     const esc = value => frappe.utils.escape_html(String(value ?? ""));
@@ -172,14 +177,14 @@ frappe.ui.form.on("FP Task Response", {
       card("Submission review", block("Outcome", data.review_status || "Awaiting review") + (data.review_reasons ? `<div class="fp-review-notice">${block("Limitations and review reasons", data.review_reasons)}</div>` : "") + (frm.doc.review_notes ? block("Coordinator notes", frm.doc.review_notes) : ""), badge(frm.doc.qa_status || "Pending")) +
       (context ? card("Client request and agreed scope", context + (request.clarifications || []).map(c => block(c.question, c.answer)).join("")) : "") +
       card("Arrival verification", `<div class="fp-review-grid">${block("Distance from site", arrival.distance_m != null ? `${arrival.distance_m} m` : "Unknown")}${block("GPS accuracy", arrival.accuracy_m != null ? `${arrival.accuracy_m} m` : "Unknown")}${block("Captured at", arrival.captured_at || "Unknown")}</div>${arrival.exception_reason ? `<div class="fp-review-notice">${block("Arrival exception", arrival.exception_reason)}</div>` : ""}`, badge(arrival.status || "Not recorded", arrival.status === "Inside" ? "success" : "warning")) +
-      `<h4 style="margin:24px 0 14px">Scout responses</h4>` + (questions || text("No questionnaire responses available.")) +
+      `<h4 style="margin:24px 0 14px">Scout responses</h4>` + (questions || text("No historical field responses available.")) +
       (final.visit_route === "arrival_exception"
-        ? card("Arrival issue", block("Reason", final.arrival_exception_reason) + text("The questionnaire remained locked. No verified arrival or completed fieldwork is recorded."), badge("Needs review", "warning"))
+        ? card("Arrival issue", block("Reason", final.arrival_exception_reason) + text("Field checks remained locked. No verified arrival or completed fieldwork is recorded."), badge("Needs review", "warning"))
         : card("Final request coverage", block("Coverage", final.coverage) + block("Additional observations or answers", final.additional_text || "Nothing further added") + (final.capture_location_explanation ? block("Capture location explanation", final.capture_location_explanation) : "") + (final.incomplete ? `<div class="fp-review-notice">${block("Incomplete visit reason", final.incomplete_reason)}</div>` : ""))) + `</div>`);
     wrapper.find("[data-evidence]").on("click", async function () {
       const {message} = await frappe.call("fieldpulse.evidence.get_evidence_view_url", {evidence_id: this.dataset.evidence});
       window.open(message.view_url, "_blank", "noopener,noreferrer");
     });
-    frm.set_intro(__('Historical questionnaire submission: read-only audit record. New work uses Task Briefs.'));
+    frm.set_intro(__('Historical field submission: read-only audit record. New work uses Task Briefs.'));
   }
 });

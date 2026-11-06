@@ -120,7 +120,7 @@
       "allow_bulk_edit": 0,
       "in_standard_filter": 0,
       "in_preview": 0,
-      "read_only": 0,
+      "read_only": 1,
       "precision": "",
       "length": 0,
       "translatable": 0,
@@ -493,7 +493,7 @@
     },
     {
       "fieldname": "coordinator_remarks",
-      "label": "Coordinator?s remarks (optional)",
+      "label": "Coordinator's remarks (optional)",
       "fieldtype": "Long Text"
     },
     {

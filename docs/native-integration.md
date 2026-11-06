@@ -53,3 +53,7 @@ Task Brief corrective rollout: run `bench --site <staging-site> execute fieldpul
 For the 12 production tasks explicitly authorized for cancellation on 28 October, normal Frappe Cloud deployment/migration now performs the site-scoped, one-time cancellation described in the [controlling policy](production-script-ownership.md). No SSH, separate command or broad guard bypass is needed. Deploy the updated revision before retrying the failed migration; retrying the old revision repeats the original guard failure.
 
 Client report source update (6 November 2026): see [production ownership](production-script-ownership.md) for submission-linked drafts, separate PDF/evidence ZIP downloads, and coordinated backend/frontend rollout requirements. Historical report sources remain read-only audit inputs.
+
+Report recheck (6 November 2026, source only): native standard DocType files load through Frappe itself; no Client Script records or duplicate hooks are needed. Previously approved responses can create/open their missing draft through View draft report. Every released submission report has matching authenticated PDF and evidence ZIP URLs. See the [controlling policy](production-script-ownership.md) for rollout and historical-record handling.
+
+See the [6 November client report review](client-report-review-2026-11-06.md) for the requirement checks, local evidence and remaining live verification.

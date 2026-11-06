@@ -44,8 +44,37 @@ class ClientEvidenceTests(unittest.TestCase):
         with patch.object(self.module, 'selected_evidence', return_value=[(self.row, photo), (self.row, video)]), patch.object(self.module, 'evidence_bytes', side_effect=[b'jpg', b'video']):
             data = self.module.build_evidence_bundle(self.report)
         with ZipFile(BytesIO(data)) as archive:
-            self.assertEqual(archive.namelist(), ['Photos/001-photo.jpg', 'Videos/002-clip.mp4'])
-            self.assertEqual(archive.read('Videos/002-clip.mp4'), b'video')
+            self.assertEqual(archive.namelist(), ['Photos/photo-001.jpg', 'Videos/video-002.mp4'])
+            self.assertEqual(archive.read('Videos/video-002.mp4'), b'video')
+
+    def test_approved_response_without_an_existing_draft_can_open_one(self):
+        response = Record(name='response', task='task', status='Submitted', qa_status='Passed', reviewed_by='coordinator', check_permission=MagicMock())
+        self.task.check_permission = MagicMock()
+        self.api.get_doc.side_effect = lambda dt, name: response if dt == 'FP Task Response' else self.task
+        with patch.object(self.module, 'draft_for_response', return_value=None), patch.object(self.module, 'prepare_report', return_value={'report': 'new-draft'}) as create:
+            self.assertEqual(self.module.open_draft_for_response('response'), {'report': 'new-draft'})
+        create.assert_called_once_with('request', source_response='response')
+
+    def test_opening_an_existing_response_report_does_not_create_a_duplicate(self):
+        response = Record(name='response', task='task', status='Submitted', qa_status='Passed', reviewed_by='coordinator', check_permission=MagicMock())
+        self.task.check_permission = MagicMock()
+        self.report.check_permission = MagicMock()
+        self.api.get_doc.side_effect = lambda dt, name: response if dt == 'FP Task Response' else self.task if dt == 'Field Task' else self.report
+        with patch.object(self.module, 'draft_for_response', return_value='report'), patch.object(self.module, 'prepare_report') as create:
+            self.assertEqual(self.module.open_draft_for_response('response'), {'report': 'report'})
+        create.assert_not_called()
+
+    def test_unapproved_response_cannot_create_a_draft(self):
+        response = Record(task='task', status='Submitted', qa_status='Pending', check_permission=MagicMock())
+        self.task.check_permission = MagicMock()
+        self.api.get_doc.side_effect = lambda dt, name: response if dt == 'FP Task Response' else self.task
+        with patch.object(self.module, 'prepare_report') as create:
+            with self.assertRaises(ValueError): self.module.open_draft_for_response('response')
+        create.assert_not_called()
+
+    def test_evidence_archive_filenames_do_not_expose_internal_identifiers(self):
+        media = Record(original_filename='TK-2026-00042-uuid.jpg', evidence_type='Photo')
+        self.assertEqual(self.module.evidence_archive_name(1, media), 'Photos/photo-001.jpg')
 
     def test_bundle_rejects_invalid_pdf_and_oversized_media_before_download(self):
         with self.assertRaises(ValueError): self.module.build_report_bundle(self.report, b'not pdf')

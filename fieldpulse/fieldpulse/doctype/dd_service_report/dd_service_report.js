@@ -1,6 +1,10 @@
 frappe.ui.form.on("DD Service Report", {
   refresh(frm) {
-    if (frm.is_new() || frm.doc.status === "Approved") return;
+    if (frm.is_new()) return;
+    if (frm.doc.report_file?.startsWith('/private/files/')) {
+      frm.add_custom_button(__("Preview report PDF"), () => window.open(frm.doc.report_file, '_blank', 'noopener,noreferrer'));
+    }
+    if (frm.doc.status === "Approved") return;
     frm.set_intro(__("Review the Task Brief and scout answers, choose which photos and videos to share, and optionally add coordinator remarks. Generate the PDF before approving the report for the client."));
     frm.add_custom_button(__('Refresh from approved findings'),()=>frappe.confirm(__('Refresh the Task Brief findings and evidence selections from approved submissions? Coordinator remarks are retained.'),async()=>{
       if (frm.is_dirty()) await frm.save();

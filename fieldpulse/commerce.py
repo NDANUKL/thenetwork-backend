@@ -63,15 +63,40 @@ def report(reference):
     if not name:
         return {'report': None}
     doc = frappe.get_doc('DD Service Report', name)
-    evidence = [{'id': row.name, 'kind': row.evidence_type, 'title': row.caption, 'download_url': '/api/customer/requests/' + urlquote(reference, safe='') + '/report/evidence/' + urlquote(row.name, safe='')} for row in (getattr(doc, 'report_evidence', None) or []) if row.include_client]
-    return {'report': {'name': name, 'title': doc.title, 'released': True, 'approved_at': doc.approved_at, 'download_url': '/api/customer/requests/' + urlquote(reference, safe='') + '/report', 'evidence': evidence, 'evidence_download_url': '/api/customer/requests/' + urlquote(reference, safe='') + '/report/evidence'}}
+    latest = _report_card(doc, reference)
+    names = frappe.get_all('DD Service Report', filters={'request': reference, 'status': 'Approved'},
+        pluck='name', order_by='creation desc')
+    cards = []
+    seen = set()
+    for report_name in names:
+        item = doc if report_name == name else frappe.get_doc('DD Service Report', report_name)
+        # Retain the newest published revision of each submission report.
+        source = item.get('source_response') or '__request_report__'
+        if source in seen: continue
+        seen.add(source)
+        cards.append(_report_card(item, reference))
+    return {'report': latest, 'reports': cards or [latest]}
+
+
+def _report_card(doc, reference):
+    base = '/api/customer/requests/' + urlquote(reference, safe='') + '/report'
+    query = '?report=' + urlquote(doc.name, safe='')
+    return {'name': doc.name, 'title': doc.title, 'released': True, 'approved_at': doc.approved_at,
+        'download_url': base + query, 'evidence_download_url': base + '/evidence' + query}
+
+
+def approved_report(reference, report_name=None):
+    """Resolve only a published report belonging to the authenticated request."""
+    ddowned(reference)
+    filters = {'request': reference, 'status': 'Approved'}
+    if report_name: filters['name'] = report_name
+    name = frappe.db.get_value('DD Service Report', filters, 'name', order_by='creation desc')
+    if not name: frappe.throw('An approved report is not available', frappe.PermissionError)
+    return frappe.get_doc('DD Service Report', name)
 
 @frappe.whitelist()
-def download_report(reference):
-    result = report(reference)
-    if not result['report']:
-        frappe.throw('An approved report is not yet available')
-    doc = frappe.get_doc('DD Service Report', result['report']['name'])
+def download_report(reference, report_name=None):
+    doc = approved_report(reference, report_name)
     file_name = frappe.db.get_value('File', {'file_url': doc.report_file, 'is_private': 1, 'attached_to_doctype': 'DD Service Report', 'attached_to_name': doc.name}, 'name')
     if not file_name:
         frappe.throw('Private report file is unavailable')

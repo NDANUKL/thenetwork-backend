@@ -34,7 +34,10 @@ def prepare_content(reference, source_response=None):
                 date=arrival.get('captured_at'), arrival='Inside', methods='Scout observations and coordinator-reviewed evidence.'))
             for check in pinned['brief']['checks']:
                 if check['id'] not in pinned['check_ids']: continue
-                answer = submission['answers'].get(check['id']) or {}
+                answer = submission['answers'].get(check['id'])
+                if not answer:
+                    if check.get('required'): frappe.throw('An approved submission is missing a required Task Brief answer')
+                    continue
                 observed = answer.get('status') == 'observed'
                 # An inability retracts any earlier observation. Keep the original
                 # value in the source response for audit, never as a report finding.
@@ -55,6 +58,7 @@ def prepare_content(reference, source_response=None):
             if submission.get('additional_observations'):
                 visits[-1]['methods'] += '\nAdditional observations: '+submission['additional_observations']
             for evidence in detail['evidence']:
+                if evidence.evidence_type not in {'Photo', 'Video'}: continue
                 media[evidence.name] = dict(evidence=evidence.name, evidence_type=evidence.evidence_type,
                     caption=evidence.caption or next((check['instruction'] for check in pinned['brief']['checks'] if check['id']==evidence.field_check_id), ''), include_client=1)
             continue
@@ -73,7 +77,7 @@ def prepare_content(reference, source_response=None):
             scope=review.get('scope') or assigned.get('task_scope') or assigned.get('client_request') or task.get('task_brief'),
             reviewed_by=review.get('reviewed_by'), retrospective=False)
         complete &= bool(mapping.get('complete'))
-        scopes.append(dict(project=project.name, title=project.get('project_title') or project.name,
+        scopes.append(dict(project=project.name, title=project.get('project_title') or 'Field visit',
             reference=mapping.get('reference'), version=mapping.get('version'), scope=mapping.get('scope'),
             retrospective=mapping.get('retrospective'), reviewed_by=mapping.get('reviewed_by')))
         assigned = detail.get('client_request') or {}
@@ -92,7 +96,7 @@ def prepare_content(reference, source_response=None):
                 recorded = decode(row['recorded_gaps_json'], []) + [gap]
                 row.update(assessment='Not verified', limitations=(row['limitations'] + '\n' + gap).strip(), recorded_gaps_json=json.dumps(recorded))
             if not mapping.get('complete'):
-                row.update(assessment='Not verified', limitations='The assigned questionnaire could not be recovered from this approved submission.')
+                row.update(assessment='Not verified', limitations='The historical field checks could not be recovered from this approved submission.')
             rows.append(row)
         for evidence in detail.get('evidence') or []:
             if evidence.evidence_type in {'Photo', 'Video'}:
@@ -113,7 +117,7 @@ def validate_snapshot(doc):
         frappe.throw('Create sourced report drafts through report preparation')
     previous = doc.get_doc_before_save() if not doc.is_new() else None
     if previous and not frappe.flags.dd_preparing_report:
-        for key in ('coverage_snapshot_json', 'scope_snapshot_json', 'visit_snapshot_json', 'review_sources_json', 'review_signatory', 'review_signed_at', 'source_response', 'objective', 'field_brief'):
+        for key in ('request', 'coverage_snapshot_json', 'scope_snapshot_json', 'visit_snapshot_json', 'review_sources_json', 'review_signatory', 'review_signed_at', 'source_response', 'objective', 'field_brief', 'report_file', 'generated_from_hash'):
             if doc.get(key) != previous.get(key): frappe.throw('Report source snapshots and sign-off are managed by report preparation')
     from fieldpulse.customer_coverage import validate_report
     validate_report(doc, approving=doc.status == 'Approved')
@@ -126,4 +130,6 @@ def pdf_context(doc, selected):
         checks.append(dict(question=row.customer_question, findings=row.findings, assessment=row.assessment,
             basis=row.basis, basis_detail=row.get('basis_detail'), limitations=row.get('limitations'),
             evidence_refs=[f'E{selected_ids[name]:03d}' for name in decode(row.get('evidence_ids_json'), []) if name in selected_ids]))
-    return dict(checks=checks, scopes=decode(doc.get('scope_snapshot_json'), []), visits=decode(doc.get('visit_snapshot_json'), []))
+    title = doc.get('title') or 'Field verification report'
+    if title.startswith('Verification report - '): title = 'Field verification report'
+    return dict(report_title=title, checks=checks, scopes=decode(doc.get('scope_snapshot_json'), []), visits=decode(doc.get('visit_snapshot_json'), []))

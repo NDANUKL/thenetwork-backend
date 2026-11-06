@@ -85,6 +85,32 @@ class PreparationTests(unittest.TestCase):
         with patch.dict(sys.modules, {'fieldpulse.scout_submissions': types.SimpleNamespace(submission_detail=lambda response: self.detail)}):
             with self.assertRaises(ValueError): self.module.prepare_content('request', source_response='foreign-response')
 
+    def test_report_keeps_zero_answers_and_omits_unanswered_optional_checks(self):
+        fixture=json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())
+        fixture['brief']['checks'].append(dict(fixture['brief']['checks'][0], id='optional', required=False))
+        self.detail=dict(brief=dict(brief=fixture['brief'],brief_id='BRIEF-1',version=3,check_ids=['condition','optional'],site=fixture['site']),
+            submission=dict(fixture['submission'],answers={'condition':{'status':'observed','value':0}}),evidence=[])
+        content=self.content()
+        self.assertEqual(len(content['report_checks']), 1)
+        self.assertEqual(content['report_checks'][0]['findings'], '0')
+
+    def test_approved_sources_cannot_silently_omit_a_required_answer(self):
+        fixture=json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())
+        fixture['brief']['checks'][0]['required']=True
+        self.detail=dict(brief=dict(brief=fixture['brief'],brief_id='BRIEF-1',version=3,check_ids=['condition'],site=fixture['site']),
+            submission=dict(fixture['submission'],answers={}),evidence=[])
+        with self.assertRaisesRegex(ValueError, 'required Task Brief answer'):self.content()
+
+    def test_generated_file_and_client_request_cannot_be_manually_replaced(self):
+        for key, value in [('report_file', '/private/files/manual.pdf'), ('generated_from_hash', 'manual'), ('request', 'another-client-request')]:
+            with self.subTest(field=key):
+                content=self.content()
+                previous=Record(content)
+                doc=Record(content,is_new=lambda:False,get_doc_before_save=lambda:previous)
+                doc[key]=value
+                self.f.flags.dd_preparing_report=False
+                with self.assertRaisesRegex(ValueError, 'managed by report preparation'):self.module.validate_snapshot(doc)
+
     def test_task_brief_reports_keep_unable_to_verify_as_a_limitation(self):
         fixture=json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())
         self.detail=dict(brief=dict(brief=fixture['brief'],brief_id='BRIEF-1',version=3,check_ids=['condition'],site=fixture['site']),

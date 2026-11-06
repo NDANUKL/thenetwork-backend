@@ -35,7 +35,7 @@ class ReportSecurityTests(unittest.TestCase):
         self.api.db.get_value.side_effect = lambda dt, *a, **kw: 'report' if dt == 'DD Service Report' else 'file' if dt == 'File' else None
         report = Record(name='report', title='Plot report', approved_at='today', report_file='/private/files/report.pdf')
         file = Record(file_name='report.pdf', get_content=lambda:b'%PDF-1.7\ncomplete approved report')
-        self.api.get_doc.side_effect = [report, report, file]
+        self.api.get_doc.side_effect = [report, file]
         bundle = types.ModuleType('fieldpulse.scout_reports')
         bundle.build_report_bundle = MagicMock(return_value=b'PK-test-bundle')
         with patch.dict(sys.modules, {'fieldpulse.scout_reports': bundle}):
@@ -45,6 +45,35 @@ class ReportSecurityTests(unittest.TestCase):
         self.assertEqual(self.api.response['filecontent'], b'%PDF-1.7\ncomplete approved report')
         self.assertEqual(self.api.response['content_type'], 'application/pdf')
         self.assertFalse(any(call.args[0]=='DD Payment' for call in self.api.db.get_value.call_args_list))
+
+    def test_report_download_is_pinned_to_the_selected_approved_report(self):
+        report = Record(name='selected', request='request', status='Approved', report_file='/private/files/report.pdf')
+        file = Record(get_content=lambda: b'%PDF-selected')
+        self.api.db.get_value.side_effect = ['selected', 'file']
+        self.api.get_doc.side_effect = [report, file]
+        self.module.download_report('request', report_name='selected')
+        self.assertEqual(self.api.db.get_value.call_args_list[0].args[1],
+            {'request': 'request', 'status': 'Approved', 'name': 'selected'})
+        self.assertEqual(self.api.response['filecontent'], b'%PDF-selected')
+
+    def test_foreign_or_draft_report_cannot_be_selected_by_name(self):
+        self.api.db.get_value.return_value = None
+        with self.assertRaises(PermissionError): self.module.download_report('request', report_name='foreign')
+        self.api.get_doc.assert_not_called()
+
+    def test_all_published_submission_reports_remain_visible(self):
+        self.api.db.get_value.return_value = 'newest'
+        self.api.get_all.return_value = ['newest', 'older-version', 'other-submission']
+        docs = {
+            'newest': Record(name='newest', title='Field report', approved_at='today', source_response='response-1'),
+            'older-version': Record(name='older-version', title='Field report', approved_at='yesterday', source_response='response-1'),
+            'other-submission': Record(name='other-submission', title='Field report', approved_at='yesterday', source_response='response-2'),
+        }
+        self.api.get_doc.side_effect = lambda dt, name: docs[name]
+        result = self.module.report('request')
+        self.assertEqual([r['name'] for r in result['reports']], ['newest', 'other-submission'])
+        self.assertIn('?report=newest', result['reports'][0]['download_url'])
+        self.assertIn('?report=newest', result['reports'][0]['evidence_download_url'])
 
     def test_foreign_request_is_rejected_before_report_lookup(self):
         self.owned.side_effect = PermissionError('Not owned')
