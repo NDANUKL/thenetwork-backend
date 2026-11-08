@@ -127,6 +127,44 @@ class ClientEvidenceTests(unittest.TestCase):
         self.assertEqual(self.report.generated_from_hash, self.module.report_content_hash(self.report))
         self.api.delete_doc.assert_not_called()
 
+    def test_first_approval_prepares_current_content_without_recursive_save(self):
+        self.report.update(status='Approved', doctype='DD Service Report', executive_summary='Summary', findings='Latest answers',
+            evidence_selection_reviewed=1, report_file=None, check_permission=MagicMock(), save=MagicMock())
+        self.api.get_doc.side_effect = None
+        self.api.get_doc.return_value = self.report
+        files = types.SimpleNamespace(save_file=MagicMock(return_value=Record(file_url='/private/files/approved.pdf')))
+        with patch.dict(sys.modules, {
+                'fieldpulse.customer_coverage': types.SimpleNamespace(validate_report=MagicMock()),
+                'fieldpulse.report_preparation': types.SimpleNamespace(pdf_context=lambda *args: {}),
+                'fieldpulse.quotation_pdf': types.SimpleNamespace(quotation_assets=lambda: {}, render_quotation_pdf=lambda *args, **kw: b'%PDF-new'),
+                'frappe.utils.file_manager': files}), patch.object(self.module, 'selected_evidence', return_value=[]):
+            self.module.prepare_pdf(self.report, save=False)
+        self.assertEqual(self.report.report_file, '/private/files/approved.pdf')
+        self.assertEqual(self.report.generated_from_hash, self.module.report_content_hash(self.report))
+        self.report.save.assert_not_called()
+
+    def test_controller_prepares_pdf_on_first_approval_only(self):
+        controller_path = ROOT / 'fieldpulse/fieldpulse/doctype/dd_service_report/dd_service_report.py'
+        spec = importlib.util.spec_from_file_location('report_controller_test', controller_path)
+        controller = importlib.util.module_from_spec(spec)
+        calls = []
+        prepare = MagicMock(side_effect=lambda doc, **kw: calls.append('pdf'))
+        with patch.dict(sys.modules, {
+                'frappe': self.api, 'frappe.model.document': types.SimpleNamespace(Document=Record),
+                'fieldpulse.native_events': types.SimpleNamespace(validate_report=lambda doc: calls.append('validate')),
+                'fieldpulse.report_preparation': types.SimpleNamespace(validate_snapshot=lambda doc: calls.append('snapshot')),
+                'fieldpulse.scout_reports': types.SimpleNamespace(prepare_pdf=prepare)}):
+            spec.loader.exec_module(controller)
+            previous = Record(status='Draft')
+            doc = controller.DDServiceReport(status='Approved', is_new=lambda: False, get_doc_before_save=lambda: previous)
+            doc.before_save()
+            prepare.assert_called_once_with(doc, save=False)
+            self.assertEqual(calls, ['snapshot', 'pdf', 'validate'])
+            previous.status = 'Approved'
+            prepare.reset_mock()
+            doc.before_save()
+            prepare.assert_not_called()
+
     def test_bundle_rejects_invalid_pdf_and_oversized_media_before_download(self):
         with self.assertRaises(ValueError): self.module.build_report_bundle(self.report, b'not pdf')
         large = Record(file_size=500000001)

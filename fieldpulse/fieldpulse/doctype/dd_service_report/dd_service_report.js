@@ -13,7 +13,7 @@ frappe.ui.form.on("DD Service Report", {
     if (frm.is_new()) return;
     frm.add_custom_button(__("Preview report PDF"), () => frm.events.preview_report_pdf(frm));
     if (frm.doc.status === "Approved") return;
-    frm.set_intro(__("Draft reports are private. Review the scout answers and selected evidence, then use Preview report PDF. Set Status to Approved and save to release the report and selected evidence to the client."));
+    frm.set_intro(__("Draft reports are private. Review the scout answers and selected evidence. Preview report PDF is optional. Set Status to Approved and save to prepare the latest PDF and release the report and selected evidence to the client."));
     frm.add_custom_button(__('Refresh from approved findings'),()=>frappe.confirm(__('Refresh the Task Brief findings and evidence selections from approved submissions? Coordinator remarks are retained.'),async()=>{
       if (frm.is_dirty()) await frm.save();
       await frappe.call('fieldpulse.scout_reports.refresh_draft',{report:frm.doc.name});

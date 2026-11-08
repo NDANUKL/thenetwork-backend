@@ -135,8 +135,6 @@ def validate_report(doc):
         content = file.get_content()
         if not (content.encode('utf-8') if isinstance(content, str) else content).startswith(b'%PDF-'):
             frappe.throw('The attached report is not a valid PDF file')
-        if frappe.db.get_value('Diaspora Request', doc.request, 'status') != 'Completed':
-            frappe.throw('Approve the field work and complete the request before approving its report')
         from fieldpulse.customer_coverage import validate_report as validate_coverage
         validate_coverage(doc, approving=True)
         if doc.get('review_signatory') != frappe.session.user:

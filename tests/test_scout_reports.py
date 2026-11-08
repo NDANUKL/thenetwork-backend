@@ -99,5 +99,23 @@ class ReportSecurityTests(unittest.TestCase):
                     self.module.validate_report(report)
         self.module.validate_report(Record(status='Draft', get_doc_before_save=lambda: None))
 
+    def test_report_can_be_approved_without_completing_the_whole_request(self):
+        self.api.get_roles.return_value = ['Field Operations Coordinator']
+        self.api.session.user = 'coordinator'
+        self.api.db.exists.return_value = True
+        self.api.db.get_value.side_effect = lambda dt, *args, **kwargs: 'file' if dt == 'File' else 'In Progress'
+        self.api.get_doc.return_value = Record(attached_to_doctype='DD Service Report', attached_to_name='report',
+            file_name='report.pdf', file_size=100, get_content=lambda: b'%PDF-approved')
+        report = Record(name='report', request='request', status='Approved', report_file='/private/files/report.pdf',
+            generated_from_hash='current', review_signatory='coordinator', get_doc_before_save=lambda: Record(status='Draft'))
+        coverage = types.SimpleNamespace(validate_report=MagicMock())
+        with patch.dict(sys.modules, {
+                'fieldpulse.scout_reports': types.SimpleNamespace(report_content_hash=lambda doc: 'current'),
+                'fieldpulse.customer_coverage': coverage}):
+            self.module.validate_report(report)
+        self.assertEqual(report.approved_by, 'coordinator')
+        coverage.validate_report.assert_called_once_with(report, approving=True)
+        self.assertFalse(any(call.args[0] == 'Diaspora Request' for call in self.api.db.get_value.call_args_list))
+
 
 if __name__ == '__main__': unittest.main()

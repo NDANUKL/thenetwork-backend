@@ -138,8 +138,14 @@ def generate_pdf(report):
     require_reviewer()
     frappe.db.sql('SELECT name FROM `tabDD Service Report` WHERE name=%s FOR UPDATE', [report])
     doc = frappe.get_doc("DD Service Report", report)
-    doc.check_permission("write")
     if doc.status == "Approved": frappe.throw("Approved reports are locked; prepare a new version")
+    return prepare_pdf(doc)
+
+
+def prepare_pdf(doc, *, save=True):
+    """Prepare the current in-memory content for preview or first approval."""
+    require_reviewer()
+    doc.check_permission('write')
     if not (doc.get("executive_summary") or "").strip() or not (doc.get("findings") or "").strip():
         frappe.throw("Write the client summary and review the findings before generating the PDF")
     if not doc.get("evidence_selection_reviewed"):
@@ -171,10 +177,11 @@ def generate_pdf(report):
     file = save_file(f"{doc.request}-report-v{doc.report_version or 1}.pdf", pdf, doc.doctype, doc.name, is_private=1)
     doc.report_file = file.file_url
     doc.generated_from_hash = report_content_hash(doc)
-    marker = frappe.flags.dd_preparing_report
-    frappe.flags.dd_preparing_report = True
-    try: doc.save()
-    finally: frappe.flags.dd_preparing_report = marker
+    if save:
+        marker = frappe.flags.dd_preparing_report
+        frappe.flags.dd_preparing_report = True
+        try: doc.save()
+        finally: frappe.flags.dd_preparing_report = marker
     return {"report": doc.name, "file": file.file_url}
 
 

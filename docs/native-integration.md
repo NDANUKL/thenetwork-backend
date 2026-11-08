@@ -61,3 +61,7 @@ See the [6 November client report review](client-report-review-2026-11-06.md) fo
 Report status simplification (8 November 2026, source only): Draft is private and Approved releases the report to the client. Ordinary migration returns historical Under review reports to Draft. Native saves preserve automatically managed source/reviewer fields without the generic popup; use the report refresh and PDF buttons to update them. See the [controlling policy](production-script-ownership.md) for approval requirements and rollout checks.
 
 Single report PDF action (8 November 2026, source only): Preview report PDF prepares or reuses the branded private PDF. Generic print controls, the separate generation button and the sidebar attachment list are hidden on the report form. Existing files and approved versions are preserved. See the [controlling policy](production-script-ownership.md) for client release and deployed Desk checks.
+
+Optional report preview (8 November 2026, source only): first approval automatically prepares the latest PDF before release validation. Preview is optional. See the [controlling policy](production-script-ownership.md) for integrity checks and staging acceptance.
+
+Individual report release (8 November 2026, source only): a report no longer waits for the entire request to reach Completed. Reports can be released independently from their own approved scout work. See the [controlling policy](production-script-ownership.md) for retained source/review requirements and rollout checks.
