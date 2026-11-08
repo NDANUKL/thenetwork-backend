@@ -63,6 +63,7 @@ def render_quotation_pdf(html, *, page_numbers=False):
     })
     if page_numbers:
         options.update({
+            "footer-left": "Diaspora Desk · Follow Your Pesa",
             "footer-right": "Page [page] of [topage]",
             "footer-font-name": "Carlito", "footer-font-size": "9", "footer-spacing": "5",
         })

@@ -63,6 +63,7 @@ class FontEnvironmentTests(unittest.TestCase):
             fonts.render_quotation_pdf('<html>report</html>', page_numbers=True)
         options = pdfkit.from_string.call_args.kwargs['options']
         self.assertEqual(options['footer-right'], 'Page [page] of [topage]')
+        self.assertEqual(options['footer-left'], 'Diaspora Desk · Follow Your Pesa')
         self.assertEqual(options['footer-font-name'], 'Carlito')
         self.assertEqual(options['footer-spacing'], '5')
         self.assertIn('disable-javascript', options)
