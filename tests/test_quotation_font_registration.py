@@ -56,6 +56,13 @@ class FontEnvironmentTests(unittest.TestCase):
     def test_report_pagination_is_enabled_without_changing_default_documents(self):
         pdfkit = MagicMock()
         pdfkit.from_string.return_value = b'%PDF-paginated'
+        def inspect_footer(html, output, *, options, configuration):
+            footer = Path(options['footer-html'])
+            self.assertTrue(footer.exists())
+            self.assertIn('border-top:1px solid #dce5e9', footer.read_text(encoding='utf-8'))
+            self.assertNotIn('<script', footer.read_text(encoding='utf-8'))
+            return b'%PDF-paginated'
+        pdfkit.from_string.side_effect = inspect_footer
         frappe_pdf = types.ModuleType('frappe.utils.pdf')
         frappe_pdf.prepare_options = MagicMock(return_value=('<html>report</html>', {}))
         frappe_pdf.cleanup = MagicMock()
@@ -67,6 +74,7 @@ class FontEnvironmentTests(unittest.TestCase):
         self.assertEqual(options['footer-font-name'], 'Carlito')
         self.assertEqual(options['footer-spacing'], '5')
         self.assertIn('disable-javascript', options)
+        self.assertFalse(Path(options['footer-html']).exists())
         frappe_pdf.cleanup.assert_called_once_with(options)
 
     def test_cleanup_runs_after_renderer_failure(self):
