@@ -10,6 +10,7 @@ ROOT=Path(__file__).parents[1]
 class Record(dict):
     def __getattr__(self,key):return self.get(key)
     def __setattr__(self,key,value):self[key]=value
+    def set(self,key,value):self[key]=value
 
 class PreparationTests(unittest.TestCase):
     def setUp(self):
@@ -109,7 +110,32 @@ class PreparationTests(unittest.TestCase):
                 doc=Record(content,is_new=lambda:False,get_doc_before_save=lambda:previous)
                 doc[key]=value
                 self.f.flags.dd_preparing_report=False
-                with self.assertRaisesRegex(ValueError, 'managed by report preparation'):self.module.validate_snapshot(doc)
+                with patch.dict(sys.modules, {'fieldpulse.customer_coverage': types.SimpleNamespace(validate_report=lambda *args, **kw: None)}):
+                    self.module.validate_snapshot(doc)
+                self.assertEqual(doc.get(key), previous.get(key))
+
+    def test_ordinary_save_preserves_source_and_signatory_without_blocking_remarks(self):
+        from datetime import datetime
+        signed_at = datetime(2026, 11, 8, 9, 30)
+        previous = Record(self.content(), request='request', review_signatory='reviewer', review_signed_at=signed_at)
+        doc = Record(previous, is_new=lambda: False, get_doc_before_save=lambda: previous)
+        doc.update(review_signed_at=str(signed_at), objective='changed source', coordinator_remarks='Ready for the client')
+        self.f.flags.dd_preparing_report = False
+        with patch.dict(sys.modules, {'fieldpulse.customer_coverage': types.SimpleNamespace(validate_report=lambda *args, **kw: None)}):
+            self.module.validate_snapshot(doc)
+        self.assertEqual(doc.review_signed_at, signed_at)
+        self.assertEqual(doc.objective, previous.objective)
+        self.assertEqual(doc.coordinator_remarks, 'Ready for the client')
+
+    def test_preparation_actions_can_replace_managed_values(self):
+        previous = Record(self.content())
+        doc = Record(previous, is_new=lambda: False, get_doc_before_save=lambda: previous)
+        doc.update(report_file='/private/files/generated.pdf', review_signatory='reviewer')
+        self.f.flags.dd_preparing_report = True
+        with patch.dict(sys.modules, {'fieldpulse.customer_coverage': types.SimpleNamespace(validate_report=lambda *args, **kw: None)}):
+            self.module.validate_snapshot(doc)
+        self.assertEqual(doc.report_file, '/private/files/generated.pdf')
+        self.assertEqual(doc.review_signatory, 'reviewer')
 
     def test_task_brief_reports_keep_unable_to_verify_as_a_limitation(self):
         fixture=json.loads((ROOT/'tests/fixtures/task-brief-v1.json').read_text())

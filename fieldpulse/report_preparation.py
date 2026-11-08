@@ -117,8 +117,11 @@ def validate_snapshot(doc):
         frappe.throw('Create sourced report drafts through report preparation')
     previous = doc.get_doc_before_save() if not doc.is_new() else None
     if previous and not frappe.flags.dd_preparing_report:
+        # These read-only values belong to the saved report, not the browser's
+        # serialized copy (dates and empty fields may round-trip differently).
+        # Only preparation/PDF actions may replace them.
         for key in ('request', 'coverage_snapshot_json', 'scope_snapshot_json', 'visit_snapshot_json', 'review_sources_json', 'review_signatory', 'review_signed_at', 'source_response', 'objective', 'field_brief', 'report_file', 'generated_from_hash'):
-            if doc.get(key) != previous.get(key): frappe.throw('Report source snapshots and sign-off are managed by report preparation')
+            doc.set(key, previous.get(key))
     from fieldpulse.customer_coverage import validate_report
     validate_report(doc, approving=doc.status == 'Approved')
 

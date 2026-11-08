@@ -108,6 +108,8 @@ def download_report(reference, report_name=None):
     frappe.response['display_content_as'] = 'attachment'
 
 def validate_report(doc):
+    if doc.status not in ('Draft', 'Approved'):
+        frappe.throw('Choose Draft or Approved. Saving as Approved releases the report to the client.')
     previous = doc.get_doc_before_save()
     if previous and previous.status == 'Approved':
         frappe.throw('Approved reports are locked; prepare a new version for corrections')
@@ -115,14 +117,14 @@ def validate_report(doc):
         if 'Field Operations Coordinator' not in frappe.get_roles() and 'System Manager' not in frappe.get_roles():
             frappe.throw('Only a coordinator can approve a report', frappe.PermissionError)
         if not doc.report_file or not frappe.db.exists('File', {'file_url': doc.report_file, 'is_private': 1, 'attached_to_doctype': 'DD Service Report', 'attached_to_name': doc.name}):
-            frappe.throw('Generate the report PDF before approval')
+            frappe.throw('Use Preview report PDF before approval')
         file_name = frappe.db.get_value('File', {'file_url': doc.report_file, 'is_private': 1, 'attached_to_doctype': 'DD Service Report', 'attached_to_name': doc.name}, 'name')
         file = frappe.get_doc('File', file_name)
         if file.attached_to_doctype != 'DD Service Report' or file.attached_to_name != doc.name:
             frappe.throw('Attach this report PDF to its own Service Report record')
         from fieldpulse.scout_reports import report_content_hash
         if not doc.get('generated_from_hash') or doc.generated_from_hash != report_content_hash(doc):
-            frappe.throw('Report content changed; generate its PDF again before approval')
+            frappe.throw('Report content changed; use Preview report PDF again before approval')
         if not file.file_name.lower().endswith('.pdf') or (file.file_size or 0) > 20000000:
             frappe.throw('Approved customer reports must be private PDF files up to 20 MB')
         if doc.get('report_evidence'):
@@ -138,7 +140,7 @@ def validate_report(doc):
         from fieldpulse.customer_coverage import validate_report as validate_coverage
         validate_coverage(doc, approving=True)
         if doc.get('review_signatory') != frappe.session.user:
-            frappe.throw('Generate the reviewed report PDF under the approving reviewer before sign-off')
+            frappe.throw('Use Preview report PDF under your account before approving the report')
         doc.approved_by = frappe.session.user
         doc.approved_at = now_datetime()
 

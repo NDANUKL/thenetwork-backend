@@ -76,6 +76,57 @@ class ClientEvidenceTests(unittest.TestCase):
         media = Record(original_filename='TK-2026-00042-uuid.jpg', evidence_type='Photo')
         self.assertEqual(self.module.evidence_archive_name(1, media), 'Photos/photo-001.jpg')
 
+    def test_preview_of_approved_report_preserves_its_pdf(self):
+        self.report.update(status='Approved', doctype='DD Service Report', report_file='/private/files/approved.pdf', check_permission=MagicMock())
+        self.api.get_doc.side_effect = None
+        self.api.get_doc.return_value = self.report
+        with patch.object(self.module, 'generate_pdf') as generate:
+            self.assertEqual(self.module.preview_pdf('report'), {'report': 'report', 'file': '/private/files/approved.pdf'})
+        generate.assert_not_called()
+        self.report.check_permission.assert_called_once_with('read')
+
+    def test_preview_requires_read_permission_before_preparing_a_draft(self):
+        self.report.update(status='Draft', check_permission=MagicMock(side_effect=PermissionError))
+        self.api.get_doc.side_effect = None
+        self.api.get_doc.return_value = self.report
+        with patch.object(self.module, 'generate_pdf') as generate:
+            with self.assertRaises(PermissionError): self.module.preview_pdf('report')
+        generate.assert_not_called()
+
+    def test_unchanged_draft_preview_reuses_private_pdf(self):
+        self.report.update(status='Draft', doctype='DD Service Report', executive_summary='Summary', findings='Scout answers',
+            evidence_selection_reviewed=1, report_file='/private/files/current.pdf', review_signatory='coordinator',
+            check_permission=MagicMock())
+        self.api.session.user = 'coordinator'
+        self.report.generated_from_hash = self.module.report_content_hash(self.report)
+        self.api.get_doc.side_effect = None
+        self.api.get_doc.return_value = self.report
+        coverage = types.SimpleNamespace(validate_report=MagicMock())
+        with patch.dict(sys.modules, {'fieldpulse.customer_coverage': coverage}), patch.object(self.module, 'selected_evidence', return_value=[]):
+            self.assertEqual(self.module.generate_pdf('report'), {'report': 'report', 'file': '/private/files/current.pdf'})
+        self.api.render_template.assert_not_called()
+        self.report.check_permission.assert_called_once_with('write')
+
+    def test_changed_draft_preview_generates_and_saves_the_current_pdf(self):
+        self.report.update(status='Draft', doctype='DD Service Report', executive_summary='Summary', findings='Scout answers',
+            evidence_selection_reviewed=1, report_file='/private/files/old.pdf', generated_from_hash='outdated',
+            review_signatory='coordinator', check_permission=MagicMock(), save=MagicMock())
+        self.api.session.user = 'coordinator'
+        self.api.get_doc.side_effect = None
+        self.api.get_doc.return_value = self.report
+        coverage = types.SimpleNamespace(validate_report=MagicMock())
+        preparation = types.SimpleNamespace(pdf_context=lambda *args: {})
+        pdf = types.SimpleNamespace(quotation_assets=lambda: {}, render_quotation_pdf=MagicMock(return_value=b'%PDF-new'))
+        files = types.SimpleNamespace(save_file=MagicMock(return_value=Record(file_url='/private/files/current.pdf')))
+        with patch.dict(sys.modules, {'fieldpulse.customer_coverage': coverage, 'fieldpulse.report_preparation': preparation,
+                'fieldpulse.quotation_pdf': pdf, 'frappe.utils.file_manager': files}), patch.object(self.module, 'selected_evidence', return_value=[]):
+            self.assertEqual(self.module.preview_pdf('report'), {'report': 'report', 'file': '/private/files/current.pdf'})
+        files.save_file.assert_called_once()
+        self.assertTrue(files.save_file.call_args.kwargs['is_private'])
+        self.report.save.assert_called_once()
+        self.assertEqual(self.report.generated_from_hash, self.module.report_content_hash(self.report))
+        self.api.delete_doc.assert_not_called()
+
     def test_bundle_rejects_invalid_pdf_and_oversized_media_before_download(self):
         with self.assertRaises(ValueError): self.module.build_report_bundle(self.report, b'not pdf')
         large = Record(file_size=500000001)

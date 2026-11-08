@@ -57,3 +57,7 @@ Client report source update (6 November 2026): see [production ownership](produc
 Report recheck (6 November 2026, source only): native standard DocType files load through Frappe itself; no Client Script records or duplicate hooks are needed. Previously approved responses can create/open their missing draft through View draft report. Every released submission report has matching authenticated PDF and evidence ZIP URLs. See the [controlling policy](production-script-ownership.md) for rollout and historical-record handling.
 
 See the [6 November client report review](client-report-review-2026-11-06.md) for the requirement checks, local evidence and remaining live verification.
+
+Report status simplification (8 November 2026, source only): Draft is private and Approved releases the report to the client. Ordinary migration returns historical Under review reports to Draft. Native saves preserve automatically managed source/reviewer fields without the generic popup; use the report refresh and PDF buttons to update them. See the [controlling policy](production-script-ownership.md) for approval requirements and rollout checks.
+
+Single report PDF action (8 November 2026, source only): Preview report PDF prepares or reuses the branded private PDF. Generic print controls, the separate generation button and the sidebar attachment list are hidden on the report form. Existing files and approved versions are preserved. See the [controlling policy](production-script-ownership.md) for client release and deployed Desk checks.

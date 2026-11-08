@@ -91,5 +91,13 @@ class ReportSecurityTests(unittest.TestCase):
         report = Record(name='report', request='request', status='Approved', report_file='/private/files/test.pdf', get_doc_before_save=lambda:None)
         with self.assertRaisesRegex(ValueError, 'own Service Report'): self.module.validate_report(report)
 
+    def test_only_draft_and_approved_can_be_saved(self):
+        for status in ('Under review', 'Issued', 'unknown'):
+            with self.subTest(status=status):
+                report = Record(status=status, get_doc_before_save=lambda: None)
+                with self.assertRaisesRegex(ValueError, 'Choose Draft or Approved'):
+                    self.module.validate_report(report)
+        self.module.validate_report(Record(status='Draft', get_doc_before_save=lambda: None))
+
 
 if __name__ == '__main__': unittest.main()

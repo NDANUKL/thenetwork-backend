@@ -116,8 +116,25 @@ def download_evidence(reference, evidence_id):
 
 
 @frappe.whitelist(methods=["POST"])
+def preview_pdf(report):
+    """Open the released PDF, or prepare the current draft using the same template."""
+    require_reviewer()
+    doc = frappe.get_doc('DD Service Report', report)
+    doc.check_permission('read')
+    if doc.status != 'Approved':
+        return generate_pdf(report)
+    if not doc.report_file or not frappe.db.exists('File', {
+        'file_url': doc.report_file, 'is_private': 1,
+        'attached_to_doctype': doc.doctype, 'attached_to_name': doc.name,
+    }):
+        frappe.throw('The approved report PDF is unavailable')
+    return {'report': doc.name, 'file': doc.report_file}
+
+
+@frappe.whitelist(methods=["POST"])
 def generate_pdf(report):
     require_reviewer()
+    frappe.db.sql('SELECT name FROM `tabDD Service Report` WHERE name=%s FOR UPDATE', [report])
     doc = frappe.get_doc("DD Service Report", report)
     doc.check_permission("write")
     if doc.status == "Approved": frappe.throw("Approved reports are locked; prepare a new version")
@@ -127,10 +144,16 @@ def generate_pdf(report):
         frappe.throw("Review the client evidence selection before generating the PDF")
     from fieldpulse.customer_coverage import validate_report
     validate_report(doc, approving=True)
+    selected = selected_evidence(doc)
+    # Reopening an unchanged preview must not create another attachment.
+    if (doc.report_file and doc.get('generated_from_hash') == report_content_hash(doc)
+            and doc.get('review_signatory') == frappe.session.user
+            and frappe.db.exists('File', {'file_url': doc.report_file, 'is_private': 1,
+                'attached_to_doctype': doc.doctype, 'attached_to_name': doc.name})):
+        return {'report': doc.name, 'file': doc.report_file}
     doc.review_signatory = frappe.session.user
     doc.review_signed_at = frappe.utils.now_datetime()
     request = frappe.get_doc("Diaspora Request", doc.request)
-    selected = selected_evidence(doc)
     media = [{"caption": row.caption, "filename": evidence_archive_name(index, evidence)}
              for index, (row, evidence) in enumerate(selected, 1)]
     from fieldpulse.report_preparation import pdf_context

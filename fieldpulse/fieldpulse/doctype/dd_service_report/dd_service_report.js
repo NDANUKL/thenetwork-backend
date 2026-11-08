@@ -1,21 +1,45 @@
 frappe.ui.form.on("DD Service Report", {
+  setup(frm) {
+    // Keep keyboard printing on the same client PDF as the preview button.
+    frm.print_doc = () => frm.events.preview_report_pdf(frm);
+    $(frm.wrapper).on('attachments_change.dd_service_report', () => frm.attachments?.parent.hide());
+  },
   refresh(frm) {
+    frm.toolbar.print_icon?.hide();
+    frm.page.menu.find('.menu-item-label').filter(function () {
+      return $(this).text().trim() === __('Print');
+    }).closest('li').remove();
+    frm.attachments?.parent.hide();
     if (frm.is_new()) return;
-    if (frm.doc.report_file?.startsWith('/private/files/')) {
-      frm.add_custom_button(__("Preview report PDF"), () => window.open(frm.doc.report_file, '_blank', 'noopener,noreferrer'));
-    }
+    frm.add_custom_button(__("Preview report PDF"), () => frm.events.preview_report_pdf(frm));
     if (frm.doc.status === "Approved") return;
-    frm.set_intro(__("Review the Task Brief and scout answers, choose which photos and videos to share, and optionally add coordinator remarks. Generate the PDF before approving the report for the client."));
+    frm.set_intro(__("Draft reports are private. Review the scout answers and selected evidence, then use Preview report PDF. Set Status to Approved and save to release the report and selected evidence to the client."));
     frm.add_custom_button(__('Refresh from approved findings'),()=>frappe.confirm(__('Refresh the Task Brief findings and evidence selections from approved submissions? Coordinator remarks are retained.'),async()=>{
       if (frm.is_dirty()) await frm.save();
       await frappe.call('fieldpulse.scout_reports.refresh_draft',{report:frm.doc.name});
       await frm.reload_doc();
     }));
-    frm.add_custom_button(__("Generate report PDF"), async () => {
+  },
+  async preview_report_pdf(frm) {
+    if (frm.is_new()) return;
+    // Open during the click so browsers allow the tab after the async request.
+    const preview = window.open('about:blank', '_blank');
+    if (preview) preview.opener = null;
+    try {
       if (frm.is_dirty()) await frm.save();
-      await frappe.call("fieldpulse.scout_reports.generate_pdf", {report: frm.doc.name});
+      const {message} = await frappe.call({
+        method: 'fieldpulse.scout_reports.preview_pdf',
+        args: {report: frm.doc.name}, freeze: true,
+        freeze_message: __('Preparing report preview...'),
+      });
+      if (!message?.file?.startsWith('/private/files/')) throw new Error(__('Report PDF is unavailable.'));
+      if (preview) preview.location.replace(message.file);
+      else frappe.msgprint(__('Allow pop-ups for this site, then click Preview report PDF again.'));
       await frm.reload_doc();
-    });
+    } catch (error) {
+      if (preview) preview.close();
+      throw error;
+    }
   }
 });
 
