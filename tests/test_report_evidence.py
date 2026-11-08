@@ -150,6 +150,22 @@ class ClientEvidenceTests(unittest.TestCase):
         self.assertEqual(self.module.selected_evidence(self.report),[])
         self.api.get_doc.assert_not_called()
 
+    def test_report_evidence_wording_omits_zero_counts_and_pluralizes(self):
+        for photos, videos, expected in (
+            (3, 0, '3 photos are included'),
+            (0, 1, '1 video is included'),
+            (1, 0, '1 photo is included'),
+            (0, 2, '2 videos are included'),
+            (3, 2, '3 photos and 2 videos are included'),
+            (0, 0, 'No photos or videos are included with this report.'),
+        ):
+            with self.subTest(photos=photos, videos=videos):
+                summary = self.module.evidence_summary(photos, videos)
+                self.assertIn(expected, summary)
+                self.assertNotIn('0 photo', summary)
+                self.assertNotIn('0 video', summary)
+                self.assertNotIn('(s)', summary)
+
     def test_cross_request_media_is_rejected(self):
         self.api.db.get_value.side_effect = lambda *a,**kw:'another-request'
         with self.assertRaisesRegex(ValueError,'this request'): self.module.selected_evidence(self.report)

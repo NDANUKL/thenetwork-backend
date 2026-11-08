@@ -14,6 +14,6 @@ h2{font-size:14pt;color:#00857c;margin:7mm 0 3mm;page-break-after:avoid;}h3{font
 <h2>Field checks and scout answers</h2>
 {% for check in checks %}<section class="finding"><h3>{{ loop.index }}. {{ check.question | e }}</h3><div class="text answer">{{ check.findings | e }}</div></section>{% endfor %}
 <h2>Evidence</h2>
-<p>{{ photo_count }} photo(s) and {{ video_count }} video(s) are included in the separate evidence ZIP file. Select Download evidence beside this report in your client portal.</p>
+<p>{{ evidence_summary | e }}{% if photo_count or video_count %} Select Download evidence beside this report in your client portal.{% endif %}</p>
 {% if doc.coordinator_remarks %}<section class="remarks"><h2>Coordinator's remarks</h2><div class="text">{{ doc.coordinator_remarks | e }}</div></section>{% endif %}
 </body></html>

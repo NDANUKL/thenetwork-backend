@@ -18,8 +18,8 @@ def prepare_if_ready(reference):
 
 def report_content_hash(doc):
     values = {key: doc.get(key) for key in ("request", "title", "executive_summary", "findings", "limitations", "next_steps", "coordinator_remarks", "source_response", "objective", "field_brief", "review_sources_json", "report_version", "coverage_snapshot_json", "scope_snapshot_json", "visit_snapshot_json", "scope_coverage_reviewed", "review_signatory", "review_signed_at")}
-    # Invalidate draft PDFs made before the fixed page-footer layout.
-    values['pdf_layout_version'] = 2
+    # Invalidate draft PDFs when the report layout or evidence wording changes.
+    values['pdf_layout_version'] = 3
     values["evidence"] = [{key: row.get(key) for key in ("evidence", "caption", "include_client")} for row in doc.get("report_evidence") or []]
     values["evidence_selection_reviewed"] = doc.get("evidence_selection_reviewed")
     values['checks'] = [{key: row.get(key) for key in ('check_id','project','task','customer_question','findings','assessment','basis','basis_detail','limitations','limitation_acknowledged','answer_refs_json','evidence_ids_json','recorded_gaps_json')} for row in doc.get('report_checks') or []]
@@ -161,7 +161,10 @@ def generate_pdf(report):
     from fieldpulse.report_preparation import pdf_context
     report_context = pdf_context(doc, selected)
     from fieldpulse.quotation_pdf import quotation_assets, render_quotation_pdf
-    report_context.update(quotation_assets=quotation_assets(), photo_count=sum(e.evidence_type == "Photo" for _, e in selected), video_count=sum(e.evidence_type == "Video" for _, e in selected))
+    photo_count = sum(e.evidence_type == 'Photo' for _, e in selected)
+    video_count = sum(e.evidence_type == 'Video' for _, e in selected)
+    report_context.update(quotation_assets=quotation_assets(), photo_count=photo_count, video_count=video_count,
+        evidence_summary=evidence_summary(photo_count, video_count))
     html = frappe.render_template((Path(__file__).parent / "templates/reports/service_report.html").read_text(encoding="utf-8"), {"doc": doc, "request": request, "evidence": media, **report_context})
     from frappe.utils.file_manager import save_file
     pdf = render_quotation_pdf(html, page_numbers=True)
@@ -173,6 +176,15 @@ def generate_pdf(report):
     try: doc.save()
     finally: frappe.flags.dd_preparing_report = marker
     return {"report": doc.name, "file": file.file_url}
+
+
+def evidence_summary(photo_count, video_count):
+    counts = [f'{count} {kind}{"s" if count != 1 else ""}'
+        for count, kind in ((photo_count, 'photo'), (video_count, 'video')) if count]
+    if not counts:
+        return 'No photos or videos are included with this report.'
+    verb = 'is' if photo_count + video_count == 1 else 'are'
+    return f'{" and ".join(counts)} {verb} included in the separate evidence ZIP file.'
 
 
 def evidence_archive_name(index, evidence):
