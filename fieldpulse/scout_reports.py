@@ -19,7 +19,7 @@ def prepare_if_ready(reference):
 def report_content_hash(doc):
     values = {key: doc.get(key) for key in ("request", "title", "executive_summary", "findings", "limitations", "next_steps", "coordinator_remarks", "source_response", "objective", "field_brief", "review_sources_json", "report_version", "coverage_snapshot_json", "scope_snapshot_json", "visit_snapshot_json", "scope_coverage_reviewed", "review_signatory", "review_signed_at")}
     # Invalidate draft PDFs when the report layout or evidence wording changes.
-    values['pdf_layout_version'] = 5
+    values['pdf_layout_version'] = 7
     values["evidence"] = [{key: row.get(key) for key in ("evidence", "caption", "include_client")} for row in doc.get("report_evidence") or []]
     values["evidence_selection_reviewed"] = doc.get("evidence_selection_reviewed")
     values['checks'] = [{key: row.get(key) for key in ('check_id','project','task','customer_question','findings','assessment','basis','basis_detail','limitations','limitation_acknowledged','answer_refs_json','evidence_ids_json','recorded_gaps_json')} for row in doc.get('report_checks') or []]

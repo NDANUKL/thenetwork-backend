@@ -4,7 +4,7 @@ import os
 import sys
 import tempfile
 from functools import lru_cache
-from contextlib import contextmanager, ExitStack
+from contextlib import contextmanager
 from xml.etree import ElementTree
 from pathlib import Path
 
@@ -67,20 +67,9 @@ def render_quotation_pdf(html, *, page_numbers=False):
             "footer-right": "Page [page] of [topage]",
             "footer-font-name": "Carlito", "footer-font-size": "9", "footer-spacing": "5",
         })
-    with ExitStack() as resources:
-        if page_numbers:
-            footer_dir = resources.enter_context(tempfile.TemporaryDirectory(prefix='dd-report-footer-'))
-            footer = Path(footer_dir) / 'footer.html'
-            # A transparent HTML rule overlays the native footer's top edge;
-            # native left/right text keeps pagination independent of JavaScript.
-            footer.write_text('<!doctype html><html><head><meta charset="utf-8"></head>'
-                '<body style="margin:0;padding:0;background:transparent">'
-                '<div style="border-top:1px solid #dce5e9;height:1mm"></div>'
-                '</body></html>', encoding='utf-8')
-            options['footer-html'] = str(footer)
-        try:
-            environment = resources.enter_context(quotation_font_environment())
+    try:
+        with quotation_font_environment() as environment:
             configuration = pdfkit.configuration(environ=environment)
             return pdfkit.from_string(html, False, options=options, configuration=configuration)
-        finally:
-            cleanup(options)
+    finally:
+        cleanup(options)
