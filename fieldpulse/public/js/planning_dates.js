@@ -12,15 +12,12 @@
         for (const name of names) {
           const control = frm.fields_dict[name];
           if (!control) continue;
-          const minimum = () => frappe.datetime.str_to_obj(frappe.datetime.get_today());
-          frm.set_df_property(name, 'min_date', minimum());
+          const minimum = frappe.datetime.str_to_obj(frappe.datetime.get_today());
+          // Avoid refreshing/reformatting the control during date selection.
+          control.df.min_date = minimum;
           if (control.datepicker) {
-            control.datepicker.update({ minDate: minimum() });
-            // Recompute when opened, including forms left open overnight.
-            control.$input.off('focus.planning_dates').on('focus.planning_dates', () => {
-              control.df.min_date = minimum();
-              control.datepicker.update({ minDate: minimum() });
-            });
+            control.$input.off('focus.planning_dates');
+            control.datepicker.update({ minDate: minimum });
           }
         }
       },
