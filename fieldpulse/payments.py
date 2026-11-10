@@ -276,24 +276,41 @@ def checkout(reference, payment, submission_id, return_origin=None):
     merchant_reference = 'DD-' + secrets.token_hex(16)
     attempt = frappe.get_doc({'doctype': 'DD Payment Attempt', 'payment': payment, 'merchant_reference': merchant_reference, 'environment': environment, 'amount': obligation.amount, 'currency': obligation.currency, 'status': 'Creating', 'submission_id': submission_id}).insert(ignore_permissions=True)
     frappe.db.commit()
+    stage = 'provider_order'
     try:
         result = _provider('/Transactions/SubmitOrderRequest', {'id': merchant_reference, 'currency': obligation.currency, 'amount': float(obligation.amount), 'description': f'Diaspora Desk {obligation.kind}', 'notification_id': notification, 'callback_url': origin + '/dashboard/billing?' + urlencode({'payment_return': '1', 'request': reference}), 'billing_address': {'email_address': frappe.session.user}})
+        stage = 'provider_response'
         if result.get('merchant_reference') != merchant_reference or not result.get('order_tracking_id'):
             raise ValueError('Unexpected provider order')
         url = checkout_url(result.get('redirect_url'), environment)
+        stage = 'save_attempt'
         _lock('DD Payment Attempt', attempt.name)
         attempt.reload()
         if attempt.tracking_id and attempt.tracking_id != result['order_tracking_id']:
             raise ValueError('Provider tracking conflict')
         frappe.db.set_value('DD Payment Attempt', attempt.name, {'tracking_id': result['order_tracking_id'], 'checkout_url': url, 'status': attempt.status if attempt.status in ('Paid', 'Reversed', 'Failed') else 'Pending'})
         return {'checkout_url': url}
-    except Exception:
+    except Exception as error:
+        # Discard partial response writes; retain the committed attempt for review.
+        frappe.db.rollback()
+        code = _reconciliation_failure_code(error)
+        if code == 'VERIFICATION_FAILED':
+            code = 'CHECKOUT_FAILED'
         _lock('DD Payment Attempt', attempt.name)
         attempt.reload()
         if attempt.status not in ('Paid', 'Reversed'):
-            frappe.db.set_value('DD Payment Attempt', attempt.name, 'status', 'Review')
+            frappe.db.set_value('DD Payment Attempt', attempt.name, {
+                'status': 'Review', 'reconcile_error_code': code,
+                'reconcile_failed_at': now_datetime(),
+            })
+        # Persist before raising: the HTTP request will roll back on frappe.throw.
+        # Never log exception text, provider payloads, checkout URLs or credentials.
+        frappe.log_error(title='Pesapal checkout failed',
+            message=f'Payment attempt: {attempt.name}\nStage: {stage}\nCode: {code}',
+            reference_doctype='DD Payment Attempt', reference_name=attempt.name)
         frappe.db.commit()
         frappe.throw('Checkout needs reconciliation. Please contact support before retrying')
+
 
 def _verify(attempt_name, tracking_id=None):
     attempt = frappe.get_doc('DD Payment Attempt', attempt_name)

@@ -365,6 +365,36 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(self.payments.checkout("request", "payment", "retry"), {"checkout_url": attempt.checkout_url})
         self.payments._provider.assert_not_called()
 
+    def test_failed_checkout_persists_safe_diagnostics_without_paying(self):
+        self.payments._owned = MagicMock(return_value=Record(name="request"))
+        self.payments._quote = MagicMock(return_value=Record(name="quote", status="Accepted"))
+        obligation = Record(name="payment", request="request", quotation="quote", kind="deposit", status="Unpaid", currency="KES", amount=0.5)
+        attempt = MagicMock(name="attempt")
+        attempt.name = "attempt"
+        attempt.status = "Creating"
+        self.frappe.get_doc.side_effect = [obligation, Record(insert=lambda **kwargs: attempt)]
+        self.frappe.db.get_value.return_value = None
+        self.frappe.db.get_single_value.return_value = "KES"
+        self.payments._config = MagicMock(return_value=("sandbox", "https://test.example", "key", "secret", "ipn", "base"))
+        class Timeout(Exception): pass
+        class ConnectionError(Exception): pass
+        class HTTPError(Exception): pass
+        self.payments.requests.exceptions = types.SimpleNamespace(Timeout=Timeout, ConnectionError=ConnectionError, HTTPError=HTTPError)
+        self.payments._provider = MagicMock(side_effect=Timeout("private provider secret"))
+        with self.assertRaisesRegex(ValueError, "needs reconciliation"):
+            self.payments.checkout("request", "payment", "retry")
+        self.frappe.db.rollback.assert_called_once()
+        self.assertEqual(self.frappe.db.commit.call_count, 2)
+        values = self.frappe.db.set_value.call_args.args[2]
+        self.assertEqual(values['status'], 'Review')
+        self.assertEqual(values['reconcile_error_code'], 'PROVIDER_TIMEOUT')
+        logged = self.frappe.log_error.call_args.kwargs
+        self.assertIn('Stage: provider_order', logged['message'])
+        self.assertIn('PROVIDER_TIMEOUT', logged['message'])
+        self.assertNotIn('private', logged['message'])
+        self.assertEqual(logged['reference_name'], 'attempt')
+        self.assertEqual(obligation.status, 'Unpaid')
+
     def test_dispatch_requires_deposit_in_current_environment(self):
         doc = Record(field_request="project", status="Assigned", scout_profile="scout", name="new")
         doc.is_new = lambda: True
