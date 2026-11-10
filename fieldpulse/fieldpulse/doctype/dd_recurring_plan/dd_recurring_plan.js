@@ -7,8 +7,17 @@ frappe.ui.form.on('DD Recurring Plan', {
     for (const action of actions[frm.doc.status] || []) frm.add_custom_button(__(action), () => {
       const dialog = new frappe.ui.Dialog({ title: __(action + ' recurring plan'), fields: [
         { fieldtype:'HTML', options:'<p>Each visit needs a separate quotation, accepted price, verified deposit and confirmed access before scout dispatch. Cancellation stops unprepared visits; it does not cancel existing visit requests or financial obligations.</p>' },
-        { fieldname:'notes', fieldtype:'Small Text', label:__('Decision / schedule and commercial review'), reqd:['Approve','Decline'].includes(action) },
+        { fieldname:'notes', fieldtype:'Small Text', label:__('Decision / schedule and commercial review'), reqd:['Approve','Decline'].includes(action), description:__('For approval or decline, enter at least 10 characters explaining your schedule and per-visit payment review. Maximum 2,000 characters.') },
       ], primary_action_label:__(action), primary_action:async values => {
+        const notes = values.notes || '';
+        if (['Approve','Decline'].includes(action) && notes.trim().length < 10) {
+          frappe.msgprint(__('Enter at least 10 characters explaining your schedule and per-visit payment review.'));
+          return;
+        }
+        if (notes.length > 2000) {
+          frappe.msgprint(__('Keep instructions under 2,000 characters'));
+          return;
+        }
         dialog.disable_primary_action();
         try { const result=await frappe.call({ method:'fieldpulse.recurring.review',args:{ plan:frm.doc.name,action,notes:values.notes || '',expected_modified:frm.doc.modified,submission_id:dialog.action_id } });if(result.message?.success===false) { frappe.msgprint(result.message.error); return; } dialog.hide();await frm.reload_doc(); }
         finally { dialog.enable_primary_action(); }

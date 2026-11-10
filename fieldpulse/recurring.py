@@ -193,7 +193,10 @@ def detail(plan):
     snapshot = json.loads(doc.scope_snapshot)
     rows = frappe.get_all(OCCURRENCE, filters={'plan': doc.name}, fields=['*'], order_by='sequence asc')
     return {'plan': summary(doc), 'brief': snapshot['source']['original_brief'],
-        'questions': [{'project': p.get('field_brief'), 'questions': [q['label'] for q in p['checks']]} for p in snapshot['projects']],
+        'questions': [{'project': p.get('field_brief'),
+            'questions': [q['instruction'] for q in p['task_brief']['checks']]
+                if p.get('task_brief') else [q['label'] for q in p.get('checks', [])]}
+            for p in snapshot['projects']],
         'occurrences': [occurrence_data(row) for row in rows]}
 
 
@@ -303,7 +306,7 @@ def action_impl(plan, action, expected_modified, submission_id, occurrence=None,
         if retry(doc,submission_id,payload): return {'success':True}
         check_version(doc,expected_modified)
         if action in ('Approve','Decline') and customer is None and len(notes.strip())<10:
-            reject('Record the schedule and commercial review decision')
+            reject('Enter at least 10 characters explaining your schedule and per-visit payment review.')
         try: target=plan_transition(doc.status,action,staff=customer is None)
         except ValueError as error: reject(str(error))
         if action=='Approve':

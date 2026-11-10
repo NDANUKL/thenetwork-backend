@@ -78,6 +78,28 @@ class RuntimeTests(unittest.TestCase):
     def act(self,action,visit=None,notes='',customer='account-1',version=None,id='action-id-0001'):
         return self.m.action_impl('plan-1',action,version or '2026-10-25 12:00:00',id,visit,notes,customer=customer)
 
+    def test_detail_reads_pinned_task_brief_instructions(self):
+        self.m.account = MagicMock(return_value='account-1')
+        snapshot = {'source': {'original_brief': 'Visit the site'}, 'projects': [
+            {'field_brief': 'Project scope', 'task_brief': {'checks': [
+                {'instruction': 'Describe progress'}, {'instruction': 'Check access'}]},
+             'checks': [{'label': 'Outdated question'}]}]}
+        self.plan.scope_snapshot = json.dumps(snapshot)
+        result = self.m.detail('plan-1')
+        self.assertEqual(result['questions'], [{'project': 'Project scope',
+            'questions': ['Describe progress', 'Check access']}])
+        self.assertEqual(result['brief'], 'Visit the site')
+        self.assertEqual(result['occurrences'], [])
+        self.plan.save.assert_not_called()
+
+    def test_detail_preserves_read_only_historical_questions(self):
+        self.m.account = MagicMock(return_value='account-1')
+        self.plan.scope_snapshot = json.dumps({'source': {'original_brief': 'Historical scope'},
+            'projects': [{'field_brief': 'Old project', 'checks': [{'label': 'Saved question'}]}]})
+        result = self.m.detail('plan-1')
+        self.assertEqual(result['questions'], [{'project': 'Old project', 'questions': ['Saved question']}])
+        self.plan.save.assert_not_called()
+
     def test_ownership_stale_versions_and_server_only_approval(self):
         with self.assertRaises(PermissionError):self.act('Pause',customer='someone-else')
         with self.assertRaisesRegex(ValueError,'changed'):self.act('Pause',version='2026-10-24 12:00:00')
