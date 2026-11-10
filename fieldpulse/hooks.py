@@ -76,6 +76,9 @@ scheduler_events["cron"]["*/5 * * * *"].extend(["fieldpulse.customer_notificatio
 
 # Finance tracks task obligations/manual settlement; it does not replace Pesapal.
 app_include_js = globals().get('app_include_js', []) + ['/assets/fieldpulse/js/finance_forms.js']
+app_include_js.append('/assets/fieldpulse/js/planning_dates.js')
+for _planning_doctype in ('DD Quotation', 'DD Scout Offer', 'Diaspora Request', 'Field Request'):
+    doc_events.setdefault(_planning_doctype, {}).setdefault('validate', []).append('fieldpulse.planning_dates.validate')
 doc_events['Field Task']['before_save'].append('fieldpulse.finance.dispatch_guard')
 _finance_existing_insert = doc_events['Field Task'].get('after_insert', [])
 doc_events['Field Task']['after_insert'] = ([_finance_existing_insert] if isinstance(_finance_existing_insert,str) else _finance_existing_insert) + ['fieldpulse.finance.bind_offer']

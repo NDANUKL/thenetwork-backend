@@ -8,6 +8,43 @@ import requests
 from frappe.utils import getdate, now_datetime
 from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals, PAYMENT_TERMS
 
+
+class ProviderRejection(ValueError):
+    """Only fixed categories and bounded status codes escape provider responses."""
+    def __init__(self, payload, http_status):
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
+        self.diagnostic = _provider_rejection_diagnostic(payload, http_status)
+        super().__init__('Pesapal could not complete this action')
+
+
+def _provider_rejection_diagnostic(payload, http_status):
+    def status(value):
+        return str(value) if str(value) in {str(n) for n in range(100, 600)} else 'unknown'
+
+    payload = payload if isinstance(payload, dict) else {}
+    error = payload.get('error')
+    error = error if isinstance(error, dict) else {}
+    # Inspect in memory only. Never retain provider messages, bodies, URLs or codes
+    # of unknown format: they may contain customer data or credentials.
+    text = ' '.join(value[:2000].lower() for value in
+        (error.get('error_type'), error.get('message'), payload.get('message'))
+        if isinstance(value, str))
+    reason = 'UNCLASSIFIED'
+    for category, terms in (
+        ('NOTIFICATION', ('notification', 'ipn')),
+        ('DUPLICATE', ('duplicate', 'already exists')),
+        ('AUTHENTICATION', ('unauthorized', 'unauthorised', 'authentication', 'token', 'credentials')),
+        ('CURRENCY', ('currency',)),
+        ('AMOUNT', ('amount',)),
+        ('BILLING_ADDRESS', ('email', 'phone', 'billing address')),
+        ('CALLBACK', ('callback', 'callback_url')),
+    ):
+        if any(term in text for term in terms):
+            reason = category
+            break
+    return f'HTTP: {status(http_status)}\nProvider status: {status(payload.get("status"))}\nReason category: {reason}'
+
+
 def roles(user=None):
     return frappe.get_roles(user or frappe.session.user)
 
@@ -29,10 +66,15 @@ def _provider(path, body=None, params=None):
     response = requests.request('POST' if body is not None else 'GET', base + path, json=body, params=params, headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'}, timeout=25)
     if response.status_code == 401:
         frappe.cache.delete_value(cache_key)
+    # Parse rejected JSON before raise_for_status discards its diagnostic context.
+    try:
+        data = response.json()
+    except ValueError:
+        response.raise_for_status()
+        raise ProviderRejection(None, response.status_code) from None
+    if not isinstance(data, dict) or str(data.get('status')) != '200':
+        raise ProviderRejection(data, response.status_code)
     response.raise_for_status()
-    data = response.json()
-    if str(data.get('status')) != '200':
-        frappe.throw('Pesapal could not complete this action')
     return data
 
 def _config():
@@ -306,7 +348,7 @@ def checkout(reference, payment, submission_id, return_origin=None):
         # Persist before raising: the HTTP request will roll back on frappe.throw.
         # Never log exception text, provider payloads, checkout URLs or credentials.
         frappe.log_error(title='Pesapal checkout failed',
-            message=f'Payment attempt: {attempt.name}\nStage: {stage}\nCode: {code}',
+            message=f'Payment attempt: {attempt.name}\nStage: {stage}\nCode: {code}' + (f'\n{error.diagnostic}' if isinstance(error, ProviderRejection) else ''),
             reference_doctype='DD Payment Attempt', reference_name=attempt.name)
         frappe.db.commit()
         frappe.throw('Checkout needs reconciliation. Please contact support before retrying')
@@ -368,6 +410,8 @@ def refresh(reference):
 
 def _reconciliation_failure_code(error):
     """Fixed operational codes only; never provider bodies, URLs or credentials."""
+    if isinstance(error, ProviderRejection):
+        return f'PROVIDER_HTTP_{error.http_status}' if error.http_status and error.http_status >= 400 else 'PROVIDER_REJECTED'
     if isinstance(error, requests.exceptions.Timeout):
         return 'PROVIDER_TIMEOUT'
     if isinstance(error, requests.exceptions.ConnectionError):
