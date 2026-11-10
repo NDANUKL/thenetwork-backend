@@ -18,6 +18,14 @@
           if (control.datepicker) {
             control.$input.off('focus.planning_dates');
             control.datepicker.update({ minDate: minimum });
+            // Air Datepicker refocuses the input on mouseup. If mousedown
+            // blurred it, Frappe's onShow rebuilds the cells before click fires.
+            // Keep input focus so the original cell receives its native click.
+            control.datepicker.$datepicker
+              .off('mousedown.planning_dates', '.datepicker--cell')
+              .on('mousedown.planning_dates', '.datepicker--cell', event => {
+                event.preventDefault();
+              });
           }
         }
       },
