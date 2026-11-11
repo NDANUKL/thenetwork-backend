@@ -16,6 +16,18 @@ spec.loader.exec_module(rules)
 
 
 class RulesTests(unittest.TestCase):
+    def test_sandbox_billing_workaround_never_enters_live_orders(self):
+        email = 'customer@example.com'
+        sandbox = rules.checkout_billing_address(email, 'sandbox')
+        self.assertEqual(sandbox['email_address'], email)
+        self.assertEqual(sandbox['first_name'], 'Sandbox')
+        self.assertEqual(sandbox['middle_name'], 'Test')
+        self.assertTrue(all(isinstance(value, str) and value for value in sandbox.values()))
+        self.assertEqual(rules.checkout_billing_address(email, 'live'), {'email_address': email})
+        for environment in (None, '', 'Sandbox', 'production'):
+            with self.subTest(environment=environment), self.assertRaises(ValueError):
+                rules.checkout_billing_address(email, environment)
+
     def test_split_preserves_full_quote_and_rounds_odd_cent(self):
         self.assertEqual(rules.instalments("10000"), (Decimal("5000.00"), Decimal("5000.00")))
         self.assertEqual(rules.instalments("100.01"), (Decimal("50.01"), Decimal("50.00")))
@@ -364,6 +376,31 @@ class FlowTests(unittest.TestCase):
         self.payments._provider = MagicMock()
         self.assertEqual(self.payments.checkout("request", "payment", "retry"), {"checkout_url": attempt.checkout_url})
         self.payments._provider.assert_not_called()
+
+    def test_checkout_uses_environment_scoped_billing_without_changing_obligation(self):
+        for environment, url in [('sandbox', 'https://cybqa.pesapal.com/order'),
+                                 ('live', 'https://pay.pesapal.com/order')]:
+            with self.subTest(environment=environment):
+                self.payments._owned = MagicMock(return_value=Record(name='request'))
+                self.payments._quote = MagicMock(return_value=Record(name='quote', status='Accepted'))
+                obligation = Record(name='payment', request='request', quotation='quote',
+                                    kind='deposit', status='Unpaid', currency='KES', amount=0.5)
+                attempt = MagicMock()
+                attempt.name, attempt.status, attempt.tracking_id = 'attempt', 'Creating', None
+                self.frappe.get_doc.side_effect = [obligation, Record(insert=lambda **kwargs: attempt)]
+                self.frappe.db.get_value.return_value = None
+                self.frappe.db.get_single_value.return_value = 'KES'
+                self.payments._config = MagicMock(return_value=(environment, 'https://test.example',
+                                                               'key', 'secret', 'ipn', 'base'))
+                self.payments._provider = MagicMock(side_effect=lambda path, body: {
+                    'merchant_reference': body['id'], 'order_tracking_id': 'tracking', 'redirect_url': url})
+                self.assertEqual(self.payments.checkout('request', 'payment', 'retry'), {'checkout_url': url})
+                payload = self.payments._provider.call_args.args[1]
+                self.assertEqual(payload['billing_address'],
+                                 rules.checkout_billing_address('customer@example.com', environment))
+                self.assertEqual((payload['amount'], payload['currency']), (0.5, 'KES'))
+                self.assertEqual(obligation.status, 'Unpaid')
+                self.assertEqual(self.frappe.db.set_value.call_args.args[2]['status'], 'Pending')
 
     def test_failed_checkout_persists_safe_diagnostics_without_paying(self):
         self.payments._owned = MagicMock(return_value=Record(name="request"))

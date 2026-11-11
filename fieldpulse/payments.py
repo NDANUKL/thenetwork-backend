@@ -6,7 +6,7 @@ from urllib.parse import urlencode, quote as urlquote
 import frappe
 import requests
 from frappe.utils import getdate, now_datetime
-from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals, PAYMENT_TERMS
+from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals, PAYMENT_TERMS, checkout_billing_address
 
 
 class ProviderRejection(ValueError):
@@ -36,7 +36,10 @@ def _provider_rejection_diagnostic(payload, http_status):
         ('AUTHENTICATION', ('unauthorized', 'unauthorised', 'authentication', 'token', 'credentials')),
         ('CURRENCY', ('currency',)),
         ('AMOUNT', ('amount',)),
-        ('BILLING_ADDRESS', ('email', 'phone', 'billing address')),
+        ('BILLING_ADDRESS', ('email', 'phone', 'billing address', 'first name', 'first_name',
+                             'firstname', 'middle name', 'middle_name', 'middlename',
+                             'last name', 'last_name', 'lastname', 'address line',
+                             'line 1 address', 'line 2 address', 'postal code', 'zip code')),
         ('CALLBACK', ('callback', 'callback_url')),
     ):
         if any(term in text for term in terms):
@@ -320,7 +323,7 @@ def checkout(reference, payment, submission_id, return_origin=None):
     frappe.db.commit()
     stage = 'provider_order'
     try:
-        result = _provider('/Transactions/SubmitOrderRequest', {'id': merchant_reference, 'currency': obligation.currency, 'amount': float(obligation.amount), 'description': f'Diaspora Desk {obligation.kind}', 'notification_id': notification, 'callback_url': origin + '/dashboard/billing?' + urlencode({'payment_return': '1', 'request': reference}), 'billing_address': {'email_address': frappe.session.user}})
+        result = _provider('/Transactions/SubmitOrderRequest', {'id': merchant_reference, 'currency': obligation.currency, 'amount': float(obligation.amount), 'description': f'Diaspora Desk {obligation.kind}', 'notification_id': notification, 'callback_url': origin + '/dashboard/billing?' + urlencode({'payment_return': '1', 'request': reference}), 'billing_address': checkout_billing_address(frappe.session.user, environment)})
         stage = 'provider_response'
         if result.get('merchant_reference') != merchant_reference or not result.get('order_tracking_id'):
             raise ValueError('Unexpected provider order')

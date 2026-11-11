@@ -12,6 +12,7 @@
     "status",
     "title",
     "category",
+    "brief_preview",
     "content_json",
     "content_hash",
     "supersedes",
@@ -54,11 +55,17 @@
       "read_only": 1
     },
     {
+      "fieldname": "brief_preview",
+      "label": "Task Brief",
+      "fieldtype": "HTML"
+    },
+    {
       "fieldname": "content_json",
       "label": "Task Brief",
       "fieldtype": "Code",
       "options": "JSON",
-      "reqd": 1
+      "reqd": 1,
+      "hidden": 1
     },
     {
       "fieldname": "content_hash",

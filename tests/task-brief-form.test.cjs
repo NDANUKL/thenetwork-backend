@@ -7,7 +7,7 @@ const frappe={boot:{dd_native_handover_active:true},ui:{form:{on:(_name,h)=>hand
 vm.runInNewContext(fs.readFileSync('fieldpulse/fieldpulse/doctype/field_request/field_request.js','utf8'),{frappe,__:x=>x});
 test('empty legacy evidence field does not warn on approved Task Brief',()=>{
  let intro;
- const frm={doc:{diaspora_request:'REQUEST',county:'Kisumu',approved_task_brief:'BRIEF',evidence_requirements:''},set_df_property(){},set_intro:value=>intro=value};
+ const frm={is_new:()=>true,doc:{diaspora_request:'REQUEST',county:'Kisumu',approved_task_brief:'BRIEF',evidence_requirements:''},set_df_property(){},set_intro:value=>intro=value};
  handlers[0].refresh(frm);assert.equal(intro,'');
  frm.doc.approved_task_brief=null;handlers[0].refresh(frm);
  assert.match(intro,/Review and approve/);assert.doesNotMatch(intro,/evidence requirements/);

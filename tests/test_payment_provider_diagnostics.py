@@ -20,6 +20,17 @@ class ProviderDiagnosticTests(unittest.TestCase):
             'HTTP: 200\nProvider status: 400\nReason category: NOTIFICATION')
         self.assertNotIn('SECRET', repr(vars(error)))
 
+    def test_billing_name_and_address_failures_are_classified_without_private_text(self):
+        for message in ('First name is null or empty', 'Last name is required',
+                        'Middle name is missing', 'Address line 1 contains special characters',
+                        'Line 1 address is missing', 'Postal code is invalid'):
+            with self.subTest(message=message):
+                error = self.payments.ProviderRejection({
+                    'status': '500', 'error': {'message': message + ' PRIVATE-CUSTOMER-DATA'}}, 200)
+                self.assertIn('Reason category: BILLING_ADDRESS', error.diagnostic)
+                self.assertNotIn('PRIVATE-CUSTOMER-DATA', repr(vars(error)))
+                self.assertNotIn(message, repr(vars(error)))
+
     def test_unknown_or_malformed_payloads_are_not_serialized(self):
         for payload in (None, [], 'SECRET', {'status': 'SECRET', 'message': 'SECRET', 'error': 'SECRET'}):
             error = self.payments.ProviderRejection(payload, 'SECRET')

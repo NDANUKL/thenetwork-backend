@@ -6,6 +6,25 @@ from urllib.parse import urlparse
 PAYMENT_TERMS = 'Pay 50% upfront; review your approved report before paying the remaining 50%. Scout assignment starts after your deposit is verified.'
 
 
+def checkout_billing_address(email, environment):
+    """Sandbox accepts test billing data; live billing remains on hosted checkout."""
+    billing = {'email_address': email}
+    if environment == 'live':
+        return billing
+    if environment != 'sandbox':
+        raise ValueError('Select sandbox or live')
+    # cybqa currently rejects missing optional billing fields before returning
+    # its hosted form. These are explicitly synthetic sandbox values, never
+    # customer profile data or a destination inferred from their field request.
+    billing.update({
+        'first_name': 'Sandbox', 'middle_name': 'Test', 'last_name': 'Customer',
+        'line_1': 'SandboxTestAddress', 'line_2': 'SandboxTestAddress',
+        'city': 'Sandbox', 'state': 'TST', 'postal_code': '00000',
+        'zip_code': '00000', 'country_code': 'KE',
+    })
+    return billing
+
+
 def money(value):
     try:
         result = Decimal(str(value))

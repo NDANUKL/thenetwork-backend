@@ -1,5 +1,6 @@
 frappe.ui.form.on('DD Task Brief', {
   refresh(frm) {
+    renderTaskBrief(frm);
     if (frm.doc.status !== 'Approved') {
       frm.add_custom_button(__('Edit Task Brief'), () => editTaskBrief(frm));
       if (!frm.is_new()) frm.add_custom_button(__('Approve Task Brief'), async () => {
@@ -25,6 +26,7 @@ frappe.ui.form.on('DD Task Brief', {
       });
     }
   },
+  content_json(frm) { renderTaskBrief(frm); },
 });
 
 function editTaskBrief(frm) {
@@ -74,4 +76,56 @@ function captureInstruction(specific, instruction) {
     frappe.throw(__('For a check requiring photos or videos, enter an instruction of 1 to 1000 characters in “What to observe or document”.'));
   }
   return value;
+}
+
+
+function renderTaskBrief(frm) {
+  // Storage stays hidden; make a missing schema update visible to operators.
+  frm.set_df_property('content_json', 'hidden', 1);
+  const wrapper = frm.fields_dict?.brief_preview?.$wrapper;
+  if (!wrapper) {
+    frm.set_intro(__('The Task Brief preview is unavailable. Complete the backend schema update and reload this form.'), 'orange');
+    return;
+  }
+  try {
+    const content = JSON.parse(frm.doc.content_json || '{}');
+    wrapper.html(taskBriefPreview(content));
+  } catch {
+    wrapper.html('<div class="alert alert-warning" role="alert">' +
+      briefEscape(__('This Task Brief could not be displayed. Ask an administrator to check the saved brief.')) + '</div>');
+  }
+}
+
+function briefEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character =>
+    ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[character]));
+}
+
+function taskBriefPreview(content) {
+  if (!content || typeof content !== 'object' || Array.isArray(content) || !Array.isArray(content.checks)) {
+    throw new Error('Invalid saved brief');
+  }
+  const text = value => briefEscape(value);
+  const list = values => Array.isArray(values) && values.length
+    ? '<ul>' + values.map(value => '<li style="white-space:pre-wrap;overflow-wrap:anywhere">' + text(value) + '</li>').join('') + '</ul>' : '';
+  const section = (label, body) => body ? '<section style="margin-bottom:20px"><h4>' + text(__(label)) + '</h4>' + body + '</section>' : '';
+  const paragraph = value => value ? '<p style="white-space:pre-wrap;overflow-wrap:anywhere">' + text(value) + '</p>' : '';
+  const responses = {text:'Written answer', single:'Choose one option', multiple:'Choose multiple options', none:'Evidence only'};
+  const evidenceKinds = {photo:'Photos', video:'Videos'};
+  const checks = content.checks.map((check, index) => {
+    const evidence = (check.evidence || []).map(requirement =>
+      '<li><strong>' + text(__(evidenceKinds[requirement.kind] || 'Supporting evidence')) + '</strong>: ' +
+      text(__('Minimum')) + ' ' + text(requirement.minimum) +
+      paragraph(requirement.instruction || check.instruction) + '</li>').join('');
+    return '<li style="border:1px solid var(--border-color);border-radius:8px;padding:16px;margin-bottom:12px;list-style:none">' +
+      '<h5>' + text(index + 1) + '. ' + text(__(check.required ? 'Required check' : 'Optional check')) + '</h5>' +
+      paragraph(check.instruction) + '<p class="text-muted">' + text(__(responses[check.response_type] || 'Answer')) + '</p>' +
+      list(check.options) + (evidence ? '<ul>' + evidence + '</ul>' : '') + '</li>';
+  }).join('');
+  return '<div class="task-brief-preview" style="max-width:960px;overflow-wrap:anywhere">' +
+    ((content.review_required || !content.checks.length) ? '<div class="alert alert-warning"><strong>' + text(__('Review needed')) + '</strong>' + list(content.review_reasons) + '</div>' : '') +
+    section('Objective', paragraph(content.objective)) + section('Scope', paragraph(content.scope)) +
+    section('Deliverables', list(content.deliverables)) + section('Instructions', list(content.instructions)) +
+    section('Field checks', checks ? '<ol style="padding:0">' + checks + '</ol>' :
+      '<p class="text-muted">' + text(__('No field checks are saved in this brief. Review the scope and add the required checks before approval.')) + '</p>') + '</div>';
 }
