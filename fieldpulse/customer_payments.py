@@ -34,7 +34,7 @@ def dispatch(**kwargs):
         elif action == "refresh":
             result = refresh(frappe.form_dict.get("reference"))
         elif action == "create_dispute":
-            result = create_dispute(frappe.form_dict.get("reference"), frappe.form_dict.get("subject"), frappe.form_dict.get("reason"), frappe.form_dict.get("submission_id"))
+            result = create_dispute(reference=frappe.form_dict.get("reference"), reason=frappe.form_dict.get("reason"), submission_id=frappe.form_dict.get("submission_id"))
         elif action == "update_settings":
             notifications = frappe.form_dict.get("email_notifications")
             if isinstance(notifications, str):

@@ -69,5 +69,5 @@ def plan_transition(status, action, staff=False):
 
 def can_prepare(plan_status, occurrence, today):
     return (plan_status == 'Active' and occurrence.get('status') == 'Access confirmed'
-        and day(occurrence['due_date']) - timedelta(days=LEAD_DAYS) <= today <= day(occurrence['window_end'])
+        and day(occurrence.get('due_date')) - timedelta(days=LEAD_DAYS) <= today <= day(occurrence.get('window_end'))
         and bool(occurrence.get('access_confirmed_at')) and not occurrence.get('request'))

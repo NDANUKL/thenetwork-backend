@@ -11,21 +11,21 @@ def disputes(reference=None):
     if reference:
         ddowned(reference)
         filters['request'] = reference
-    rows = frappe.get_all('DD Dispute', filters=filters, fields=['name', 'request', 'subject', 'reason', 'status', 'modified', 'response'], order_by='modified desc', limit_page_length=200)
+    rows = frappe.get_all('DD Dispute', filters=filters, fields=['name', 'request', 'reason', 'status', 'modified', 'response'], order_by='modified desc', limit_page_length=200)
     return {'disputes': rows}
 
 @frappe.whitelist()
-def create_dispute(reference, subject, reason, submission_id):
+def create_dispute(reference, reason, submission_id):
     request = ddowned(reference)
     ddlock('Diaspora Request', request.name)
-    if not isinstance(subject, str) or not 1 <= len(subject.strip()) <= 140 or (not isinstance(reason, str)) or (not 20 <= len(reason.strip()) <= 4000):
-        frappe.throw('Describe the issue with a subject and 20 to 4000 characters')
+    if not isinstance(reason, str) or not 20 <= len(reason.strip()) <= 4000:
+        frappe.throw('Describe the issue in 20 to 4000 characters')
     if not isinstance(submission_id, str) or not 1 <= len(submission_id) <= 100:
         frappe.throw('Invalid dispute reference')
     existing = frappe.db.get_value('DD Dispute', {'request': reference, 'submission_id': submission_id}, 'name')
     if existing:
         return {'success': True, 'dispute': {'name': existing}}
-    document = frappe.get_doc({'doctype': 'DD Dispute', 'request': reference, 'customer_account': ddcustomer(), 'subject': subject.strip(), 'reason': reason.strip(), 'submission_id': submission_id, 'status': 'Open'})
+    document = frappe.get_doc({'doctype': 'DD Dispute', 'request': reference, 'customer_account': ddcustomer(), 'reason': reason.strip(), 'submission_id': submission_id, 'status': 'Open'})
     document.insert(ignore_permissions=True)
     return {'success': True, 'dispute': {'name': document.name}}
 

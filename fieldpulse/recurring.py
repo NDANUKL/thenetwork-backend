@@ -169,7 +169,7 @@ def eligibility(reference):
 
 @frappe.whitelist()
 @api
-def list_plans(page=1, reference=None):
+def list_plans(page=1, reference=None, search=None, page_size=20, status=None):
     customer = account()
     page = max(1, min(1000, frappe.utils.cint(page)))
     filters = {'customer_account': customer}
@@ -177,13 +177,21 @@ def list_plans(page=1, reference=None):
         from fieldpulse.payments import _owned
         _owned(reference)
         filters['source_request'] = reference
-    rows = frappe.get_all(PLAN, filters=filters, fields=['name'], order_by='creation desc', limit_start=(page-1)*20, limit_page_length=21)
+    if status:
+        if status not in ('Active', 'Pending review', 'Paused'):
+            reject('Choose a valid recurring plan status')
+        filters['status'] = status
+    page_size = max(1, min(20, frappe.utils.cint(page_size)))
+    search = str(search or '').strip()[:100]
+    search_filters = [[field, 'like', '%' + search + '%'] for field in ('name', 'title', 'source_request', 'frequency')] if search else []
+    total = frappe.get_all(PLAN, filters=filters, or_filters=search_filters, fields=['count(name) as total'])[0].total
+    rows = frappe.get_all(PLAN, filters=filters, or_filters=search_filters, fields=['name'], order_by='creation desc, name desc', limit_start=(page-1)*page_size, limit_page_length=page_size+1)
     upcoming=[]
     for row in frappe.get_all(OCCURRENCE,filters={'customer_account':customer,'status':['in',['Awaiting access','Access confirmed']],
             'due_date':['<=',str(today()+timedelta(days=LEAD_DAYS))],'window_end':['>=',str(today())]},
             fields=['name','plan','due_date','window_end','status'],order_by='due_date asc',limit_page_length=100):
         if frappe.db.get_value(PLAN,row.plan,'status')=='Active': upcoming.append(dict(row))
-    return {'plans': [summary(frappe.get_doc(PLAN, row.name)) for row in rows[:20]], 'has_more': len(rows)>20,'upcoming':upcoming}
+    return {'plans': [summary(frappe.get_doc(PLAN, row.name)) for row in rows[:page_size]], 'has_more': len(rows)>page_size, 'total': total, 'upcoming':upcoming}
 
 
 @frappe.whitelist()

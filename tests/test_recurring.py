@@ -50,6 +50,24 @@ class CalendarTests(unittest.TestCase):
         for status,action in [('Pending review','Approve'),('Cancelled','Resume'),('Completed','Resume')]:
             with self.assertRaises(ValueError):plan_transition(status,action)
 
+    def test_preparation_gate_accepts_non_subscriptable_frappe_documents(self):
+        class Occurrence:
+            def __init__(self, **fields): self.__dict__.update(fields)
+            def get(self, key): return getattr(self, key, None)
+
+        visit = Occurrence(status='Access confirmed', due_date=date(2026,11,8),
+            window_end=date(2026,11,14), access_confirmed_at='2026-10-25')
+        for when, expected in [(date(2026,10,24),False), (date(2026,10,25),True),
+                (date(2026,11,14),True), (date(2026,11,15),False)]:
+            with self.subTest(when=when):
+                self.assertEqual(can_prepare('Active',visit,when),expected)
+        self.assertFalse(can_prepare('Paused',visit,date(2026,10,25)))
+        visit.request = 'DD-EXISTING'
+        self.assertFalse(can_prepare('Active',visit,date(2026,10,25)))
+        visit.request = None
+        visit.access_confirmed_at = None
+        self.assertFalse(can_prepare('Active',visit,date(2026,10,25)))
+
 
 class Record(dict):
     def __getattr__(self,key):return self.get(key)
