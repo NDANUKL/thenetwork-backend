@@ -67,6 +67,7 @@ Deploy the backend with ordinary schema migration and Desk asset build, then dep
 11 November 2026 recurring list tabs (source only): list_plans accepts Active, Pending review and Paused status filters, applied alongside customer ownership and search before both the result count and pagination. An omitted status includes all plans, including historical terminal statuses. Deploy the native API before the compatible four-tab website and verify tab/search combinations and five-card page resets. No plan transitions or records are changed.
 
 
+
 11 November 2026 Pesapal sandbox checkout compatibility (source only): native sandbox order creation supplies explicitly labelled synthetic billing test values to satisfy cybqa's observed name/address validation, preserving the authenticated email. Customer billing collection remains on Pesapal; no website billing form is added. Test values never enter live order payloads. The exact helper returned a valid sandbox checkout URL at KES 0.50 in an isolated provider test; no payment was completed. Deploy the native backend and restart workers through the normal release workflow. Existing Review/Pending attempts remain subject to reconciliation and are not reset by this change. See [checkout diagnostics](payment-checkout-diagnostics.md) for evidence and limits. No schema, retired-script or handover migration change is required.
 
 
