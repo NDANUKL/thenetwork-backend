@@ -144,6 +144,11 @@ class TaskBriefTests(unittest.TestCase):
             validate_brief(dict(self.brief, checks=[]))
         self.assertEqual(validate_brief(dict(self.brief, checks=[], review_required=True, review_reasons=['Unclear request']))['checks'], [])
 
+    def test_evidence_instruction_may_be_empty_to_avoid_repeating_check(self):
+        brief = copy.deepcopy(self.brief)
+        brief['checks'][0]['evidence'][0]['instruction'] = ''
+        self.assertEqual(validate_brief(brief)['checks'][0]['evidence'][0]['instruction'], '')
+
 
 if __name__ == '__main__':
     unittest.main()

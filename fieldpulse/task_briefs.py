@@ -84,7 +84,9 @@ def validate_brief(raw):
             kinds.add(rule['kind'])
             if type(rule['minimum']) is not int or not 1 <= rule['minimum'] <= 20:
                 raise ValueError('Evidence minimum must be between 1 and 20')
-            rule['instruction'] = _text(rule['instruction'], 'Evidence instruction', 1000)
+            if not isinstance(rule['instruction'], str) or len(rule['instruction']) > 1000:
+                raise ValueError('Evidence instruction must be text (up to 1000 characters)')
+            rule['instruction'] = rule['instruction'].strip()
         if check['response_type'] == 'none' and not rules:
             raise ValueError('An evidence-only check needs evidence requirements')
     return brief
