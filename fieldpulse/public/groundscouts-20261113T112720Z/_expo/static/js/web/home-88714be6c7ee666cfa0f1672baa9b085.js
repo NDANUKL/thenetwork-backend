@@ -1,0 +1,3 @@
+var _sentryDebugIds,_sentryDebugIdIdentifier;void 0===_sentryDebugIds&&(_sentryDebugIds={});try{var stack=(new Error).stack;stack&&(_sentryDebugIds[stack]="8d5dea40-cf1c-4e1c-8c0d-21a3ae625e5f",_sentryDebugIdIdentifier="sentry-dbid-8d5dea40-cf1c-4e1c-8c0d-21a3ae625e5f")}catch(e){}
+var SENTRY_RELEASE;SENTRY_RELEASE={name: "Ground Scouts (Dev)", version: "1.0.0"};
+__d(function(g,r,i,a,m,e,d){"use strict";Object.defineProperty(e,'__esModule',{value:!0}),Object.defineProperty(e,"default",{enumerable:!0,get:function(){return u}}),r(d[0]);var t=r(d[1]),n=r(d[2]);function u(){return(0,n.jsx)(t.Redirect,{href:"/(tabs)/tasks"})}},1295,[338,1323,828]);
