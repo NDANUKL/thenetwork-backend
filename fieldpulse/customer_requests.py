@@ -146,6 +146,7 @@ def requests(**kwargs):
             "completed_requests": frappe.db.count("Diaspora Request", {"dd_customer_account": account_name, "status": "Completed"})}
         # Only coordinator-published next actions count as requiring customer response.
         counts["awaiting_response"] = frappe.db.count("Diaspora Request", {"dd_customer_account": account_name, "customer_action_required": 1})
+        counts["open_disputes"] = frappe.db.count("DD Dispute", {"customer_account": account_name, "status": ["not in", ["Resolved", "Closed"]]})
         frappe.response["message"] = {"counts": counts, "requests": [row(item) for item in recent]}
     elif action == "requests":
         page = max(1, min(10000, frappe.utils.cint(frappe.form_dict.get("page") or 1)))

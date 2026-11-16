@@ -70,3 +70,5 @@ Individual report release (8 November 2026, source only): a report no longer wai
 
 
 Live payment settings (16 November 2026, source only): DD Payment Settings exposes an editable Live IPN ID for System Managers to enter the notification ID registered with the live Pesapal account for `https://thenetwork.frappe.cloud/api/method/dd_payment_ipn`. Sandbox registration IDs remain separate. The existing native registration action can still populate the ID automatically. Deploy with ordinary schema migration and reload Desk, then verify the field is visible/editable and a live payment notification is reconciled. This local change does not establish production deployment or successful payment processing.
+
+Request location allowance (16 November 2026, source only): DD Request Site.area explicitly allows 200 characters to match the website location validator. Deploy with ordinary backend schema migration, then verify a 200-character location can be saved. This does not establish the cause of the earlier submission rejection or change the live database by itself.

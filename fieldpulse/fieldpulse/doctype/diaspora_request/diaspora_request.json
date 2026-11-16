@@ -74,6 +74,7 @@
     },
     {
       "fieldname": "email",
+      "length": 254,
       "fieldtype": "Data",
       "in_list_view": 1,
       "label": "Email",
