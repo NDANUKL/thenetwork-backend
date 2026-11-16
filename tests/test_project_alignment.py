@@ -82,6 +82,23 @@ class AlignmentTests(unittest.TestCase):
     def test_existing_deadline_and_isolated_brief(self):
         self.request.deadline='2026-12-01'; self.m.fill_field_request(self.request,self.source,self.m.project_plan(self.source))
         self.assertEqual(self.request.deadline,'2026-12-01'); self.assertEqual(self.request.customer_target_date,'2026-10-15'); self.assertNotIn('Land brief',self.request.field_brief)
+    def test_long_project_label_preserves_full_scope(self):
+        description = ('Business and asset check of furniture supplier in Mandera: '
+                       'confirm business operation at provided address, check office desk '
+                       'availability, obtain written quotation and delivery estimate')
+        for title in ['Supplier check', 'x' * 140, description]:
+            with self.subTest(title=title):
+                plan = self.m.project_plan(self.source)
+                plan['projects'][0].update(title=title, description=description)
+                self.m.fill_field_request(self.request, self.source, plan)
+                self.assertLessEqual(len(self.request.project_title), 140)
+                self.assertEqual(self.request.field_brief, description)
+                if len(title) <= 140:
+                    self.assertEqual(self.request.project_title, title)
+                else:
+                    self.assertTrue(self.request.project_title.startswith('Project 1: '))
+                    self.assertTrue(self.request.project_title.endswith('...'))
+
     def test_assigned_request_not_split(self):
         self.request.project_number=None; self.request.status='Assigned'
         with self.assertRaises(ValueError): self.m.fill_field_request(self.request,self.source,self.m.project_plan(self.source))

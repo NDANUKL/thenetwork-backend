@@ -202,7 +202,13 @@ def fill_field_request(target, source, plan):
     if initial and not target.is_new() and (target.status != "Awaiting Assignment" or frappe.db.exists("Field Task", {"field_request": target.name})):
         frappe.throw("An existing assignment cannot be split automatically. Review its project scope first.")
     target.project_number = selected["number"]
-    target.project_title = selected["title"]
+    # Data fields default to 140 characters in Frappe. Intake descriptions
+    # can be full scopes; shorten only the display label, never field_brief.
+    title = selected["title"]
+    if len(title) > 140:
+        prefix = f'Project {selected["number"]}: '
+        title = prefix + title[:140 - len(prefix) - 3].rstrip() + "..."
+    target.project_title = title
     from fieldpulse.task_briefs import CATEGORIES
     target.service_category = next((key for key, label in CATEGORIES.items() if label == selected['request_type']), 'custom_ground_verification')
     target.project_id = selected["id"]
