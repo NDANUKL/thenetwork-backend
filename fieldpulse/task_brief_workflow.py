@@ -58,6 +58,10 @@ def open_project_brief(project):
                            fields=['name'], order_by='version desc', limit_page_length=1)
     if drafts:
         return drafts[0].name
+    from fieldpulse.task_brief_jobs import project_status
+    generation = project_status(request)
+    if generation and generation['status'] in {'Pending', 'Processing'}:
+        frappe.throw('Task Brief preparing. Please return shortly; the generated draft will appear here.')
     if request.get('approved_task_brief'):
         approved = frappe.get_doc('DD Task Brief', request.approved_task_brief)
         approved.check_permission('read')

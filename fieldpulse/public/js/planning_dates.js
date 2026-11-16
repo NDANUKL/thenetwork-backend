@@ -8,27 +8,8 @@
   };
   for (const [doctype, names] of Object.entries(fields)) {
     const handlers = {
-      refresh(frm) {
-        for (const name of names) {
-          const control = frm.fields_dict[name];
-          if (!control) continue;
-          const minimum = frappe.datetime.str_to_obj(frappe.datetime.get_today());
-          // Avoid refreshing/reformatting the control during date selection.
-          control.df.min_date = minimum;
-          if (control.datepicker) {
-            control.$input.off('focus.planning_dates');
-            control.datepicker.update({ minDate: minimum });
-            // Air Datepicker refocuses the input on mouseup. If mousedown
-            // blurred it, Frappe's onShow rebuilds the cells before click fires.
-            // Keep input focus so the original cell receives its native click.
-            control.datepicker.$datepicker
-              .off('mousedown.planning_dates', '.datepicker--cell')
-              .on('mousedown.planning_dates', '.datepicker--cell', event => {
-                event.preventDefault();
-              });
-          }
-        }
-      },
+      // Leave the native calendar and its focus/click lifecycle untouched.
+      // Enforce the date boundary on save here and in planning_dates.py.
       validate(frm) {
         for (const name of names) {
           const control = frm.fields_dict[name];

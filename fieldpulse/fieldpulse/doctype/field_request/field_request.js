@@ -110,6 +110,20 @@ frappe.ui.form.on('Field Request', {
   refresh(frm) {
     frm.set_query('approved_task_brief', () => ({filters:{project:frm.doc.name,status:'Approved'}}));
     if (frm.is_new()) return;
+    if (frm.doc.diaspora_request && frm.doc.project_id) {
+      frappe.call({method:'fieldpulse.task_brief_jobs.coordinator_status', args:{project:frm.doc.name}}).then(result => {
+        if (frm.is_new() || !result.message) return;
+        const status = result.message.status;
+        if (['Pending', 'Processing'].includes(status)) frm.dashboard.set_headline_alert(__('Task Brief preparing. Return shortly to review the generated draft.'), 'blue');
+        if (status === 'Failed') {
+          frm.dashboard.set_headline_alert(__('Task Brief generation needs attention. Retry generation or prepare a draft manually.'), 'orange');
+          frm.add_custom_button(__('Retry Task Brief generation'), async () => {
+            await frappe.call({method:'fieldpulse.task_brief_jobs.coordinator_status',args:{project:frm.doc.name,retry:1}});
+            frm.reload_doc();
+          });
+        }
+      });
+    }
     frm.add_custom_button(__('Task Briefs'), () => frappe.set_route('List','DD Task Brief',{project:frm.doc.name}));
     frm.add_custom_button(__('Open Task Brief'), async () => {
       if (frm.is_dirty()) {

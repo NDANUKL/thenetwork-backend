@@ -6,6 +6,8 @@
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [
+    "task_brief_jobs",
+    "task_brief_generation_status",
     "submission_id",
     "full_name",
     "email",
@@ -37,6 +39,23 @@
     "assessment_status"
   ],
   "fields": [
+    {
+      "fieldname": "task_brief_generation_status",
+      "label": "Task Brief generation",
+      "fieldtype": "Select",
+      "options": "\nPreparing\nReady\nNeeds attention",
+      "read_only": 1,
+      "no_copy": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "task_brief_jobs",
+      "label": "Task Brief generation",
+      "fieldtype": "Long Text",
+      "read_only": 1,
+      "hidden": 1,
+      "no_copy": 1
+    },
     {
       "fieldname": "submission_id",
       "fieldtype": "Data",
