@@ -1,5 +1,7 @@
 # Native backend integration
 
+16 November 2026 production hardening (source only): payment refresh checks one relevant transaction directly with short provider timeouts; private report evidence ZIPs stream with bounded memory and verified object identity; new media reservations enforce a 100 MB file and 1 GB task limit with signed ContentLength. Historical verified evidence, payment verification, dispatch/cutover guards and retired scripts remain unchanged. Deploy compatible website/backend revisions and verify real R2, provider timeouts, proxy streaming and physical-device uploads on staging. See [implementation and acceptance](production-readiness-hardening-2026-11-16.md).
+
 Production uses the native FieldPulse backend. Handover completed on **16 October 2026** and was verified through read-only live API checks on **26 October 2026**. See [production ownership](production-script-ownership.md) for the controlling policy and [verification evidence](production-handover-verification-2026-10-26.md).
 
 All 29 DD Server Scripts and all eight DD Client Scripts are disabled recovery references. The checked DD schemas are standard FieldPulse DocTypes and the old script-owned Pesapal reconciliation job is stopped. Native source belongs in `thenetwork-backend`; the website's obsolete `integrations/frappe` tree and installer/mirror tools have been removed.

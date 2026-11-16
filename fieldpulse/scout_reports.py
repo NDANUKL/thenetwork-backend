@@ -254,19 +254,39 @@ def open_draft_for_response(response):
 @frappe.whitelist()
 def download_evidence_zip(reference, report_name=None):
     from fieldpulse.commerce import approved_report
+    from werkzeug.wrappers import Response
     doc = approved_report(reference, report_name)
-    frappe.response.update(type='download', filename='report-evidence.zip', content_type='application/zip',
-        filecontent=build_evidence_bundle(doc), display_content_as='attachment')
+    return Response(build_evidence_bundle(doc), mimetype='application/zip', headers={
+        'Content-Disposition': 'attachment; filename="report-evidence.zip"',
+        'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
+        'X-Accel-Buffering': 'no',
+    })
 
 
 def build_evidence_bundle(doc):
-    from io import BytesIO
-    from zipfile import ZipFile, ZIP_STORED
+    from fieldpulse.evidence import _r2_client, _r2_settings, _normalise_etag
+    from fieldpulse.evidence_stream import stream_zip, validate_manifest
     selected = selected_evidence(doc)
-    if sum(e.file_size or 0 for _, e in selected) > 500000000:
-        frappe.throw('Evidence download exceeds 500 MB; ask the coordinator to reduce the selected evidence')
-    output = BytesIO()
-    with ZipFile(output, 'w', compression=ZIP_STORED) as archive:
-        for index, (_, evidence) in enumerate(selected, 1):
-            archive.writestr(evidence_archive_name(index, evidence), evidence_bytes(evidence))
-    return output.getvalue()
+    entries = [{'filename': evidence_archive_name(index, evidence), 'size': int(evidence.file_size or 0),
+        'key': evidence.r2_object_key, 'etag': _normalise_etag(evidence.etag)}
+        for index, (_, evidence) in enumerate(selected, 1)]
+    try:
+        validate_manifest(entries)
+        if any(not item['etag'] or not item['key'] for item in entries):
+            raise ValueError('Verified evidence storage identity is missing')
+    except ValueError as error:
+        frappe.throw(str(error))
+    if not entries:
+        return stream_zip(entries, None)
+    # Capture all authorization, database and site configuration before returning
+    # an iterator. Iteration uses only plain metadata and the private R2 client.
+    settings = _r2_settings()
+    client = _r2_client(settings)
+    def open_object(entry):
+        return client.get_object(Bucket=settings['bucket'], Key=entry['key'], IfMatch='"' + entry['etag'] + '"')
+    def content():
+        try:
+            yield from stream_zip(entries, open_object)
+        finally:
+            client.close()
+    return content()

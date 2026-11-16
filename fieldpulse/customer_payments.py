@@ -32,7 +32,7 @@ def dispatch(**kwargs):
         elif action == "checkout":
             result = checkout(frappe.form_dict.get("reference"), frappe.form_dict.get("payment"), frappe.form_dict.get("submission_id"), frappe.form_dict.get("return_origin"))
         elif action == "refresh":
-            result = refresh(frappe.form_dict.get("reference"))
+            result = refresh(frappe.form_dict.get("reference"), frappe.form_dict.get("payment"))
         elif action == "create_dispute":
             result = create_dispute(reference=frappe.form_dict.get("reference"), reason=frappe.form_dict.get("reason"), submission_id=frappe.form_dict.get("submission_id"))
         elif action == "update_settings":

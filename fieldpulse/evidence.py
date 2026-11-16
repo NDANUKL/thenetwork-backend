@@ -7,6 +7,7 @@ import frappe
 from botocore.client import Config
 from frappe.utils import now_datetime
 from fieldpulse.mobile_datetime import mobile_datetime
+from fieldpulse.upload_policy import upload_size, validate_reservation
 
 
 PRESIGNED_URL_EXPIRY_SECONDS = 15 * 60
@@ -104,8 +105,10 @@ def request_evidence_upload(
         frappe.throw("A MIME type is required")
     if not evidence_type:
         frappe.throw("An evidence type is required")
-    if int(file_size or 0) <= 0:
-        frappe.throw("File size must be greater than zero")
+    try:
+        file_size = upload_size(file_size)
+    except ValueError as error:
+        frappe.throw(str(error))
 
     scout_profile = _current_scout()
     _assert_scout_owns_task(field_task, scout_profile)
@@ -153,7 +156,20 @@ def request_evidence_upload(
             frappe.throw('The upload ID belongs to another field check', frappe.PermissionError)
         if evidence.upload_status == "Uploaded":
             return {"evidence_id": evidence.name, "upload_status": evidence.upload_status}
+        if evidence.file_size != file_size or evidence.mime_type != mime_type or evidence.evidence_type != evidence_type:
+            frappe.throw('The client upload ID cannot replace the original file size or media type')
+        try:
+            validate_reservation(file_size)
+        except ValueError as error:
+            frappe.throw(str(error))
     else:
+        # The Field Task row is already locked. Pending/failed reservations count
+        # too, so changing UUIDs or concurrent retries cannot evade the task cap.
+        reserved = frappe.db.sql('SELECT COALESCE(SUM(file_size), 0) FROM `tabField Evidence` WHERE field_task=%s', [field_task])[0][0]
+        try:
+            validate_reservation(file_size, int(reserved or 0))
+        except ValueError as error:
+            frappe.throw(str(error))
         evidence = frappe.get_doc(
             {
                 "doctype": "Field Evidence",
@@ -191,6 +207,7 @@ def request_evidence_upload(
             "Bucket": settings["bucket"],
             "Key": evidence.r2_object_key,
             "ContentType": evidence.mime_type,
+            "ContentLength": evidence.file_size,
         },
         ExpiresIn=PRESIGNED_URL_EXPIRY_SECONDS,
         HttpMethod="PUT",

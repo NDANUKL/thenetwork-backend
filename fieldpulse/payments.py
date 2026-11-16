@@ -51,12 +51,12 @@ def _provider_rejection_diagnostic(payload, http_status):
 def roles(user=None):
     return frappe.get_roles(user or frappe.session.user)
 
-def _provider(path, body=None, params=None):
+def _provider(path, body=None, params=None, interactive=False):
     environment, _, key, secret, _, base = _config()
     cache_key = f'dd:pesapal:token:{environment}'
     token = frappe.cache.get_value(cache_key)
     if not token:
-        response = requests.post(base + '/Auth/RequestToken', json={'consumer_key': key, 'consumer_secret': secret}, timeout=20)
+        response = requests.post(base + '/Auth/RequestToken', json={'consumer_key': key, 'consumer_secret': secret}, timeout=(3, 7) if interactive else 20)
         response.raise_for_status()
         data = response.json()
         if str(data.get('status')) != '200' or not data.get('token'):
@@ -66,7 +66,7 @@ def _provider(path, body=None, params=None):
         expires = datetime.fromisoformat(data['expiryDate'].replace('Z', '+00:00'))
         ttl = max(1, min(240, int((expires - datetime.now(timezone.utc)).total_seconds()) - 30))
         frappe.cache.set_value(cache_key, token, expires_in_sec=ttl)
-    response = requests.request('POST' if body is not None else 'GET', base + path, json=body, params=params, headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'}, timeout=25)
+    response = requests.request('POST' if body is not None else 'GET', base + path, json=body, params=params, headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'}, timeout=(3, 10) if interactive else 25)
     if response.status_code == 401:
         frappe.cache.delete_value(cache_key)
     # Parse rejected JSON before raise_for_status discards its diagnostic context.
@@ -250,7 +250,8 @@ def _billing(request):
     deposit_paid = any((p.kind == 'deposit' and p.status == 'Paid' for p in payments))
     for payment in payments:
         payment.amount = float(payment.amount)
-        payment.can_pay = quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed' and bool(frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}))))
+        payment.pending_confirmation = payment.status != 'Paid' and bool(frappe.db.exists('DD Payment Attempt', {'payment': payment.name, 'status': ['in', ['Creating', 'Pending', 'Review']]}))
+        payment.can_pay = not payment.pending_confirmation and quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed' and bool(frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}))))
     from fieldpulse.payment_receipts import receipt_document
     documents = [document for payment in payments if (document := receipt_document(payment, request.name))]
     return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': PAYMENT_TERMS, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': documents}
@@ -357,14 +358,17 @@ def checkout(reference, payment, submission_id, return_origin=None):
         frappe.throw('Checkout needs reconciliation. Please contact support before retrying')
 
 
-def _verify(attempt_name, tracking_id=None):
+def _verify(attempt_name, tracking_id=None, interactive=False):
     attempt = frappe.get_doc('DD Payment Attempt', attempt_name)
     tracking_id = tracking_id or attempt.tracking_id
     if not tracking_id:
         return
     if attempt.environment != _config()[0]:
         frappe.throw('Configure the original payment environment to reconcile this attempt')
-    data = _provider('/Transactions/GetTransactionStatus', params={'orderTrackingId': tracking_id})
+    args = {'params': {'orderTrackingId': tracking_id}}
+    if interactive:
+        args['interactive'] = True
+    data = _provider('/Transactions/GetTransactionStatus', **args)
     state = verified_status(data, attempt.merchant_reference, attempt.amount, attempt.currency)
     payment = frappe.get_doc('DD Payment', attempt.payment)
     _lock('Diaspora Request', payment.request)
@@ -372,12 +376,12 @@ def _verify(attempt_name, tracking_id=None):
     attempt.reload()
     payment.reload()
     if attempt.status == 'Paid' and state in ('Pending', 'Failed'):
-        return
+        return 'Paid'
     frappe.db.set_value('DD Payment Attempt', attempt.name, {'tracking_id': tracking_id, 'status': state, 'confirmation_code': data.get('confirmation_code'), 'verified_at': now_datetime()})
     if state == 'Paid':
         if payment.status == 'Paid' and payment.get('paid_attempt') != attempt.name:
             frappe.db.set_value('DD Payment Attempt', attempt.name, 'status', 'Review')
-            return
+            return 'Review'
         paid_values = {'status': 'Paid', 'paid_attempt': attempt.name, 'paid_at': now_datetime()}
         frappe.db.set_value('DD Payment', payment.name, paid_values)
         payment.update(paid_values)
@@ -385,6 +389,7 @@ def _verify(attempt_name, tracking_id=None):
         queue_event('payment', payment)
     elif state == 'Reversed' and payment.get('paid_attempt') == attempt.name:
         frappe.db.set_value('DD Payment', payment.name, 'status', 'Reversed')
+    return state
 
 def ipn(OrderTrackingId=None, OrderMerchantReference=None, OrderNotificationType=None):
     if not isinstance(OrderTrackingId, str) or len(OrderTrackingId) > 100 or (not isinstance(OrderMerchantReference, str)) or (len(OrderMerchantReference) > 50):
@@ -404,12 +409,34 @@ def ipn(OrderTrackingId=None, OrderMerchantReference=None, OrderNotificationType
         return
     frappe.response.update({'orderNotificationType': 'IPNCHANGE', 'orderTrackingId': OrderTrackingId, 'orderMerchantReference': OrderMerchantReference, 'status': 200})
 
-def refresh(reference):
+def refresh(reference, payment=None):
     _owned(reference)
-    attempts = frappe.db.sql("SELECT a.name FROM `tabDD Payment Attempt` a\n        INNER JOIN `tabDD Payment` p ON a.payment=p.name\n        WHERE p.request=%s AND a.tracking_id IS NOT NULL AND a.status IN ('Pending','Review') LIMIT 10", (reference,), as_dict=True)
-    for attempt in attempts:
-        _verify(attempt.name)
-    return {'success': True}
+    if payment and (not isinstance(payment, str) or not frappe.db.exists('DD Payment', {'name': payment, 'request': reference})):
+        frappe.throw('Payment does not belong to this request', frappe.PermissionError)
+    environment = _config()[0]
+    # One relevant attempt only. Never trust provider IDs, amount or currency
+    # supplied by the browser. The scheduled reconciler handles all other work.
+    payment_filter = ' AND p.name=%s' if payment else ''
+    attempts = frappe.db.sql("""SELECT a.name, a.status, a.tracking_id
+        FROM `tabDD Payment Attempt` a INNER JOIN `tabDD Payment` p ON a.payment=p.name
+        WHERE p.request=%s AND a.environment=%s""" + payment_filter + " ORDER BY a.creation DESC, a.name DESC LIMIT 1",
+        [reference, environment] + ([payment] if payment else []), as_dict=True)
+    if not attempts:
+        return {'success': True, 'pending': False}
+    attempt = attempts[0]
+    if attempt.status in ('Paid', 'Failed', 'Reversed'):
+        return {'success': True, 'pending': False, 'status': attempt.status}
+    if not attempt.tracking_id:
+        return {'success': True, 'pending': True}
+    try:
+        state = _verify(attempt.name, interactive=True)
+    except Exception:
+        # An unavailable provider or failed verification is uncertainty, never
+        # permission to charge again. Do not overwrite financial evidence.
+        frappe.db.rollback()
+        return {'success': True, 'pending': True}
+    return {'success': True, 'pending': state not in ('Paid', 'Failed', 'Reversed'), 'status': state}
+
 
 def _reconciliation_failure_code(error):
     """Fixed operational codes only; never provider bodies, URLs or credentials."""

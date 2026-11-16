@@ -36,13 +36,23 @@ class ClientEvidenceTests(unittest.TestCase):
         self.api.db.get_value.side_effect = lambda dt,*args,**kw: 'request' if dt=='Field Request' else 'response'
         self.api.db.exists.return_value = True
 
-    def test_bundle_contains_pdf_and_only_selected_media_with_safe_unique_paths(self):
+    def test_bundle_contains_only_selected_media_with_safe_unique_paths(self):
         from io import BytesIO
         from zipfile import ZipFile
-        photo = Record(original_filename='../unsafe/photo.jpg', evidence_type='Photo', file_size=3)
-        video = Record(original_filename='C:\\private\\clip.mp4', evidence_type='Video', file_size=5)
-        with patch.object(self.module, 'selected_evidence', return_value=[(self.row, photo), (self.row, video)]), patch.object(self.module, 'evidence_bytes', side_effect=[b'jpg', b'video']):
-            data = self.module.build_evidence_bundle(self.report)
+        photo = Record(original_filename='../unsafe/photo.jpg', evidence_type='Photo', file_size=3, r2_object_key='photo-key', etag='photo-etag')
+        video = Record(original_filename='clip.mp4', evidence_type='Video', file_size=5, r2_object_key='video-key', etag='video-etag')
+        client = MagicMock()
+        def stored(**args):
+            content, etag = (b'jpg', 'photo-etag') if args['Key'] == 'photo-key' else (b'video', 'video-etag')
+            self.assertEqual(args['IfMatch'], '"' + etag + '"')
+            return dict(Body=BytesIO(content), ETag=etag, ContentLength=len(content))
+        client.get_object.side_effect = stored
+        storage = types.SimpleNamespace(_r2_settings=lambda: {'bucket': 'private'}, _r2_client=lambda settings: client, _normalise_etag=lambda value: value.strip('"'))
+        with patch.object(self.module, 'selected_evidence', return_value=[(self.row, photo), (self.row, video)]), patch.dict(sys.modules, {'fieldpulse.evidence': storage}):
+            chunks = self.module.build_evidence_bundle(self.report)
+        # Iteration needs no Frappe site context or metadata lookups.
+        data = b''.join(chunks)
+        client.close.assert_called_once()
         with ZipFile(BytesIO(data)) as archive:
             self.assertEqual(archive.namelist(), ['Photos/photo-001.jpg', 'Videos/video-002.mp4'])
             self.assertEqual(archive.read('Videos/video-002.mp4'), b'video')
