@@ -65,3 +65,6 @@ Single report PDF action (8 November 2026, source only): Preview report PDF prep
 Optional report preview (8 November 2026, source only): first approval automatically prepares the latest PDF before release validation. Preview is optional. See the [controlling policy](production-script-ownership.md) for integrity checks and staging acceptance.
 
 Individual report release (8 November 2026, source only): a report no longer waits for the entire request to reach Completed. Reports can be released independently from their own approved scout work. See the [controlling policy](production-script-ownership.md) for retained source/review requirements and rollout checks.
+
+
+Live payment settings (16 November 2026, source only): DD Payment Settings exposes an editable Live IPN ID for System Managers to enter the notification ID registered with the live Pesapal account for `https://thenetwork.frappe.cloud/api/method/dd_payment_ipn`. Sandbox registration IDs remain separate. The existing native registration action can still populate the ID automatically. Deploy with ordinary schema migration and reload Desk, then verify the field is visible/editable and a live payment notification is reconciled. This local change does not establish production deployment or successful payment processing.

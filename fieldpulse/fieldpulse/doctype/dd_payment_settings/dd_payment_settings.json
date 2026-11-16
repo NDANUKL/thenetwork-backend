@@ -481,6 +481,7 @@
     {
       "fieldname": "live_ipn_id",
       "label": "Live IPN ID",
+      "description": "IPN ID registered with your live Pesapal account for https://thenetwork.frappe.cloud/api/method/dd_payment_ipn. Do not use the sandbox IPN ID.",
       "fieldtype": "Data",
       "search_index": 0,
       "show_dashboard": 0,
@@ -509,7 +510,7 @@
       "allow_bulk_edit": 0,
       "in_standard_filter": 0,
       "in_preview": 0,
-      "read_only": 1,
+      "read_only": 0,
       "precision": "",
       "length": 0,
       "translatable": 0,
