@@ -7,6 +7,11 @@ class DDCustomerAccount(Document):
             from fieldpulse.beta_access import registration_access
             self.beta_access = "Pending" if registration_access() == "Invite only" else "Approved"
 
+    def after_insert(self):
+        if self.get("beta_access") == "Pending":
+            from fieldpulse.coordinator_notifications import client_application_received
+            client_application_received(self)
+
     def validate(self):
         from fieldpulse.customer_access import validate_account
         validate_account(self)

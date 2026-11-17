@@ -14,6 +14,7 @@ All 29 DD Server Scripts and all eight DD Client Scripts are disabled recovery r
 | Customer request listing, details submission, ownership and source locations | `fieldpulse/customer_requests.py` |
 | Details publication, validation, next actions and notifications | `fieldpulse/request_details.py` |
 | Scout registration, admission and access | `fieldpulse/auth.py`, `scout_access.py`, `scout_registration.py` and Scout Application/Profile DocTypes |
+| New pending client approval alerts | `fieldpulse.coordinator_notifications` and the `DD Coordinator Alert` outbox DocType |
 | Assignment API compatibility | `fieldpulse/scout_assignment.py` |
 | Project conversion, coverage, navigation and task status | Existing `fieldpulse/project_alignment.py`, `project_contract.py`, `project_locations.py` and Field Task controller |
 | Quotation/payment rules, IPN verification, reconciliation, deposit gate and withdrawal | `fieldpulse/payments.py`, `payment_rules.py` |
