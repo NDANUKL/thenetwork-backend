@@ -22,6 +22,9 @@ h1 { font-size:30px; font-weight:650; letter-spacing:-1px; margin:10px 0 6px;lin
 @media(prefers-reduced-motion:reduce){.metric{transition:none;}}
 
 .metrics.reporting-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metrics.beta-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.beta-actions .metric strong { font-size:22px;letter-spacing:0;line-height:1.3; }
+@media (max-width: 600px) { .metrics.beta-actions { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .metrics.reporting-metrics { grid-template-columns: 1fr; } }
 
 .recurring-shortcuts {display:flex;justify-content:space-between;align-items:center;gap:20px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:18px;}
