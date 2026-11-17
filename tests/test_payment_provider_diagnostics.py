@@ -75,3 +75,35 @@ class ProviderDiagnosticTests(unittest.TestCase):
         self.assertEqual(self.payments._reconciliation_failure_code(error), 'PROVIDER_HTTP_401')
         error = self.payments.ProviderRejection({'status': '400'}, 200)
         self.assertEqual(self.payments._reconciliation_failure_code(error), 'PROVIDER_REJECTED')
+
+    def test_status_rejection_categories_are_safe_hints(self):
+        for message, category in (
+            ('Invalid OrderTrackingId PRIVATE', 'TRACKING_ID'),
+            ('Transaction not found PRIVATE', 'TRACKING_ID'),
+            ('Invalid credentials PRIVATE', 'AUTHENTICATION'),
+            ('Internal server error PRIVATE', 'PROVIDER_ERROR'),
+            ('Unexpected response PRIVATE', 'UNCLASSIFIED')):
+            with self.subTest(category=category):
+                error = self.payments.ProviderRejection({
+                    'status': '500', 'error': {'message': message}}, 200)
+                self.assertIn('Reason category: ' + category, error.diagnostic)
+                self.assertNotIn('PRIVATE', repr(vars(error)))
+
+    def test_documented_card_decline_is_a_verified_failed_attempt_not_query_rejection(self):
+        attempt = fixture.Record(name='attempt', tracking_id='tracking', environment='sandbox',
+            merchant_reference='ref', amount=50, currency='USD', payment='payment', status='Pending')
+        attempt.reload = Mock()
+        payment = fixture.Record(name='payment', request='request', status='Unpaid', amount=50)
+        payment.reload = Mock()
+        self.frappe.get_doc.side_effect = [attempt, payment]
+        self.payments._config = Mock(return_value=('sandbox',))
+        self.payments._provider = Mock(return_value=dict(status='200', status_code=2,
+            merchant_reference='ref', amount=50, currency='USD', payment_method='Visa',
+            description='Unable to Authorize Transaction.Kindly contact your bank for assistance',
+            confirmation_code=''))
+        self.assertEqual(self.payments._verify('attempt'), 'Failed')
+        self.payments._provider.assert_called_once_with('/Transactions/GetTransactionStatus',
+            params={'orderTrackingId': 'tracking'})
+        self.frappe.db.set_value.assert_called_once_with('DD Payment Attempt', 'attempt',
+            {'tracking_id': 'tracking', 'status': 'Failed', 'confirmation_code': '', 'verified_at': 'now'})
+        self.assertEqual(payment.status, 'Unpaid')

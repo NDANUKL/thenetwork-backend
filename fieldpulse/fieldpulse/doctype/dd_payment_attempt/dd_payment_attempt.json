@@ -621,6 +621,32 @@
       "fieldtype": "Datetime",
       "read_only": 1,
       "no_copy": 1
+    },
+    {
+      "fieldname": "received_amount",
+      "label": "Verified amount received",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "read_only": 1,
+      "no_copy": 1
+    },
+    {
+      "fieldname": "balance_payment",
+      "label": "Balance settled by this receipt",
+      "fieldtype": "Link",
+      "options": "DD Payment",
+      "read_only": 1,
+      "no_copy": 1
+    },
+    {
+      "fieldname": "balance_allocated",
+      "label": "Amount allocated to balance",
+      "fieldtype": "Currency",
+      "options": "currency",
+      "precision": "2",
+      "read_only": 1,
+      "no_copy": 1
     }
   ],
   "links": [],

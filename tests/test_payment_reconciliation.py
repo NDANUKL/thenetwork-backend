@@ -97,3 +97,21 @@ class RetryTests(unittest.TestCase):
         error.response=types.SimpleNamespace(status_code=401)
         self.assertEqual(self.payments._reconciliation_failure_code(error),'PROVIDER_HTTP_401')
         self.assertEqual(self.payments._reconciliation_failure_code(RuntimeError('private')),'VERIFICATION_FAILED')
+
+    def test_provider_rejections_keep_diagnostics_even_for_existing_generic_failures(self):
+        self.row.update(reconcile_failures=3, reconcile_error_code='PROVIDER_REJECTED')
+        self.payments._verify.side_effect = self.payments.ProviderRejection({
+            'status': '500', 'error': {'message': 'Invalid order tracking id PRIVATE'},
+            'payment_account': 'PRIVATE', 'token': 'PRIVATE'}, 200)
+        self.payments.reconcile()
+        message = self.frappe.log_error.call_args.kwargs['message']
+        for detail in ('Stage: provider_status', 'Code: PROVIDER_REJECTED',
+                       'HTTP: 200', 'Provider status: 500', 'Reason category: TRACKING_ID',
+                       'Automatic status-check retry in 120 minutes', 'does not charge'):
+            self.assertIn(detail, message)
+        self.assertNotIn('PRIVATE', message)
+        self.assertEqual(self.row.status, 'Pending')
+        self.assertEqual(self.row.tracking_id, 'synthetic')
+        for values in self.writes:
+            self.assertTrue(set(values) <= {'reconcile_failures', 'next_reconcile_at',
+                'reconcile_error_code', 'reconcile_failed_at'})

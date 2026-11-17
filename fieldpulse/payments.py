@@ -6,7 +6,7 @@ from urllib.parse import urlencode, quote as urlquote
 import frappe
 import requests
 from frappe.utils import getdate, now_datetime
-from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals, PAYMENT_TERMS, checkout_billing_address
+from fieldpulse.payment_rules import money, instalments, checkout_url, verified_status, quotation_totals, PAYMENT_TERMS, checkout_billing_address, full_kes_settlement
 
 
 class ProviderRejection(ValueError):
@@ -41,6 +41,8 @@ def _provider_rejection_diagnostic(payload, http_status):
         ('NOTIFICATION', ('notification', 'ipn')),
         ('DUPLICATE', ('duplicate', 'already exists')),
         ('AUTHENTICATION', ('unauthorized', 'unauthorised', 'authentication', 'token', 'credentials')),
+        ('TRACKING_ID', ('tracking', 'order not found', 'transaction not found', 'invalid order', 'invalid transaction')),
+        ('PROVIDER_ERROR', ('internal server', 'internal error', 'service unavailable', 'system error')),
         ('CURRENCY', ('currency',)),
         ('AMOUNT', ('amount',)),
         ('BILLING_ADDRESS', ('email', 'phone', 'billing address', 'first name', 'first_name',
@@ -247,6 +249,19 @@ def _quote(reference):
 def _obligations(quote):
     return frappe.get_all('DD Payment', filters={'quotation': quote.name}, fields=['name', 'request', 'quotation', 'kind', 'amount', 'currency', 'status', 'paid_attempt', 'paid_at'], order_by='creation asc')
 
+
+def _full_kes_checkout(payment, quote, payments):
+    if (payment.currency != 'KES' or payment.kind != 'deposit'
+            or payment.status not in ('Unpaid', 'Reversed') or quote.status != 'Accepted' or len(payments) != 2):
+        return None
+    balances = [p for p in payments if p.kind == 'balance' and p.status in ('Unpaid', 'Reversed')
+                and p.currency == 'KES' and p.request == payment.request
+                and p.quotation == payment.quotation]
+    if len(balances) == 1 and any(p.name == payment.name and p.kind == 'deposit' for p in payments) and full_kes_settlement(payment.amount, balances[0].amount, quote.total, quote.total):
+        return money(quote.total)
+    return None
+
+
 def _billing(request):
     quote = _quote(request.name)
     if not quote:
@@ -258,6 +273,10 @@ def _billing(request):
     payments = _obligations(quote)
     deposit_paid = any((p.kind == 'deposit' and p.status == 'Paid' for p in payments))
     for payment in payments:
+        full_amount = _full_kes_checkout(payment, quote, payments)
+        if full_amount is not None:
+            payment.checkout_amount = float(full_amount)
+            payment.checkout_covers_balance = True
         payment.amount = float(payment.amount)
         payment.pending_confirmation = payment.status != 'Paid' and bool(frappe.db.exists('DD Payment Attempt', {'payment': payment.name, 'status': ['in', ['Creating', 'Pending', 'Review']]}))
         payment.can_pay = not payment.pending_confirmation and quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed' and bool(frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}))))
@@ -328,12 +347,14 @@ def checkout(reference, payment, submission_id, return_origin=None):
         if attempt.environment != environment or not attempt.checkout_url:
             frappe.throw('An earlier checkout is being reconciled. Please contact support before retrying')
         return {'checkout_url': checkout_url(attempt.checkout_url, environment)}
+    full_amount = _full_kes_checkout(obligation, quote, _obligations(quote)) if obligation.currency == 'KES' and money(obligation.amount) % 1 else None
+    checkout_amount = full_amount if full_amount is not None else money(obligation.amount)
     merchant_reference = 'DD-' + secrets.token_hex(16)
-    attempt = frappe.get_doc({'doctype': 'DD Payment Attempt', 'payment': payment, 'merchant_reference': merchant_reference, 'environment': environment, 'amount': obligation.amount, 'currency': obligation.currency, 'status': 'Creating', 'submission_id': submission_id}).insert(ignore_permissions=True)
+    attempt = frappe.get_doc({'doctype': 'DD Payment Attempt', 'payment': payment, 'merchant_reference': merchant_reference, 'environment': environment, 'amount': float(checkout_amount), 'currency': obligation.currency, 'status': 'Creating', 'submission_id': submission_id}).insert(ignore_permissions=True)
     frappe.db.commit()
     stage = 'provider_order'
     try:
-        result = _provider('/Transactions/SubmitOrderRequest', {'id': merchant_reference, 'currency': obligation.currency, 'amount': float(obligation.amount), 'description': f'Diaspora Desk {obligation.kind}', 'notification_id': notification, 'callback_url': origin + '/dashboard/billing?' + urlencode({'payment_return': '1', 'request': reference}), 'billing_address': checkout_billing_address(frappe.session.user, environment)})
+        result = _provider('/Transactions/SubmitOrderRequest', {'id': merchant_reference, 'currency': obligation.currency, 'amount': float(checkout_amount), 'description': f'Diaspora Desk {"deposit and balance" if full_amount is not None else obligation.kind}', 'notification_id': notification, 'callback_url': origin + '/dashboard/billing?' + urlencode({'payment_return': '1', 'request': reference}), 'billing_address': checkout_billing_address(frappe.session.user, environment)})
         stage = 'provider_response'
         if result.get('merchant_reference') != merchant_reference or not result.get('order_tracking_id'):
             raise ValueError('Unexpected provider order')
@@ -374,6 +395,96 @@ def checkout(reference, payment, submission_id, return_origin=None):
         frappe.throw('Checkout needs reconciliation. Please contact support before retrying')
 
 
+
+def _verify_full_kes_payment(attempt, data, tracking_id):
+    """Allocate one verified receipt atomically under the request/payment locks."""
+    payment = frappe.get_doc('DD Payment', attempt.payment)
+    _lock('Diaspora Request', payment.request)
+    # Checkout and all callbacks take this same request lock before payment locks.
+    _lock('DD Payment', payment.name)
+    _lock('DD Payment Attempt', attempt.name)
+    payment.reload()
+    attempt.reload()
+    quote = frappe.get_doc('DD Quotation', payment.quotation)
+    rows = _obligations(quote)
+    balances = [p for p in rows if p.kind == 'balance' and p.name != payment.name]
+    if len(rows) != 2 or len(balances) != 1 or not any(p.name == payment.name and p.kind == 'deposit' for p in rows):
+        raise ValueError('Payment amount or currency mismatch')
+    balance = frappe.get_doc('DD Payment', balances[0].name)
+    _lock('DD Payment', balance.name)
+    balance.reload()
+    received = money(data.get('amount'))
+    if (payment.kind != 'deposit' or payment.currency != 'KES' or balance.currency != 'KES'
+            or attempt.currency != 'KES' or quote.currency != 'KES' or quote.status != 'Accepted'
+            or quote.request != payment.request or balance.request != payment.request
+            or balance.quotation != payment.quotation
+            or not full_kes_settlement(payment.amount, balance.amount, quote.total, received)
+            or money(attempt.amount) not in (money(payment.amount), received)):
+        raise ValueError('Payment amount or currency mismatch')
+    # Legacy orders requested 0.50 but M-Pesa collected 1.00. Only that
+    # identified method may differ from the amount submitted to the provider.
+    method = str(data.get('payment_method') or '').lower().replace('-', '').replace(' ', '')
+    if money(attempt.amount) != received and method != 'mpesa':
+        raise ValueError('Payment amount or currency mismatch')
+    state = verified_status(data, attempt.merchant_reference, received, 'KES')
+    if attempt.tracking_id and attempt.tracking_id != tracking_id:
+        raise ValueError('Payment reference mismatch')
+    if attempt.get('balance_payment') and (attempt.balance_payment != balance.name
+            or money(attempt.balance_allocated) != money(balance.amount)
+            or money(attempt.received_amount) != received):
+        raise ValueError('Payment amount or currency mismatch')
+    if attempt.status == 'Reversed' and state != 'Reversed':
+        return 'Reversed'
+    if attempt.status in ('Paid', 'Reversed') and state in ('Pending', 'Failed'):
+        return attempt.status
+    if state in ('Pending', 'Failed'):
+        # Status checks for a full-amount checkout must still release failed
+        # card attempts. An incomplete payment never establishes an allocation.
+        frappe.db.set_value('DD Payment Attempt', attempt.name, {
+            'tracking_id': tracking_id, 'status': state, 'verified_at': now_datetime(),
+            'reconcile_failures': 0, 'next_reconcile_at': None,
+            'reconcile_error_code': None, 'reconcile_failed_at': None})
+        return state
+    for target in (payment, balance):
+        if target.get('paid_attempt') and target.paid_attempt != attempt.name:
+            # A confirmed reversal releases the obligation for a fresh payment.
+            # Retain the previous attempt as immutable transaction history.
+            if (target.status != 'Reversed' or frappe.db.get_value(
+                    'DD Payment Attempt', target.paid_attempt, 'status') != 'Reversed'):
+                raise ValueError('Payment already allocated to another attempt')
+        if target.status == 'Paid' and target.get('paid_attempt') != attempt.name:
+            raise ValueError('Payment already allocated to another attempt')
+    if frappe.db.exists('DD Payment Attempt', {'payment': balance.name,
+            'name': ['!=', attempt.name], 'status': ['in', ['Creating', 'Pending', 'Review', 'Paid']]}):
+        raise ValueError('Payment already allocated to another attempt')
+    if state == 'Reversed' and not attempt.get('balance_payment'):
+        raise ValueError('Provider verification failed')
+    now = now_datetime()
+    frappe.db.set_value('DD Payment Attempt', attempt.name, {
+        'tracking_id': tracking_id, 'status': state, 'confirmation_code': data.get('confirmation_code'),
+        'verified_at': now, 'received_amount': float(received),
+        'balance_payment': balance.name, 'balance_allocated': float(money(balance.amount)),
+        'reconcile_failures': 0, 'next_reconcile_at': None,
+        'reconcile_error_code': None, 'reconcile_failed_at': None})
+    from fieldpulse.customer_notifications import queue_event
+    notifications = []
+    for target in (payment, balance):
+        if state == 'Paid':
+            if target.status == 'Paid' and target.get('paid_attempt') == attempt.name:
+                continue
+            values = {'status': 'Paid', 'paid_attempt': attempt.name, 'paid_at': now}
+            frappe.db.set_value('DD Payment', target.name, values)
+            target.update(values)
+            notifications.append(target)
+        elif target.get('paid_attempt') == attempt.name:
+            frappe.db.set_value('DD Payment', target.name, 'status', 'Reversed')
+    # Receipt validation requires both allocations to exist before either
+    # notification is captured. Keep the writes and events in one transaction.
+    for target in notifications:
+        queue_event('payment', target)
+    return state
+
+
 def _verify(attempt_name, tracking_id=None, interactive=False):
     attempt = frappe.get_doc('DD Payment Attempt', attempt_name)
     tracking_id = tracking_id or attempt.tracking_id
@@ -385,12 +496,21 @@ def _verify(attempt_name, tracking_id=None, interactive=False):
     if interactive:
         args['interactive'] = True
     data = _provider('/Transactions/GetTransactionStatus', **args)
+    if attempt.get('balance_payment') or (attempt.currency == 'KES'
+            and data.get('currency') == 'KES' and money(data.get('amount')) > money(attempt.amount)):
+        return _verify_full_kes_payment(attempt, data, tracking_id)
     state = verified_status(data, attempt.merchant_reference, attempt.amount, attempt.currency)
     payment = frappe.get_doc('DD Payment', attempt.payment)
     _lock('Diaspora Request', payment.request)
     _lock('DD Payment', payment.name)
     attempt.reload()
     payment.reload()
+    # A concurrent callback may have allocated a legacy half-shilling order
+    # while this provider query was in flight. Recheck the locked record so
+    # stale responses cannot bypass validation of both linked instalments.
+    if attempt.get('balance_payment') or (payment.get('amount') is not None
+            and money(attempt.amount) > money(payment.amount)):
+        return _verify_full_kes_payment(attempt, data, tracking_id)
     if attempt.status == 'Paid' and state in ('Pending', 'Failed'):
         return 'Paid'
     frappe.db.set_value('DD Payment Attempt', attempt.name, {'tracking_id': tracking_id, 'status': state, 'confirmation_code': data.get('confirmation_code'), 'verified_at': now_datetime()})
@@ -556,9 +676,13 @@ def _reconcile_due():
                 'reconcile_error_code': code, 'reconcile_failed_at': failed_at,
             })
             frappe.db.commit()
-            if failures == 1 or row.reconcile_error_code != code:
+            # Rejections retain bounded diagnostics on each scheduled retry, so
+            # existing generic failures also acquire evidence after deployment.
+            if failures == 1 or row.reconcile_error_code != code or isinstance(error, ProviderRejection):
                 frappe.log_error(title='Pesapal reconciliation failed',
-                    message=f'Payment attempt: {row.name}\nCode: {code}\nAutomatic retry in {delay_minutes} minutes. See retry details on DD Payment Attempt.',
+                    message=(f'Payment attempt: {row.name}\nStage: provider_status\nCode: {code}'
+                        + (f'\n{error.diagnostic}' if isinstance(error, ProviderRejection) else '')
+                        + f'\nAutomatic status-check retry in {delay_minutes} minutes. This does not charge the customer again. See retry details on DD Payment Attempt.'),
                     reference_doctype='DD Payment Attempt', reference_name=row.name,
                     defer_insert=True)
 

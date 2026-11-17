@@ -9,9 +9,24 @@ def verified_attempt(payment):
     if payment.status != "Paid" or not payment.get("paid_attempt") or not payment.get("paid_at"):
         return None
     attempt = frappe.get_doc("DD Payment Attempt", payment.paid_attempt)
-    if (attempt.payment != payment.name or attempt.status != "Paid"
-            or not attempt.get("verified_at") or not attempt.get("confirmation_code")
-            or attempt.currency != payment.currency or money(attempt.amount) != money(payment.amount)):
+    if (attempt.status != "Paid" or not attempt.get("verified_at")
+            or not attempt.get("confirmation_code") or attempt.currency != payment.currency):
+        return None
+    if attempt.get("balance_payment"):
+        deposit = frappe.get_doc("DD Payment", attempt.payment)
+        balance = frappe.get_doc("DD Payment", attempt.balance_payment)
+        quote = frappe.get_doc("DD Quotation", deposit.quotation)
+        from fieldpulse.payment_rules import full_kes_settlement
+        if (payment.name not in (deposit.name, balance.name) or deposit.kind != "deposit"
+                or balance.kind != "balance" or deposit.name == balance.name
+                or deposit.request != balance.request or deposit.quotation != balance.quotation
+                or quote.request != deposit.request or quote.currency != "KES"
+                or any(p.status != "Paid" or p.get("paid_attempt") != payment.paid_attempt
+                       or p.currency != "KES" for p in (deposit, balance))
+                or money(attempt.balance_allocated) != money(balance.amount)
+                or not full_kes_settlement(deposit.amount, balance.amount, quote.total, attempt.received_amount)):
+            return None
+    elif attempt.payment != payment.name or money(attempt.amount) != money(payment.amount):
         return None
     return attempt
 
@@ -25,11 +40,14 @@ def receipt_document(payment, reference):
 
 
 def receipt_context(payment, quote, attempt):
+    label = "50% deposit" if payment.kind == "deposit" else "50% balance"
+    if attempt.get("balance_payment"):
+        label += f" (allocated from one KES {money(attempt.received_amount):.2f} payment)"
     return {"receipt_number": "RCP-" + payment.name, "reference": payment.request,
         "quotation": payment.quotation, "customer_name": quote.customer_name,
         "customer_email": quote.customer_email, "paid_at": payment.paid_at,
         "currency": payment.currency, "amount": float(money(payment.amount)),
-        "payment_label": "50% deposit" if payment.kind == "deposit" else "50% balance",
+        "payment_label": label,
         "confirmation": attempt.confirmation_code, "test_payment": attempt.environment != "live",
         "projects": [item.project_title for item in (quote.get("items") or [])]}
 

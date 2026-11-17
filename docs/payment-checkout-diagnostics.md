@@ -14,3 +14,12 @@ Source change, not deployed. The owner requested that customer billing collectio
 The exact new helper was exercised from the backend host against Pesapal sandbox: provider status 200, tracking ID present and valid sandbox checkout URL present at KES 0.50. No payment was completed, and no customer payment records were changed. Billing-name/address rejections now receive the fixed BILLING_ADDRESS diagnostic category without retaining provider text.
 
 Deploy the native backend through the normal release workflow and restart workers; no frontend, schema, retired-script or handover migration change is required. Do not reset Review/Pending attempts, clear their references or create replacement customer orders merely to test the fix. Existing attempts without checkout URLs remain blocked pending provider reconciliation; the source change does not resolve attempt 190hm4tcnf. Verify a fresh authorized sandbox obligation after deployment, including the hosted billing page and verified return/IPN flow. Live behavior and hosted-page editing have not been verified by the isolated order-creation test.
+
+
+## 17 November 2026 status verification diagnostics
+
+Source only. Scheduled reconciliation now retains the same bounded HTTP/provider statuses and reason category as checkout, including TRACKING_ID and PROVIDER_ERROR hints. Each rejected scheduled status check writes a diagnostic, including retries of existing generic PROVIDER_REJECTED attempts; ordinary timeout deduplication and bounded backoff remain. No raw provider text, card details, tokens or response bodies are stored. Categories are hints, not proof of a configuration mismatch or bank decline.
+
+The retry log explicitly says it retries a status check and does not charge again. Verification rejection preserves payment uncertainty and tracking evidence. A successful status query reporting status_code 2 is a failed payment, including Pesapal's documented card authorization failure; it is distinct from rejection of the status query itself. The website keeps another checkout blocked while verification is unresolved.
+
+Deploy through the normal backend release workflow and restart workers. No schema change is required. Recheck attempt 97ig8udbd0 through normal reconciliation in its original environment; historical discarded diagnostics cannot be recovered by this code. Review the new safe category and provider records before changing configuration or resolving that attempt. This source fix cannot make an issuer authorize a declined card, and is not production verification.

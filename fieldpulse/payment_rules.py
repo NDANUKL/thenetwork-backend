@@ -1,5 +1,5 @@
 """Pure monetary and provider validation rules. All supported currencies use cents."""
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_CEILING
 from urllib.parse import urlparse
 
 
@@ -87,3 +87,15 @@ def quotation_totals(subtotal, discount_type="None", discount_value=0, vat_rate=
     total = discounted if tax_inclusive else taxable + vat
     instalments(total)
     return dict(subtotal=subtotal, discount_amount=discount, taxable_amount=taxable, vat_amount=vat, total=total)
+
+
+def full_kes_settlement(deposit, balance, total, received):
+    """Only whole-KES rounding that exactly settles both obligations is allowed.
+
+    This is not a general amount tolerance or an increase in the quote total.
+    Partial credits and overpayments beyond the quote require manual review.
+    """
+    deposit, balance, total, received = map(money, (deposit, balance, total, received))
+    return (deposit > 0 and balance > 0 and deposit != deposit.to_integral_value()
+            and received == deposit.to_integral_value(rounding=ROUND_CEILING)
+            and received == total == deposit + balance)
