@@ -423,8 +423,10 @@ def _verify_full_kes_payment(attempt, data, tracking_id):
         raise ValueError('Payment amount or currency mismatch')
     # Legacy orders requested 0.50 but M-Pesa collected 1.00. Only that
     # identified method may differ from the amount submitted to the provider.
+    # Pesapal live identifies Kenyan M-Pesa receipts as MpesaKE. Keep an
+    # explicit allowlist: arbitrary method names must not permit rounding.
     method = str(data.get('payment_method') or '').lower().replace('-', '').replace(' ', '')
-    if money(attempt.amount) != received and method != 'mpesa':
+    if money(attempt.amount) != received and method not in ('mpesa', 'mpesake'):
         raise ValueError('Payment amount or currency mismatch')
     state = verified_status(data, attempt.merchant_reference, received, 'KES')
     if attempt.tracking_id and attempt.tracking_id != tracking_id:

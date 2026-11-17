@@ -52,6 +52,27 @@ class KesAllocationTests(unittest.TestCase):
         self.assertEqual(self.payments._lock.call_args_list[0].args, ('Diaspora Request', 'request'))
         self.frappe.db.commit.assert_not_called()
 
+    def test_live_mpesake_receipt_settles_both_instalments(self):
+        # Live status query for the affected legacy order returned this method.
+        self.data['payment_method'] = 'MpesaKE'
+        self.assertEqual(self.payments._verify('attempt'), 'Paid')
+        self.assertEqual(self.attempt.amount, .5)
+        self.assertEqual(self.attempt.received_amount, 1)
+        for target in (self.deposit, self.balance):
+            self.assertEqual(target.status, 'Paid')
+            self.assertEqual(target.paid_attempt, 'attempt')
+        self.payments._verify('attempt')
+        self.assertEqual(self.queue.call_count, 2)
+
+    def test_unknown_mpesa_suffix_cannot_enable_legacy_rounding(self):
+        for method in ('MpesaKE-other', 'MpesaTZ', 'MpesaKEVisa', ''):
+            with self.subTest(method=method):
+                self.data['payment_method'] = method
+                with self.assertRaises(ValueError):
+                    self.payments._verify('attempt')
+                self.frappe.db.set_value.assert_not_called()
+        self.queue.assert_not_called()
+
     def test_both_allocations_are_valid_before_notifications_are_captured(self):
         spec = importlib.util.spec_from_file_location('allocation_notification_receipts',
             Path(fixture.ROOT) / 'payment_receipts.py')
