@@ -22,6 +22,8 @@ The website continues to use its existing Resend environment variables for verif
 
 ## Manage accounts
 
+System Managers and Field Operations Coordinators can open DD Customer Account and approve or reject applications. Coordinators can use the **Beta client applications** card on the Field Operations dashboard. Coordinators have read/write access, without account creation or deletion rights; coordinators can also deactivate/reactivate client accounts.
+
 Search for DD Customer Account. Filter Beta access by Pending; Email Verified identifies completed signups.
 Pending accounts show **Approve** and **Reject**. Approved accounts (including legacy accounts with blank Beta access) show **Deactivate** only; their approval decision is read-only and cannot be changed to Rejected or Pending through a direct save. Rejected accounts can be reconsidered with **Approve**. Deactivated accounts show **Reactivate** only. **Remove access** has been removed; it previously returned approval to Pending and overlapped with account deactivation.
 Approval queues one branded email once the email address is verified. Approval before verification waits until verification.
@@ -32,7 +34,7 @@ Rejecting a Pending application clears unsent approval work and sends no email. 
 
 ## Client deactivation and reactivation
 
-On **DD Customer Account**, a System Manager can deactivate an **Approved** account or reactivate a previously deactivated account, with a reason. **Account Activation** is independent from **Beta access**: both the approval workflow and email verification retain their existing rules. Deactivation blocks the account even when Registration access is Open to everyone. It disables the linked customer Website User, removes API/reset credentials and revokes Frappe sessions after commit. Repeat signup, verification links, recovery and ordinary User edits cannot reactivate it. Historical requests, payments and account data remain intact.
+On **DD Customer Account**, a System Manager or Field Operations Coordinator can deactivate an **Approved** account or reactivate a previously deactivated account, with a reason. **Account Activation** is independent from **Beta access**: both the approval workflow and email verification retain their existing rules. Deactivation blocks the account even when Registration access is Open to everyone. It disables the linked customer Website User, removes API/reset credentials and revokes Frappe sessions after commit. Repeat signup, verification links, recovery and ordinary User edits cannot reactivate it. Historical requests, payments and account data remain intact.
 
 Reactivation restores the same account and records who performed it, when and why. A verified customer User is enabled; an unverified User stays disabled until normal email verification. The original Pending/Rejected/Approved decision is not changed, so reactivation cannot grant beta approval. Revoked credentials/sessions are not restored: the client must sign in again. These actions are restricted to customer Website Users and cannot be used to enable or disable staff accounts. The existing approval notification flow skips deactivated accounts; no separate reactivation email is introduced. Version history preserves repeated access changes.
 
@@ -53,4 +55,6 @@ verify schema sync and permissions, existing-account login, pending/rejected log
 revoked-session API denial, and public-mode registration using email addresses owned by the tester.
 Local mocks do not verify live email delivery or Frappe schema migration. No production records were changed by this implementation.
 
-Also verify Deactivate with an existing portal session/API key, public-registration mode, verification and recovery retries. Reactivate Approved, Pending, Rejected and unverified accounts and confirm each retains its original approval/verification gate, requires fresh sign-in, and keeps its historical records. Confirm ordinary customers/coordinators cannot call these System Manager actions.
+Also verify Deactivate with an existing portal session/API key, public-registration mode, verification and recovery retries. Reactivate Approved, Pending, Rejected and unverified accounts and confirm each retains its original approval/verification gate, requires fresh sign-in, and keeps its historical records. Confirm ordinary customers cannot call these actions and Field Operations Coordinators can.
+
+Client deletion is blocked server-side from both User and DD Customer Account when linked records exist, including historical requests/quotations identified by email. Keep such accounts deactivated. No extra Delete button is added; standard Frappe deletion permissions and link checks remain in place. Deploy with normal migration and verify all four actions using a coordinator-only Desk user.

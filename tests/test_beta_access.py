@@ -23,6 +23,34 @@ class AccessTests(unittest.TestCase):
         self.api.db.get_single_value.return_value = "Invite only"
         self.policy = load("fieldpulse/beta_access.py", self.api)
 
+    def test_beta_decisions_require_manager_or_coordinator(self):
+        document = types.ModuleType("frappe.model.document")
+        document.Document = object
+        controller = load("fieldpulse/fieldpulse/doctype/dd_customer_account/dd_customer_account.py", self.api,
+                          {"frappe.model": types.ModuleType("frappe.model"), "frappe.model.document": document})
+        access = types.ModuleType("fieldpulse.customer_access")
+        access.validate_account = MagicMock()
+        for user, roles, allowed in [
+            ("coordinator@example.com", ["Field Operations Coordinator"], True),
+            ("manager@example.com", ["System Manager"], True),
+            ("Administrator", [], True),
+            ("scout@example.com", ["Scout"], False),
+            ("Guest", ["Guest"], False),
+        ]:
+            with self.subTest(user=user), patch.dict(sys.modules, {"fieldpulse.customer_access": access}):
+                self.api.session.user = user
+                self.api.get_roles.return_value = roles
+                account = MagicMock(beta_access="Approved")
+                account.get.return_value = "Approved"
+                account.is_new.return_value = False
+                account.has_value_changed.return_value = True
+                if allowed:
+                    controller.DDCustomerAccount.validate(account)
+                    self.assertIsNone(account.approval_email_sent_at)
+                else:
+                    with self.assertRaises(PermissionError):
+                        controller.DDCustomerAccount.validate(account)
+
     def test_existing_accounts_remain_approved(self):
         for status in (None, "", "Approved"):
             self.assertEqual(self.policy.access_status({"beta_access": status}), "Approved")

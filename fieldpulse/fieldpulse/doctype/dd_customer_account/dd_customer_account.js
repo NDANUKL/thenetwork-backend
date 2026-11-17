@@ -1,7 +1,8 @@
 frappe.ui.form.on("DD Customer Account", {
   refresh(frm) {
     ["Approve", "Grant access", "Remove access", "Reject", "Deactivate", "Reactivate"].forEach(label => frm.remove_custom_button(__(label)));
-    if (frm.is_new() || (frappe.session.user !== "Administrator" && !frappe.user.has_role("System Manager"))) return;
+    const manager = frappe.session.user === "Administrator" || frappe.user.has_role("System Manager");
+    if (frm.is_new() || !(manager || frappe.user.has_role("Field Operations Coordinator"))) return;
     const inactive = frm.doc.account_access === "Deactivated";
     const status = frm.doc.beta_access || "Approved";
     const approved = status === "Approved";

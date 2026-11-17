@@ -39,13 +39,43 @@ class CustomerAccessTests(unittest.TestCase):
                            roles=[types.SimpleNamespace(role='DD Customer')], api_key='key', api_secret='secret')
         self.f.get_doc.side_effect = [self.profile, self.user]
 
-    def test_only_system_managers_can_change_client_activation(self):
-        for roles in ([], ['DD Customer'], ['Field Agent'], ['Field Operations Coordinator'], ['Admin']):
+    def test_unprivileged_roles_cannot_change_client_activation(self):
+        for roles in ([], ['DD Customer'], ['Field Agent'], ['Admin']):
             self.f.get_roles.return_value = roles
             for action in ('Deactivate', 'Reactivate'):
                 with self.subTest(roles=roles, action=action), self.assertRaises(PermissionError):
                     self.api.set_account_access('CLIENT-1', action, 'Reason')
         self.f.get_doc.assert_not_called()
+
+    def test_coordinator_can_deactivate_and_reactivate(self):
+        self.f.get_roles.return_value = ['Field Operations Coordinator']
+        with patch.dict('sys.modules', {'frappe.sessions': types.SimpleNamespace(clear_sessions=MagicMock())}):
+            self.api.set_account_access('CLIENT-1', 'Deactivate', 'Reason')
+        self.f.get_doc.side_effect = [self.profile, self.user]
+        self.api.set_account_access('CLIENT-1', 'Reactivate', 'Return')
+        self.assertEqual(self.profile.account_access, 'Active')
+        self.assertEqual(self.profile.beta_access, 'Approved')
+
+    def test_deletion_blocks_linked_account_records_and_legacy_email(self):
+        self.f.get_all.return_value = [Record(parent='Diaspora Request', fieldname='dd_customer_account', options='DD Customer Account')]
+        self.f.db.get_value.return_value = 'CLIENT-1'
+        self.f.get_meta.return_value = Record(issingle=0, is_virtual=0)
+        self.f.db.exists.side_effect = lambda dt, filters: dt not in ('DD Quotation',) and 'email' not in filters
+        for doc in (Record(doctype='User', name=self.profile.user),
+                    Record(doctype='DD Customer Account', name='CLIENT-1', user=self.profile.user)):
+            with self.subTest(doctype=doc.doctype), self.assertRaisesRegex(ValueError, 'linked records'):
+                self.api.protect_client_deletion(doc)
+        self.f.get_all.return_value = []
+        self.f.db.exists.side_effect = None
+        self.f.db.exists.return_value = True
+        with self.assertRaisesRegex(ValueError, 'requests or quotations'):
+            self.api.protect_client_deletion(Record(doctype='User', name=self.profile.user))
+
+    def test_deletion_without_business_records_leaves_native_link_checks_in_place(self):
+        self.f.get_all.return_value = []
+        self.f.db.exists.return_value = False
+        self.api.protect_client_deletion(Record(doctype='DD Customer Account', name='CLIENT-1', user=self.profile.user))
+        self.f.delete_doc.assert_not_called()
 
     def test_deactivation_retains_approval_and_data_and_revokes_credentials(self):
         clear = MagicMock()
@@ -164,7 +194,7 @@ class CustomerAccessTests(unittest.TestCase):
         self.f.get_doc.side_effect = lambda dt, *args, **kwargs: self.profile if dt == 'DD Customer Account' else self.user
         ownership = types.SimpleNamespace(owned_event=lambda *args: lambda f: f, owned_api=lambda *args: lambda f: f)
         bridge = load('customer_access_bridge_test', 'fieldpulse/customer_accounts.py', {
-            'frappe': self.f, 'fieldpulse.native_ownership': ownership,
+            'frappe': self.f, 'fieldpulse.native_ownership': ownership, 'requests': MagicMock(),
             'fieldpulse.beta_access': types.SimpleNamespace(registration_access=lambda: 'Open to everyone', access_status=MagicMock()),
         })
         for action in ('register', 'recover', 'verify', 'profile'):

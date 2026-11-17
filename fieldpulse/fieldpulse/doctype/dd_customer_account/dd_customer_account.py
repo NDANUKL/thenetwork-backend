@@ -13,8 +13,8 @@ class DDCustomerAccount(Document):
         if self.get("beta_access") not in (None, "", "Pending", "Approved", "Rejected"):
             frappe.throw("Choose a valid beta access status")
         if not self.is_new() and self.has_value_changed("beta_access"):
-            if "System Manager" not in frappe.get_roles():
-                frappe.throw("Only System Managers can change beta access", frappe.PermissionError)
+            if frappe.session.user != "Administrator" and not set(frappe.get_roles()).intersection({"System Manager", "Field Operations Coordinator"}):
+                frappe.throw("Only System Managers and Field Operations Coordinators can change beta access", frappe.PermissionError)
             if self.beta_access == "Approved":
                 self.approval_email_id = frappe.generate_hash(length=32)
                 self.approval_email_sent_at = None

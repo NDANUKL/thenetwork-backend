@@ -22,9 +22,9 @@ def access_write():
 
 def require_manager():
     if frappe.session.user == "Guest" or not (
-        frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles()
+        frappe.session.user == "Administrator" or bool(set(frappe.get_roles()).intersection({"System Manager", "Field Operations Coordinator"}))
     ):
-        frappe.throw("Only System Managers can change client account activation.", frappe.PermissionError)
+        frappe.throw("Only System Managers and Field Operations Coordinators can change client account activation.", frappe.PermissionError)
 
 
 def check_access(user):
@@ -115,3 +115,42 @@ def set_account_access(account, action, reason):
             # Session deletion commits internally; keep the activation decision atomic.
             frappe.db.after_commit.add(lambda: clear_sessions(user=profile.user, force=True))
     return {"status": profile.account_access}
+
+
+def protect_client_deletion(doc, method=None):
+    """Retain client identity whenever business records still refer to it.
+
+    Run for both User and account deletion, before Frappe can remove links.
+    Standard Frappe link checks remain enabled for all other relationships.
+    """
+    if doc.doctype == "User":
+        user = doc.name
+        account = frappe.db.get_value("DD Customer Account", {"user": user}, "name")
+    else:
+        user, account = doc.user, doc.name
+    if not user:
+        return
+    # Historical requests may predate the linked account.
+    for doctype, fieldname in (("Diaspora Request", "email"), ("DD Quotation", "customer_email")):
+        if frappe.db.exists(doctype, {fieldname: user}):
+            frappe.throw("Cannot delete this client: requests or quotations exist. Keep the account deactivated to preserve its history.")
+    if not account:
+        return
+    targets = {"User": user}
+    if account:
+        targets["DD Customer Account"] = account
+    for schema in ("DocField", "Custom Field"):
+        fields = frappe.get_all(schema,
+            filters={"fieldtype": "Link", "options": ["in", list(targets)]},
+            fields=["parent" if schema == "DocField" else "dt", "fieldname", "options"])
+        for field in fields:
+            doctype = field.get("parent") if schema == "DocField" else field.get("dt")
+            # The identity pair itself is not business history. Frappe's normal
+            # link checks still govern deleting a User with an account attached.
+            if doctype == "DD Customer Account" and field.fieldname == "user":
+                continue
+            meta = frappe.get_meta(doctype)
+            if meta.issingle or meta.is_virtual:
+                continue
+            if frappe.db.exists(doctype, {field.fieldname: targets[field.options]}):
+                frappe.throw("Cannot delete this client: linked records exist. Keep the account deactivated to preserve its history.")

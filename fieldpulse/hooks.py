@@ -33,7 +33,7 @@ doc_events = {'Diaspora Request': {'before_save': ['fieldpulse.customer_requests
                                 'fieldpulse.native_events.require_deposit', 'fieldpulse.task_brief_workflow.pin_assignment']},
  'User': {'on_update': 'fieldpulse.scout_registration.sync_user',
           'validate': ['fieldpulse.scout_access.validate_user', 'fieldpulse.customer_access.validate_user'],
-          'on_trash': 'fieldpulse.scout_access.protect_identity',
+          'on_trash': ['fieldpulse.scout_access.protect_identity', 'fieldpulse.customer_access.protect_client_deletion'],
           'before_rename': 'fieldpulse.scout_access.protect_identity'},
  'FP Agent': {'on_update': 'fieldpulse.scout_registration.sync_agent'}}
 
@@ -123,3 +123,6 @@ website_route_rules = [
     {"from_route": "/groundscouts/<path:app_path>", "to_route": "groundscouts"},
 ]
 after_request = ["fieldpulse.web_beta.add_sqlite_web_headers"]
+
+# Retain customer identity even when an administrator deletes from Desk.
+doc_events.setdefault('DD Customer Account', {})['on_trash'] = 'fieldpulse.customer_access.protect_client_deletion'

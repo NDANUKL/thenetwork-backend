@@ -1,0 +1,221 @@
+{
+  "doctype": "DocType",
+  "name": "DD Beta Feedback",
+  "module": "FieldPulse",
+  "autoname": "hash",
+  "engine": "InnoDB",
+  "allow_rename": 0,
+  "track_changes": 1,
+  "title_field": "customer_name",
+  "sort_field": "submitted_at_utc",
+  "sort_order": "DESC",
+  "field_order": [
+    "customer_section",
+    "customer_account",
+    "customer_name",
+    "customer_email",
+    "submitted_at_utc",
+    "form_version",
+    "impressions_section",
+    "understanding",
+    "legitimacy",
+    "confusing",
+    "confusing_details",
+    "trust_section",
+    "proof_trust",
+    "scout_comfort",
+    "trust_more",
+    "paying_section",
+    "deposit",
+    "pricing_clear",
+    "fair_price",
+    "currency",
+    "other_currency",
+    "overall_section",
+    "would_use",
+    "use_case",
+    "recommend",
+    "nearly_stopped"
+  ],
+  "fields": [
+    {
+      "fieldname": "customer_section",
+      "label": "Customer",
+      "fieldtype": "Section Break",
+      "read_only": 1
+    },
+    {
+      "fieldname": "customer_account",
+      "label": "Customer account",
+      "fieldtype": "Link",
+      "read_only": 1,
+      "options": "DD Customer Account",
+      "unique": 1,
+      "reqd": 1
+    },
+    {
+      "fieldname": "customer_name",
+      "label": "Customer name",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "customer_email",
+      "label": "Customer email",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "options": "Email",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "submitted_at_utc",
+      "label": "Submitted date and time (UTC)",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "form_version",
+      "label": "Form version",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "impressions_section",
+      "label": "First impressions",
+      "fieldtype": "Section Break",
+      "read_only": 1
+    },
+    {
+      "fieldname": "understanding",
+      "label": "1. In one line, what do you think Diaspora Desk does?",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "legitimacy",
+      "label": "2. Did it feel legit, or a bit sketchy?",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "confusing",
+      "label": "3. Was anything confusing?",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "confusing_details",
+      "label": "What was confusing?",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "trust_section",
+      "label": "Trust",
+      "fieldtype": "Section Break",
+      "read_only": 1
+    },
+    {
+      "fieldname": "proof_trust",
+      "label": "4. How much would you trust the photos and GPS as real proof? (1-5)",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "scout_comfort",
+      "label": "5. A scout you have never met goes to your plot - how comfortable are you with that? (1-5)",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "trust_more",
+      "label": "6. The one thing that would make you trust it more?",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "paying_section",
+      "label": "Paying",
+      "fieldtype": "Section Break",
+      "read_only": 1
+    },
+    {
+      "fieldname": "deposit",
+      "label": "7. Paying 50% before anyone visits - how does that sit with you?",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "pricing_clear",
+      "label": "8. Could you tell what you would pay?",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "fair_price",
+      "label": "9. To check one plot or assignment once, what feels fair to pay?",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "currency",
+      "label": "Currency",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "other_currency",
+      "label": "Other currency",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "overall_section",
+      "label": "Overall",
+      "fieldtype": "Section Break",
+      "read_only": 1
+    },
+    {
+      "fieldname": "would_use",
+      "label": "10. Would you actually use this in the next few months?",
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "use_case",
+      "label": "For what?",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    },
+    {
+      "fieldname": "recommend",
+      "label": "11. How likely are you to recommend it to a friend? (0-10)",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "nearly_stopped",
+      "label": "12. Anything that nearly stopped you?",
+      "fieldtype": "Small Text",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "report": 1,
+      "export": 1,
+      "print": 1
+    },
+    {
+      "role": "Field Operations Coordinator",
+      "read": 1,
+      "report": 1,
+      "export": 1,
+      "print": 1
+    }
+  ]
+}
