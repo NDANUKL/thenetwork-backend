@@ -236,6 +236,19 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(doc.items[0].description, 'Confirmed scope for project-1')
         self.assertEqual(doc.items[1].description, 'Confirmed scope for project-2')
 
+    def test_out_of_scope_request_blocks_draft_and_issue(self):
+        for status in ('Draft', 'Issued'):
+            for assessment, category in (('out_of_scope', 'custom_ground_verification'),
+                                         (None, 'out_of_scope'), ('supported', 'out_of_scope')):
+                with self.subTest(status=status, assessment=assessment, category=category):
+                    doc = self.quote_document()
+                    doc['status'] = status
+                    request = Record(name='request', assessment_status=assessment, category=category,
+                                     check_permission=MagicMock())
+                    self.frappe.get_doc.side_effect = lambda dt, name: request
+                    with self.assertRaisesRegex(ValueError, 'out-of-scope request'):
+                        self.payments.validate_quote(doc)
+
     def test_quotation_requires_existing_project_brief(self):
         doc = self.quote_document()
         request = Record(name='request', full_name='Client', email='client@example.com', check_permission=MagicMock())

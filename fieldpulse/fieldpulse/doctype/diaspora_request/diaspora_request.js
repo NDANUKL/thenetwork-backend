@@ -33,7 +33,17 @@ frappe.ui.form.on("Diaspora Request", {
 
 
 // DD Quotation Actions
-frappe.ui.form.on("Diaspora Request", { refresh(frm) { if (!frm.is_new() && frm.perm.some(p => p.write)) { frm.add_custom_button("Prepare quotation", () => frappe.new_doc("DD Quotation", {request:frm.doc.name})); frm.add_custom_button("Quotations", () => frappe.set_route("List", "DD Quotation", {request:frm.doc.name})); } } });
+frappe.ui.form.on("Diaspora Request", {
+  refresh(frm) {
+    if (frm.is_new() || !frm.perm.some(p => p.write)) return;
+    frm.remove_custom_button(__("Prepare quotation"));
+    const outOfScope = frm.doc.assessment_status === "out_of_scope" || frm.doc.category === "out_of_scope";
+    if (!outOfScope) {
+      frm.add_custom_button(__("Prepare quotation"), () => frappe.new_doc("DD Quotation", {request:frm.doc.name}));
+    }
+    frm.add_custom_button(__("Quotations"), () => frappe.set_route("List", "DD Quotation", {request:frm.doc.name}));
+  }
+});
 
 // DD Request Details Actions
 frappe.ui.form.on("Diaspora Request", {

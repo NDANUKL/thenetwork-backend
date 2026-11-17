@@ -22,6 +22,8 @@ The website continues to use its existing Resend environment variables for verif
 
 ## Manage accounts
 
+Quotation eligibility: native quotation saves reject requests marked `out_of_scope` in Eligibility Status or the legacy category, for both Draft and Issued quotations. Desk hides Prepare quotation for these requests and keeps quotation history available. This source change requires normal backend deployment and a Desk reload; live behavior has not been verified.
+
 System Managers and Field Operations Coordinators can open DD Customer Account and approve or reject applications. Coordinators can use the **Beta client applications** card on the Field Operations dashboard. Coordinators have read/write access, without account creation or deletion rights; coordinators can also deactivate/reactivate client accounts.
 
 Search for DD Customer Account. Filter Beta access by Pending; Email Verified identifies completed signups.

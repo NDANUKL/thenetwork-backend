@@ -14,6 +14,13 @@ class ProviderRejection(ValueError):
     def __init__(self, payload, http_status):
         self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
         self.diagnostic = _provider_rejection_diagnostic(payload, http_status)
+        # Only an explicit notification validation rejection without an order
+        # permits retry. HTTP/server errors and partial orders remain uncertain.
+        self.order_rejected = (http_status == 200 and isinstance(payload, dict)
+            and str(payload.get('status')) in ('400', '500')
+            and isinstance(payload.get('error'), dict)
+            and not payload.get('order_tracking_id') and not payload.get('redirect_url')
+            and self.diagnostic.endswith('Reason category: NOTIFICATION'))
         super().__init__('Pesapal could not complete this action')
 
 
@@ -157,6 +164,8 @@ def validate_quote(doc, method=None):
     request = frappe.get_doc('Diaspora Request', doc.request)
     request.check_permission('read')
     _lock('Diaspora Request', request.name)
+    if request.get('assessment_status') == 'out_of_scope' or request.get('category') == 'out_of_scope':
+        frappe.throw('Cannot create or issue a quotation for an out-of-scope request')
     if doc.status == 'Issued' and frappe.db.exists('DD Quotation', {'request': doc.request, 'status': ['in', ['Issued', 'Accepted']], 'name': ['!=', doc.name or '']}):
         frappe.throw('A current quotation already exists; withdraw the unpaid quote before issuing a replacement')
     sequence_value_1 = (request.full_name, request.email)
@@ -344,9 +353,14 @@ def checkout(reference, payment, submission_id, return_origin=None):
             code = 'CHECKOUT_FAILED'
         _lock('DD Payment Attempt', attempt.name)
         attempt.reload()
+        rejected = (stage == 'provider_order' and isinstance(error, ProviderRejection)
+                    and error.order_rejected and not attempt.tracking_id
+                    and not attempt.checkout_url)
+        if rejected:
+            code = 'CHECKOUT_NOTIFICATION_REJECTED'
         if attempt.status not in ('Paid', 'Reversed'):
             frappe.db.set_value('DD Payment Attempt', attempt.name, {
-                'status': 'Review', 'reconcile_error_code': code,
+                'status': 'Failed' if rejected else 'Review', 'reconcile_error_code': code,
                 'reconcile_failed_at': now_datetime(),
             })
         # Persist before raising: the HTTP request will roll back on frappe.throw.
@@ -355,6 +369,8 @@ def checkout(reference, payment, submission_id, return_origin=None):
             message=f'Payment attempt: {attempt.name}\nStage: {stage}\nCode: {code}' + (f'\n{error.diagnostic}' if isinstance(error, ProviderRejection) else ''),
             reference_doctype='DD Payment Attempt', reference_name=attempt.name)
         frappe.db.commit()
+        if rejected:
+            frappe.throw('Payment checkout is temporarily unavailable. Please try again later')
         frappe.throw('Checkout needs reconciliation. Please contact support before retrying')
 
 
@@ -409,6 +425,35 @@ def ipn(OrderTrackingId=None, OrderMerchantReference=None, OrderNotificationType
         return
     frappe.response.update({'orderNotificationType': 'IPNCHANGE', 'orderTrackingId': OrderTrackingId, 'orderMerchantReference': OrderMerchantReference, 'status': 200})
 
+
+def _recover_notification_rejection(attempt_name):
+    """Recover legacy validation rejections using the bounded diagnostic audit.
+
+    Missing tracking alone is never evidence of failure. Keep unknown outcomes
+    blocked; only the exact old notification rejection can become retryable.
+    """
+    _lock('DD Payment Attempt', attempt_name)
+    attempt = frappe.get_doc('DD Payment Attempt', attempt_name)
+    if (attempt.status != 'Review' or attempt.tracking_id or attempt.checkout_url
+            or attempt.reconcile_error_code != 'PROVIDER_REJECTED'):
+        return False
+    logs = frappe.get_all('Error Log', filters={
+        'reference_doctype': 'DD Payment Attempt', 'reference_name': attempt_name,
+        'method': 'Pesapal checkout failed'}, fields=['error'],
+        order_by='creation desc', limit_page_length=1)
+    if not logs:
+        return False
+    lines = (logs[0].get('error') or '').strip().splitlines()
+    expected = [f'Payment attempt: {attempt_name}', 'Stage: provider_order',
+                'Code: PROVIDER_REJECTED', 'HTTP: 200', 'Provider status: 500',
+                'Reason category: NOTIFICATION']
+    if lines != expected:
+        return False
+    frappe.db.set_value('DD Payment Attempt', attempt_name, {
+        'status': 'Failed', 'reconcile_error_code': 'CHECKOUT_NOTIFICATION_REJECTED'})
+    return True
+
+
 def refresh(reference, payment=None):
     _owned(reference)
     if payment and (not isinstance(payment, str) or not frappe.db.exists('DD Payment', {'name': payment, 'request': reference})):
@@ -427,6 +472,8 @@ def refresh(reference, payment=None):
     if attempt.status in ('Paid', 'Failed', 'Reversed'):
         return {'success': True, 'pending': False, 'status': attempt.status}
     if not attempt.tracking_id:
+        if attempt.status == 'Review' and _recover_notification_rejection(attempt.name):
+            return {'success': True, 'pending': False, 'status': 'Failed'}
         return {'success': True, 'pending': True}
     try:
         state = _verify(attempt.name, interactive=True)
