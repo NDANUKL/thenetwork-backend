@@ -65,6 +65,27 @@ class QuotationPrintTests(unittest.TestCase):
         self.assertNotIn('Old custom terms', html)
         self.assertIn('Pay 50% upfront; review your approved report before paying the remaining 50%. Scout assignment starts after your deposit is verified.', html)
 
+    def test_beta_terms_follow_quotation_date(self):
+        from datetime import date
+
+        standard = 'Pay 50% upfront;'
+        for issued in ('2026-11-17', '2026-11-24', '2026-11-30', date(2026, 11, 17)):
+            with self.subTest(issued=issued):
+                quote = preview.sample_quote()
+                quote.quotation_date = issued
+                html = preview.render(quote)
+                self.assertIn('In beta submitting a request does not create a booking. No scout is dispatched and no report is produced. The KES 1 beta fee per project is refundable on request.', html)
+                self.assertIn('No scout is dispatched and no report is produced.', html)
+                self.assertIn('KES 1 beta fee per project is refundable on request.', html)
+                self.assertNotIn(standard, html)
+        for issued in ('2026-11-16', '2026-12-01'):
+            with self.subTest(issued=issued):
+                quote = preview.sample_quote()
+                quote.quotation_date = issued
+                html = preview.render(quote)
+                self.assertIn(standard, html)
+                self.assertNotIn('In beta submitting a request', html)
+
     def test_customer_and_scope_content_is_escaped(self):
         quote = preview.sample_quote()
         quote.customer_name = '<script>alert("name")</script>'

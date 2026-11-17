@@ -76,7 +76,8 @@ scheduler_events["cron"]["*/5 * * * *"].extend(["fieldpulse.customer_notificatio
 
 # Finance tracks task obligations/manual settlement; it does not replace Pesapal.
 app_include_js = globals().get('app_include_js', []) + ['/assets/fieldpulse/js/finance_forms.js']
-app_include_js.append('/assets/fieldpulse/js/planning_dates.js')
+# Invalidate cached revisions that changed the native calendar's minimum/focus handlers.
+app_include_js.append('/assets/fieldpulse/js/planning_dates.js?v=20261117-save-only')
 for _planning_doctype in ('DD Quotation', 'DD Scout Offer', 'Diaspora Request', 'Field Request'):
     doc_events.setdefault(_planning_doctype, {}).setdefault('validate', []).append('fieldpulse.planning_dates.validate')
 doc_events['Field Task']['before_save'].append('fieldpulse.finance.dispatch_guard')
