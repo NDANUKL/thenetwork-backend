@@ -16,7 +16,7 @@ def dispatch(**kwargs):
     elif action == "billing":
         result = billing(frappe.form_dict.get("reference"))
     elif action == "download_quote":
-        result = download_quote(frappe.form_dict.get("reference"))
+        result = download_quote(frappe.form_dict.get("reference"), frappe.form_dict.get("quote"))
     elif action == "download_receipt":
         result = download_receipt(frappe.form_dict.get("reference"), frappe.form_dict.get("payment"))
     elif action == "disputes":

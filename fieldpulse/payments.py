@@ -168,8 +168,6 @@ def validate_quote(doc, method=None):
     _lock('Diaspora Request', request.name)
     if request.get('assessment_status') == 'out_of_scope' or request.get('category') == 'out_of_scope':
         frappe.throw('Cannot create or issue a quotation for an out-of-scope request')
-    if doc.status == 'Issued' and frappe.db.exists('DD Quotation', {'request': doc.request, 'status': ['in', ['Issued', 'Accepted']], 'name': ['!=', doc.name or '']}):
-        frappe.throw('A current quotation already exists; withdraw the unpaid quote before issuing a replacement')
     sequence_value_1 = (request.full_name, request.email)
     doc.customer_name = sequence_value_1[0]
     doc.customer_email = sequence_value_1[1]
@@ -207,6 +205,7 @@ def validate_quote(doc, method=None):
             frappe.throw('Confirm the linked project brief before creating its quotation')
         item.amount = float(money(money(item.rate) * money(item.quantity)))
         total += money(item.amount)
+    _check_project_quotation_conflicts(doc.request, seen, doc.name)
     doc.agreed_completion_date = max(deadlines) if deadlines and len(deadlines) == len(doc.items) else None
     doc.tax_inclusive = inclusive
     doc.terms = PAYMENT_TERMS
@@ -242,8 +241,32 @@ def validate_quote(doc, method=None):
     doc.deposit_percent = 50
     doc.version = 1
 
-def _quote(reference):
-    name = frappe.db.get_value('DD Quotation', {'request': reference, 'status': ['in', ['Issued', 'Accepted']]}, 'name', order_by='creation desc')
+def _check_project_quotation_conflicts(reference, projects, excluding=None):
+    # Call under the request lock so concurrent issues cannot reserve the same project.
+    quotes = frappe.get_all('DD Quotation', filters={'request': reference,
+        'status': ['in', ['Issued', 'Accepted']], 'name': ['!=', excluding or '']}, pluck='name')
+    if not quotes:
+        return
+    conflicts = frappe.get_all('DD Quotation Item', filters={'parent': ['in', quotes],
+        'parenttype': 'DD Quotation', 'parentfield': 'items',
+        'field_request': ['in', sorted(projects)]}, fields=['parent', 'field_request'])
+    if conflicts:
+        conflict = conflicts[0]
+        frappe.throw(f'Project {conflict.field_request} already has an issued or accepted quotation ({conflict.parent}). '
+            'Withdraw its unaccepted quotation before replacing it; accepted or paid projects cannot be quoted again.')
+
+
+def _quote(reference, quotation=None, project=None):
+    filters = {'request': reference, 'status': ['in', ['Issued', 'Accepted']]}
+    if quotation:
+        filters['name'] = quotation
+    if project:
+        parents = frappe.get_all('DD Quotation Item', filters={'field_request': project,
+            'parenttype': 'DD Quotation', 'parentfield': 'items'}, pluck='parent')
+        if not parents:
+            return None
+        filters['name'] = ['in', parents]
+    name = frappe.db.get_value('DD Quotation', filters, 'name', order_by='creation desc')
     return frappe.get_doc('DD Quotation', name) if name else None
 
 def _obligations(quote):
@@ -262,8 +285,8 @@ def _full_kes_checkout(payment, quote, payments):
     return None
 
 
-def _billing(request):
-    quote = _quote(request.name)
+def _billing(request, quotation=None):
+    quote = _quote(request.name, quotation=quotation)
     if not quote:
         return {'quote': None, 'payments': [], 'documents': []}
     projects = []
@@ -282,19 +305,31 @@ def _billing(request):
         payment.can_pay = not payment.pending_confirmation and quote.status == 'Accepted' and payment.status != 'Paid' and (payment.kind == 'deposit' or (deposit_paid and request.status == 'Completed' and bool(frappe.db.exists('DD Service Report', {'request': request.name, 'status': 'Approved'}))))
     from fieldpulse.payment_receipts import receipt_document
     documents = [document for payment in payments if (document := receipt_document(payment, request.name))]
-    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote', 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': PAYMENT_TERMS, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': documents}
+    return {'quote': {'name': quote.name, 'version': quote.get('version') or 1, 'status': quote.status, 'currency': quote.currency, 'total': float(quote.total), 'subtotal': quote.get('subtotal'), 'discount_amount': quote.get('discount_amount'), 'discount_type': quote.get('discount_type'), 'discount_value': quote.get('discount_value'), 'vat_rate': quote.get('vat_rate'), 'vat_amount': quote.get('vat_amount'), 'taxable_amount': quote.get('taxable_amount'), 'tax_inclusive': quote.get('tax_inclusive'), 'download_url': '/api/customer/requests/' + urlquote(request.name, safe='') + '/quote?quote=' + urlquote(quote.name, safe=''), 'deposit_amount': quote.get('deposit_amount'), 'balance_amount': quote.get('balance_amount'), 'valid_until': quote.valid_until, 'terms': PAYMENT_TERMS, 'scope': '\n'.join((item.description for item in quote.items)), 'projects': projects, 'can_accept': quote.status == 'Issued' and bool(quote.get('deposit_amount')) and (getdate(quote.valid_until) >= getdate())}, 'payments': payments, 'documents': documents}
+
+def _request_billing(request):
+    names = frappe.get_all('DD Quotation', filters={'request': request.name,
+        'status': ['in', ['Issued', 'Accepted']]}, pluck='name', order_by='creation desc')
+    quotations = [_billing(request, quotation=name) for name in names]
+    # A coordinator may withdraw an unaccepted quote while billing is being read.
+    quotations = [entry for entry in quotations if entry['quote']]
+    # Preserve the singular response for existing website clients during rollout.
+    result = dict(quotations[0]) if quotations else {'quote': None, 'payments': [], 'documents': []}
+    result['quotations'] = quotations
+    return result
+
 
 def billing(reference=None):
     if reference:
-        return {'billing': _billing(_owned(reference))}
+        return {'billing': _request_billing(_owned(reference))}
     account = _customer()
     requests_ = frappe.get_all('Diaspora Request', filters={'dd_customer_account': account}, fields=['name', 'summary'], limit_page_length=200)
-    return {'requests': [{'name': row.name, 'title': row.summary, 'billing': _billing(frappe.get_doc('Diaspora Request', row.name))} for row in requests_]}
+    return {'requests': [{'name': row.name, 'title': row.summary, 'billing': _request_billing(frappe.get_doc('Diaspora Request', row.name))} for row in requests_]}
 
 def accept_quote(reference, quote, version, submission_id):
     request = _owned(reference)
     _lock('Diaspora Request', request.name)
-    current = _quote(reference)
+    current = _quote(reference, quotation=quote)
     if not current or current.name != quote or str(current.get('version') or 1) != str(version):
         frappe.throw('This quotation has changed')
     if current.status == 'Accepted':
@@ -317,7 +352,7 @@ def checkout(reference, payment, submission_id, return_origin=None):
     request = _owned(reference)
     _lock('Diaspora Request', request.name)
     obligation = frappe.get_doc('DD Payment', payment)
-    quote = _quote(reference)
+    quote = _quote(reference, quotation=obligation.quotation)
     if not quote or quote.status != 'Accepted' or obligation.request != reference or (obligation.quotation != quote.name):
         frappe.throw('Payment does not belong to the accepted quotation', frappe.PermissionError)
     if obligation.status == 'Paid':
@@ -700,7 +735,7 @@ def require_deposit(doc, method=None):
     if not reference:
         return
     _lock('Diaspora Request', reference)
-    quote = _quote(reference)
+    quote = _quote(reference, project=doc.field_request)
     if not quote or quote.status != 'Accepted' or (not frappe.db.exists('DD Payment', {'quotation': quote.name, 'kind': 'deposit', 'status': 'Paid'})):
         frappe.throw('Accept the quotation and verify the 50% deposit before assigning scouts')
     paid_attempt = frappe.db.get_value('DD Payment', {'quotation': quote.name, 'kind': 'deposit', 'status': 'Paid'}, 'paid_attempt')
@@ -729,9 +764,9 @@ def withdraw_quote(quote):
 
 
 @frappe.whitelist()
-def download_quote(reference):
+def download_quote(reference, quote=None):
     request = _owned(reference)
-    quote = _quote(request.name)
+    quote = _quote(request.name, quotation=quote)
     if not quote:
         frappe.throw('Quotation is not available', frappe.DoesNotExistError)
     # Ownership is established above; customers need no general Desk print permission.

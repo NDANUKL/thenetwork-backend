@@ -77,6 +77,7 @@ class Record(dict):
 class FlowTests(unittest.TestCase):
     def setUp(self):
         self.frappe = MagicMock()
+        self.frappe.get_all.return_value = []
         self.frappe.whitelist = lambda **kwargs: lambda fn: fn
         self.frappe.throw.side_effect = lambda message, *args: (_ for _ in ()).throw(ValueError(message))
         self.frappe.utils = types.SimpleNamespace(getdate=lambda value=None: value or "2026-10-14", now_datetime=lambda: "now")
@@ -118,6 +119,16 @@ class FlowTests(unittest.TestCase):
         self.assertIn('<p>Rendered</p>', render_pdf.call_args.args[0])
         self.assertEqual(self.frappe.response['filecontent'], b"%PDF-test")
 
+    def test_explicit_quotation_download_cannot_fall_back_to_another_request(self):
+        self.payments._owned = MagicMock(return_value=Record(name='owned-request'))
+        self.frappe.db.get_value.return_value = None
+        with self.assertRaisesRegex(ValueError, 'Quotation is not available'):
+            self.payments.download_quote('owned-request', quote='foreign-quote')
+        filters = self.frappe.db.get_value.call_args.args[1]
+        self.assertEqual(filters['request'], 'owned-request')
+        self.assertEqual(filters['name'], 'foreign-quote')
+        self.frappe.render_template.assert_not_called()
+
     def quote_document(self):
         doc = Record(name='draft', request='request', status='Draft', currency='USD', quotation_date='2026-10-14', valid_until='2026-11-14', discount_type='Percentage', discount_value=10, vat_rate=16)
         doc.get_doc_before_save = lambda: None
@@ -127,6 +138,56 @@ class FlowTests(unittest.TestCase):
         self.frappe.get_doc.side_effect = lambda dt, name: request if dt == 'Diaspora Request' else Record(name=name, diaspora_request='request', project_title=name, field_brief='Confirmed scope for ' + name)
         self.frappe.db.exists.return_value = False
         return doc
+
+    def test_uncovered_projects_can_be_quoted_on_same_request(self):
+        doc = self.quote_document()
+        doc.status = 'Issued'
+        self.frappe.get_all.side_effect = [['existing-quote'], []]
+        self.payments.validate_quote(doc)
+        filters = self.frappe.get_all.call_args.kwargs['filters']
+        self.assertEqual(filters['field_request'], ['in', ['project-1', 'project-2']])
+        self.payments._lock.assert_called_with('Diaspora Request', 'request')
+
+    def test_active_or_accepted_project_cannot_be_quoted_again_even_in_draft(self):
+        for status in ('Draft', 'Issued'):
+            with self.subTest(status=status):
+                doc = self.quote_document()
+                doc.status = status
+                self.frappe.get_all.side_effect = [['paid-quote'],
+                    [Record(parent='paid-quote', field_request='project-1')]]
+                with self.assertRaisesRegex(ValueError, 'Project project-1.*paid-quote'):
+                    self.payments.validate_quote(doc)
+                filters = self.frappe.get_all.call_args_list[-2].kwargs['filters']
+                self.assertEqual(filters['status'], ['in', ['Issued', 'Accepted']])
+                self.assertEqual(filters['name'], ['!=', 'draft'])
+
+    def test_quote_selection_is_scoped_to_request_and_explicit_quotation(self):
+        self.frappe.db.get_value.return_value = 'older-quote'
+        self.payments._quote('request', quotation='older-quote')
+        filters = self.frappe.db.get_value.call_args.args[1]
+        self.assertEqual(filters['name'], 'older-quote')
+        self.assertEqual(filters['request'], 'request')
+        self.assertEqual(filters['status'], ['in', ['Issued', 'Accepted']])
+
+    def test_dispatch_selects_quotation_containing_project(self):
+        self.frappe.get_all.return_value = ['older-paid-quote']
+        self.payments._quote('request', project='project-1')
+        self.assertEqual(self.frappe.get_all.call_args.kwargs['filters']['field_request'], 'project-1')
+        self.assertEqual(self.frappe.db.get_value.call_args.args[1]['name'], ['in', ['older-paid-quote']])
+        self.frappe.get_all.return_value = []
+        self.frappe.db.get_value.reset_mock()
+        self.assertIsNone(self.payments._quote('request', project='unquoted'))
+        self.frappe.db.get_value.assert_not_called()
+
+    def test_billing_exposes_each_quotation_with_its_own_obligations(self):
+        self.frappe.get_all.return_value = ['new', 'old']
+        entries = [dict(quote={'name': name}, payments=[name + '-deposit'], documents=[])
+                   for name in ('new', 'old')]
+        self.payments._billing = MagicMock(side_effect=entries)
+        result = self.payments._request_billing(Record(name='request'))
+        self.assertEqual(result['quote']['name'], 'new')
+        self.assertEqual(result['quotations'], entries)
+        self.assertEqual(self.payments._billing.call_args_list[1].kwargs, {'quotation': 'old'})
 
     def test_beta_quote_charges_one_shilling_per_project_including_vat(self):
         doc = self.quote_document()
@@ -332,6 +393,7 @@ class FlowTests(unittest.TestCase):
         quote = Record(name="quote", status="Issued", version=1, valid_until="2026-12-01", deposit_amount=50, total=100, currency="KES")
         self.payments._quote = MagicMock(return_value=quote)
         self.payments.accept_quote("request", "quote", 1, "retry-key")
+        self.payments._quote.assert_called_with('request', quotation='quote')
         created = [call.args[0] for call in self.frappe.get_doc.call_args_list]
         self.assertEqual([row["kind"] for row in created], ["deposit", "balance"])
         self.assertTrue(all(row["quotation"] == "quote" and row["amount"] == 50 for row in created))
@@ -367,6 +429,7 @@ class FlowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "after completion"):
             self.payments.checkout("request", "payment", "retry")
         self.frappe.db.commit.assert_not_called()
+        self.payments._quote.assert_called_with('request', quotation='quote')
 
     def test_balance_requires_a_published_report_even_after_completed_fieldwork(self):
         self.payments._owned = MagicMock(return_value=Record(name="request", status="Completed"))
