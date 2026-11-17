@@ -14,6 +14,7 @@
     "customer_account",
     "customer_name",
     "customer_email",
+    "country_of_residence",
     "submitted_at_utc",
     "form_version",
     "impressions_section",
@@ -31,6 +32,12 @@
     "fair_price",
     "currency",
     "other_currency",
+    "land_property_price",
+    "land_property_price_currency",
+    "construction_price",
+    "construction_price_currency",
+    "business_asset_price",
+    "business_asset_price_currency",
     "overall_section",
     "would_use",
     "use_case",
@@ -67,6 +74,13 @@
       "read_only": 1,
       "options": "Email",
       "in_list_view": 1
+    },
+    {
+      "fieldname": "country_of_residence",
+      "label": "Country of residence",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "in_standard_filter": 1
     },
     {
       "fieldname": "submitted_at_utc",
@@ -157,19 +171,64 @@
       "fieldname": "fair_price",
       "label": "9. To check one plot or assignment once, what feels fair to pay?",
       "fieldtype": "Data",
-      "read_only": 1
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version != \"2\""
     },
     {
       "fieldname": "currency",
       "label": "Currency",
       "fieldtype": "Data",
-      "read_only": 1
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version != \"2\""
     },
     {
       "fieldname": "other_currency",
       "label": "Other currency",
       "fieldtype": "Data",
-      "read_only": 1
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version != \"2\""
+    },
+    {
+      "fieldname": "land_property_price",
+      "label": "9. Land and property: fair price",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version == \"2\" && doc.pricing_clear == \"Yes\""
+    },
+    {
+      "fieldname": "land_property_price_currency",
+      "label": "9. Land and property currency",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version == \"2\" && doc.pricing_clear == \"Yes\""
+    },
+    {
+      "fieldname": "construction_price",
+      "label": "10. Construction progress: fair price",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version == \"2\" && doc.pricing_clear == \"Yes\""
+    },
+    {
+      "fieldname": "construction_price_currency",
+      "label": "10. Construction progress currency",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version == \"2\" && doc.pricing_clear == \"Yes\""
+    },
+    {
+      "fieldname": "business_asset_price",
+      "label": "11. Business and assets: fair price",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version == \"2\" && doc.pricing_clear == \"Yes\""
+    },
+    {
+      "fieldname": "business_asset_price_currency",
+      "label": "11. Business and assets currency",
+      "fieldtype": "Data",
+      "read_only": 1,
+      "depends_on": "eval:doc.form_version == \"2\" && doc.pricing_clear == \"Yes\""
     },
     {
       "fieldname": "overall_section",
@@ -179,7 +238,7 @@
     },
     {
       "fieldname": "would_use",
-      "label": "10. Would you actually use this in the next few months?",
+      "label": "Would you actually use this in the next few months?",
       "fieldtype": "Data",
       "read_only": 1
     },
@@ -191,13 +250,13 @@
     },
     {
       "fieldname": "recommend",
-      "label": "11. How likely are you to recommend it to a friend? (0-10)",
+      "label": "How likely are you to recommend it to a friend? (0-10)",
       "fieldtype": "Int",
       "read_only": 1
     },
     {
       "fieldname": "nearly_stopped",
-      "label": "12. Anything that nearly stopped you?",
+      "label": "Anything that nearly stopped you?",
       "fieldtype": "Small Text",
       "read_only": 1
     }

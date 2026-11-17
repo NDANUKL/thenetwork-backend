@@ -21,11 +21,21 @@ class FeedbackTests(unittest.TestCase):
         self.original_bridge = self.module.bridge_account
         self.access = access
         self.module.bridge_account = MagicMock(return_value=("ACCOUNT-1", types.SimpleNamespace(name="client@example.com", full_name="Client Name")))
-        self.answers = dict(understanding="Checks my plot", legitimacy="Legit", confusing="No", proof_trust="5", scout_comfort="3", trust_more="Independent review", deposit="Unsure", pricing_clear="Yes", fair_price="100.50", currency="USD", would_use="Maybe", use_case="Check a plot", recommend="0", nearly_stopped="Nothing")
+        self.answers = dict(understanding="Checks my plot", legitimacy="Legit", confusing="No", proof_trust="5", scout_comfort="3", trust_more="Independent review", deposit="Unsure", pricing_clear="Yes", fair_price="100.50", currency="USD", would_use="Maybe", use_case="Check a plot", recommend="0", nearly_stopped="Nothing", country_of_residence="Kenya")
 
     def dispatch(self, action="submit", answers=None):
         self.frappe.form_dict = dict(email="client@example.com", action=action, answers=answers if answers is not None else self.answers)
         return self.module.dispatch()
+
+    def test_country_is_required_and_validated(self):
+        missing = dict(self.answers)
+        missing.pop("country_of_residence")
+        with self.assertRaises(ValueError):
+            self.module.validate_answers(missing)
+        self.assertEqual(self.module.validate_answers(dict(self.answers, country_of_residence=" United Kingdom "))["country_of_residence"], "United Kingdom")
+        for value in ("", "   ", None, [], 123, "x" * 101):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.module.validate_answers(dict(self.answers, country_of_residence=value))
 
     def test_valid_answer_types_and_zero_recommendation(self):
         result = self.module.validate_answers(self.answers)
@@ -36,6 +46,28 @@ class FeedbackTests(unittest.TestCase):
         for key, value in [("legitimacy", "Bad"), ("confusing", "Yes"), ("currency", "Other"), ("proof_trust", "6"), ("recommend", True), ("recommend", "-1"), ("fair_price", "NaN"), ("fair_price", "-1"), ("fair_price", "1.001"), ("understanding", " "), ("use_case", ""), ("trust_more", "x"*2001)]:
             with self.subTest(key=key,value=value), self.assertRaises(ValueError):
                 self.module.validate_answers({**self.answers, key:value})
+
+    def test_v2_pricing_requires_three_prices_and_supported_currencies(self):
+        answers = dict(self.answers, form_version="2")
+        answers.pop("fair_price")
+        answers.pop("currency")
+        fields = ("land_property_price", "construction_price", "business_asset_price")
+        for field in fields:
+            answers[field] = "25.50"
+            answers[field + "_currency"] = "USD"
+        result = self.module.validate_answers(answers)
+        self.assertNotIn("fair_price", result)
+        for field in fields:
+            self.assertEqual(result[field], "25.50")
+            for value in (None, "", True, "NaN", "-1", "0.001"):
+                with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                    self.module.validate_answers(dict(answers, **{field: value}))
+            for currency in ("GBP", "Other", "", None):
+                with self.subTest(currency=currency), self.assertRaises(ValueError):
+                    self.module.validate_answers(dict(answers, **{field + "_currency": currency}))
+        self.assertEqual(self.module.validate_answers(dict(answers, land_property_price="0", land_property_price_currency="KES"))["land_property_price"], "0")
+        result = self.module.validate_answers(dict(answers, pricing_clear="No"))
+        self.assertTrue(all(field not in result and field + "_currency" not in result for field in fields))
 
     def test_no_request_is_ineligible(self):
         self.frappe.db.exists.return_value = None

@@ -24,8 +24,13 @@ def validate_answers(raw):
         raw = json.loads(raw)
     if not isinstance(raw, dict):
         raise ValueError("Invalid response")
-    result = {}
+    version = raw.get("form_version", "1")
+    if version not in ("1", "2"):
+        raise ValueError("Invalid form version")
+    result = {"form_version": version}
     for key, options in CHOICES.items():
+        if version == "2" and key == "currency":
+            continue
         if raw.get(key) not in options:
             raise ValueError("Invalid choice")
         result[key] = raw[key]
@@ -39,6 +44,10 @@ def validate_answers(raw):
         if not isinstance(value, str) or len(value) > (40 if key == "other_currency" else 2000):
             raise ValueError("Invalid text")
         result[key] = value.strip()
+    country = raw.get("country_of_residence", "")
+    if not isinstance(country, str) or not country.strip() or len(country) > 100:
+        raise ValueError("Invalid country")
+    result["country_of_residence"] = country.strip()
     required = ["understanding", "trust_more", "nearly_stopped"]
     if result["confusing"] == "Yes":
         required.append("confusing_details")
@@ -46,13 +55,26 @@ def validate_answers(raw):
         result["confusing_details"] = ""
     if result["would_use"] != "No":
         required.append("use_case")
-    if result["currency"] == "Other":
+    if version == "1" and result["currency"] == "Other":
         required.append("other_currency")
     else:
         result["other_currency"] = ""
     if any(not result[key] for key in required):
         raise ValueError("Missing answer")
-    price = raw.get("fair_price")
+    if version == "1":
+        result["fair_price"] = validate_price(raw.get("fair_price"))
+    elif result["pricing_clear"] == "Yes":
+        for field in ("land_property_price", "construction_price", "business_asset_price"):
+            result[field] = validate_price(raw.get(field))
+            currency = raw.get(field + "_currency")
+            if currency not in ("KES", "USD"):
+                raise ValueError("Invalid currency")
+            result[field + "_currency"] = currency
+    # Hidden price answers are deliberately excluded when pricing_clear is No.
+    return result
+
+
+def validate_price(price):
     if isinstance(price, bool) or not isinstance(price, (str, int, float)) or len(str(price)) > 32:
         raise ValueError("Invalid price")
     try:
@@ -61,8 +83,8 @@ def validate_answers(raw):
             raise ValueError("Invalid price")
     except InvalidOperation as error:
         raise ValueError("Invalid price") from error
-    result["fair_price"] = str(amount)
-    return result
+    return str(amount)
+
 
 
 def bridge_account(email):
@@ -108,7 +130,7 @@ def dispatch(**kwargs):
     # An ISO UTC Data field avoids Desk converting a UTC value as site-local time.
     doc = frappe.get_doc({"doctype": "DD Beta Feedback", **answers,
         "customer_account": account, "customer_name": user.full_name, "customer_email": user.name,
-        "submitted_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"), "form_version": "1"})
+        "submitted_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"), "form_version": answers["form_version"]})
     doc.flags.beta_feedback_submission = True
     doc.insert(ignore_permissions=True)
     return {"eligible": True, "submitted": True}
