@@ -23,8 +23,9 @@ class FeedbackTests(unittest.TestCase):
         self.module.bridge_account = MagicMock(return_value=("ACCOUNT-1", types.SimpleNamespace(name="client@example.com", full_name="Client Name")))
         self.answers = dict(understanding="Checks my plot", legitimacy="Legit", confusing="No", proof_trust="5", scout_comfort="3", trust_more="Independent review", deposit="Unsure", pricing_clear="Yes", fair_price="100.50", currency="USD", would_use="Maybe", use_case="Check a plot", recommend="0", nearly_stopped="Nothing", country_of_residence="Kenya")
 
-    def dispatch(self, action="submit", answers=None):
-        self.frappe.form_dict = dict(email="client@example.com", action=action, answers=answers if answers is not None else self.answers)
+    def dispatch(self, action="submit", answers=None, slot=0):
+        self.frappe.form_dict = dict(email="client@example.com", action=action, response_slot=slot,
+                                    answers=answers if answers is not None else self.answers)
         return self.module.dispatch()
 
     def test_country_is_required_and_validated(self):
@@ -69,6 +70,12 @@ class FeedbackTests(unittest.TestCase):
         result = self.module.validate_answers(dict(answers, pricing_clear="No"))
         self.assertTrue(all(field not in result and field + "_currency" not in result for field in fields))
 
+    def test_other_feedback_is_optional_for_v2(self):
+        answers = dict(self.answers, form_version="2", pricing_clear="No")
+        del answers["nearly_stopped"]
+        self.assertEqual(self.module.validate_answers(answers)["nearly_stopped"], "")
+        self.assertEqual(self.module.validate_answers(dict(answers, nearly_stopped=" More examples "))["nearly_stopped"], "More examples")
+
     def test_no_request_is_ineligible(self):
         self.frappe.db.exists.return_value = None
         self.assertEqual(self.dispatch(), {"not_eligible": True})
@@ -77,12 +84,29 @@ class FeedbackTests(unittest.TestCase):
     def test_repeat_submission_returns_success_without_overwriting(self):
         self.frappe.db.exists.return_value = "EXISTS"
         self.frappe.db.sql.side_effect = [[("ACCOUNT-1",)], [("FEEDBACK-1",)]]
-        self.assertEqual(self.dispatch(), {"eligible": True, "submitted": True})
+        self.assertEqual(self.dispatch(), {"eligible": True, "submitted": True, "response_count": 1})
         self.frappe.get_doc.assert_not_called()
         self.assertIn("tabDD Customer Account", self.frappe.db.sql.call_args_list[0].args[0])
         self.assertIn("tabDD Beta Feedback", self.frappe.db.sql.call_args_list[1].args[0])
         self.assertIn("FOR UPDATE", self.frappe.db.sql.call_args_list[1].args[0])
         self.assertFalse(any(call.args[0] == "DD Beta Feedback" for call in self.frappe.db.exists.call_args_list))
+
+    def test_second_response_uses_the_last_slot_and_retries_do_not_insert(self):
+        self.frappe.db.exists.return_value = "REQUEST-1"
+        self.frappe.db.sql.side_effect = [
+            [("ACCOUNT-1",)], [("FEEDBACK-1",)],
+            [("ACCOUNT-1",)], [("FEEDBACK-1",), ("FEEDBACK-2",)],
+        ]
+        result = {"eligible": True, "submitted": True, "response_count": 2}
+        self.assertEqual(self.dispatch(slot="1"), result)
+        self.assertEqual(self.dispatch(slot="1"), result)
+        self.assertEqual(self.dispatch(slot=2), {"invalid": True})
+        self.frappe.get_doc.return_value.insert.assert_called_once_with(ignore_permissions=True)
+
+    def test_cannot_skip_the_first_response(self):
+        self.frappe.db.exists.return_value = "REQUEST-1"
+        self.assertEqual(self.dispatch(slot=1), {"invalid": True})
+        self.frappe.get_doc.assert_not_called()
 
     def test_submission_binds_server_identity_time_and_ignores_forged_fields(self):
         self.frappe.db.exists.return_value = "REQUEST-1"
@@ -96,8 +120,12 @@ class FeedbackTests(unittest.TestCase):
         self.frappe.get_doc.return_value.insert.assert_called_once_with(ignore_permissions=True)
 
     def test_status_does_not_lock_or_write(self):
-        self.frappe.db.exists.side_effect = [None, "REQUEST-1"]
-        self.assertEqual(self.dispatch("status"), {"eligible":True,"submitted":False})
+        self.frappe.db.exists.return_value = "REQUEST-1"
+        for count in (0, 1, 2):
+            self.frappe.db.count.return_value = count
+            self.assertEqual(self.dispatch("status"), {
+                "eligible": True, "submitted": count == 2, "response_count": count,
+            })
         self.frappe.db.sql.assert_not_called()
         self.frappe.get_doc.assert_not_called()
 

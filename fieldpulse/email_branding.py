@@ -34,10 +34,21 @@ def render_email(*, title, body, origin, eyebrow="DIASPORA DESK", link="", label
         "note": note or "",
     }
     shell = json.loads((Path(__file__).parent / "templates/emails/dd_shell.json").read_text(encoding="utf-8"))
-    rendered = re.sub(r"{{(\w+)}}", lambda match: (
-        str(values[match[1]]) if body_is_html and match[1] == "body"
-        else escape(str(values[match[1]]), quote=True)
-    ), shell)
+    if body_is_html:
+        # Lists and paragraphs need a block container in email clients.
+        shell = shell.replace(
+            '<p style="margin:0 0 26px;font-size:16px;line-height:1.7;color:#435c70">{{body}}</p>',
+            '<div style="margin:0 0 26px;font-size:16px;line-height:1.7;color:#435c70">{{body}}</div>',
+        )
+
+    def render_value(match):
+        key = match[1]
+        if key == "body" and body_is_html:
+            return str(values[key])
+        value = escape(str(values[key]), quote=True)
+        return value.replace("\n", "<br>") if key == "note" else value
+
+    rendered = re.sub(r"{{(\w+)}}", render_value, shell)
     if not label or not link:
         rendered = re.sub(r'<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto">.*?</table>', "", rendered, count=1)
     if not note:

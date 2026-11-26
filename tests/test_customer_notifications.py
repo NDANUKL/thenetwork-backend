@@ -77,6 +77,47 @@ class CustomerNotificationTests(unittest.TestCase):
             self.assertEqual(first,self.module.queue_event(kind,source))
         self.assertEqual(self.site.enqueue.call_count,6)
         self.assertTrue(all(call.kwargs['enqueue_after_commit'] for call in self.site.enqueue.call_args_list))
+    def test_beta_reminder_preview_queue_and_delivery_are_single_use(self):
+        from fieldpulse.beta_client_reminder import queue_existing_clients
+
+        self.site.get_all = MagicMock(return_value=["ACCOUNT", "PENDING"])
+        self.site.add("DD Customer Account", "PENDING", user="pending@example.com",
+                      email_verified=1, email_notifications=1, beta_access="Pending")
+        self.site.db.get_value = MagicMock(side_effect=lambda dt, name, field:
+                                          "Alex Smith" if field == "first_name" else 1)
+        before = "2026-10-23 11:59:00"
+        with patch.dict("sys.modules", {"fieldpulse.customer_notifications": self.module}):
+            self.assertEqual(queue_existing_clients(before), {
+                "dry_run": True, "ready": 1, "already_queued": 0, "skipped": 1,
+            })
+            self.site.enqueue.assert_not_called()
+            self.assertEqual(queue_existing_clients(before, dry_run=False)["ready"], 1)
+            self.assertEqual(queue_existing_clients(before, dry_run=False)["already_queued"], 1)
+        self.assertEqual(self.site.get_all.call_args.kwargs["filters"]["creation"],
+                         ["<", datetime.fromisoformat(before)])
+        self.site.enqueue.assert_called_once()
+        self.http.post.assert_not_called()
+        key = self.module.digest("beta_reminder:1:ACCOUNT")
+        self.module.send(key)
+        self.module.send(key)
+        self.http.post.assert_called_once()
+        payload = self.http.post.call_args.kwargs["json"]
+        self.assertEqual(payload["to"], ["client@example.com"])
+        self.assertIn("Hi Alex,", payload["html"])
+        self.assertIn('href="https://example.com/request"', payload["html"])
+
+    def test_beta_reminder_honors_opt_out_after_queueing(self):
+        from fieldpulse.beta_client_reminder import queue_existing_clients
+
+        self.site.get_all = MagicMock(return_value=["ACCOUNT"])
+        with patch.dict("sys.modules", {"fieldpulse.customer_notifications": self.module}):
+            queue_existing_clients("2026-10-23 11:59:00", dry_run=False)
+        self.account.email_notifications = 0
+        key = self.module.digest("beta_reminder:1:ACCOUNT")
+        self.module.send(key)
+        self.assertEqual(self.site.docs[self.module.DOCTYPE, key].status, "Skipped")
+        self.http.post.assert_not_called()
+
     def test_preferences_block_capture_and_delivery(self):
         source=self.source('details')
         self.account.email_notifications=0

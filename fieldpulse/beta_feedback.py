@@ -1,4 +1,4 @@
-"""One immutable beta response per verified customer, via the website bridge."""
+"""Up to two immutable beta responses per verified customer, via the website bridge."""
 import json
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -48,7 +48,9 @@ def validate_answers(raw):
     if not isinstance(country, str) or not country.strip() or len(country) > 100:
         raise ValueError("Invalid country")
     result["country_of_residence"] = country.strip()
-    required = ["understanding", "trust_more", "nearly_stopped"]
+    required = ["understanding", "trust_more"]
+    if version == "1":
+        required.append("nearly_stopped")
     if result["confusing"] == "Yes":
         required.append("confusing_details")
     else:
@@ -109,20 +111,28 @@ def dispatch(**kwargs):
     action = frappe.form_dict.get("action")
     if action not in ("status", "submit"):
         frappe.throw("Invalid action")
-    if action == "submit":
-        # Serialize submissions for this account. The unique database field is
-        # a second guard; no explicit commit means ordinary request rollback applies.
-        frappe.db.sql("SELECT name FROM `tabDD Customer Account` WHERE name=%s FOR UPDATE", (account,))
-    # A normal SELECT can retain the snapshot taken by bridge_account before
-    # waiting for the account lock. Use a current locking read for retries.
-    submitted = bool(frappe.db.sql(
-        "SELECT name FROM `tabDD Beta Feedback` WHERE customer_account=%s FOR UPDATE", (account,)
-    )) if action == "submit" else bool(frappe.db.exists("DD Beta Feedback", {"customer_account": account}))
     eligible = bool(frappe.db.exists("Diaspora Request", {"dd_customer_account": account}))
-    if action == "status" or submitted:
-        return {"eligible": eligible, "submitted": submitted}
+    if action == "status":
+        count = frappe.db.count("DD Beta Feedback", {"customer_account": account})
+        return {"eligible": eligible, "submitted": count >= 2, "response_count": count}
     if not eligible:
         return {"not_eligible": True}
+    # Older clients only submit the initial response. A retry for a slot that
+    # already has a response must never consume the next one.
+    slot = frappe.form_dict.get("response_slot", 0)
+    if str(slot) not in ("0", "1"):
+        return {"invalid": True}
+    slot = int(slot)
+    frappe.db.sql("SELECT name FROM `tabDD Customer Account` WHERE name=%s FOR UPDATE", (account,))
+    # Read the current rows after acquiring the account lock, outside the
+    # transaction snapshot established by the earlier access checks.
+    count = len(frappe.db.sql(
+        "SELECT name FROM `tabDD Beta Feedback` WHERE customer_account=%s LIMIT 2 FOR UPDATE", (account,)
+    ))
+    if slot < count:
+        return {"eligible": True, "submitted": True, "response_count": count}
+    if slot != count:
+        return {"invalid": True}
     try:
         answers = validate_answers(frappe.form_dict.get("answers"))
     except (ValueError, TypeError):
@@ -133,4 +143,4 @@ def dispatch(**kwargs):
         "submitted_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"), "form_version": answers["form_version"]})
     doc.flags.beta_feedback_submission = True
     doc.insert(ignore_permissions=True)
-    return {"eligible": True, "submitted": True}
+    return {"eligible": True, "submitted": True, "response_count": count + 1}

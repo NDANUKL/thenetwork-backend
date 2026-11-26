@@ -86,6 +86,13 @@ def enqueue(name):
 
 
 def event_message(kind, doc, reference, origin):
+    if kind == "beta_reminder":
+        from fieldpulse.beta_client_reminder import SUBJECT, render_reminder
+
+        full_name = (frappe.db.get_value("User", doc.user, "first_name") or "").strip()
+        return {"subject": SUBJECT, "html": render_reminder(
+            first_name=full_name.split(maxsplit=1)[0] if full_name else "", origin=origin,
+        )}
     reference_path = quote(reference, safe="")
     messages = {
         "details": ("More details needed", "Your coordinator needs a few more details to move your request forward.", f"/dashboard/requests/{reference_path}#details-needed", "Answer the questions"),
@@ -132,6 +139,17 @@ def delivery_config():
     return key, settings.resend_from_email, origin
 
 
+def delivery_event_is_current(record, doc, account):
+    if not eligible(account):
+        return False
+    if record.kind == "beta_reminder":
+        return (record.source_type == "DD Customer Account" and doc.name == account.name
+                and record.source_revision == "1")
+    request = frappe.get_doc("Diaspora Request", record.request)
+    return (request_reference(doc) == record.request and request.dd_customer_account == account.name
+            and current_event(record.kind, doc) and revision(record.kind, doc) == record.source_revision)
+
+
 def send(notification):
     if not frappe.conf.get("dd_native_handover_approved"): return
     frappe.db.sql("SELECT name FROM `tabDD Customer Notification` WHERE name=%s FOR UPDATE", [notification])
@@ -139,10 +157,8 @@ def send(notification):
     now = frappe.utils.now_datetime()
     if record.status != "Pending" or (record.next_attempt_at and frappe.utils.get_datetime(record.next_attempt_at) > now): return
     doc = frappe.get_doc(record.source_type, record.source_name)
-    request = frappe.get_doc("Diaspora Request", record.request)
     account = frappe.get_doc("DD Customer Account", record.customer_account)
-    if (request_reference(doc) != record.request or request.dd_customer_account != account.name or not eligible(account)
-            or not current_event(record.kind, doc) or revision(record.kind, doc) != record.source_revision):
+    if not delivery_event_is_current(record, doc, account):
         frappe.db.set_value(DOCTYPE, record.name, "status", "Skipped")
         return
     # Resend retains idempotency keys for 24h. Do not automatically resend an
@@ -168,8 +184,7 @@ def send(notification):
         if record.status != "Pending": return
         account.reload()
         doc.reload()
-        if (not eligible(account) or payload["to"] != [account.user]
-                or not current_event(record.kind, doc) or revision(record.kind, doc) != record.source_revision):
+        if payload["to"] != [account.user] or not delivery_event_is_current(record, doc, account):
             frappe.db.set_value(DOCTYPE, record.name, "status", "Skipped")
             return
         response = requests.post("https://api.resend.com/emails", timeout=20,

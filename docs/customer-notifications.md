@@ -39,3 +39,16 @@ Sent means accepted by Resend, not proven inbox delivery. The outbox records the
 5. Validate one event of each type against a controlled customer account, plus an opted-out account. No live emails were sent during local verification.
 
 Local tests cover event hooks, event deduplication, preferences, stale events, verified payment capture, stable retry payload/key, queue/provider failures, expired retry windows, sender configuration and authenticated destination links.
+
+
+## One-time beta client reminder
+
+Deploy the compatible backend and run ordinary schema migration to add the beta reminder notification type. Deploy the updated feedback placement before inviting clients to use it. Deployment does not queue or send the reminder.
+
+On the intended Frappe site, run a preview with a fixed cutoff in the site's timezone. The cutoff is exclusive and must be in the past. Replace the example site and time with the reviewed values.
+
+```sh
+bench --site SITE execute fieldpulse.beta_client_reminder.queue_existing_clients --kwargs '{"before":"2026-11-26 12:00:00"}'
+```
+
+To queue delivery, run the same command with the same cutoff and add `"dry_run":false` inside the JSON. This uses the existing customer notification worker and Resend sender. The worker rechecks approval, verification, account state and email preferences. The same account cannot be queued twice for this reminder, even if the command is rerun. Filter DD Customer Notification by `beta_reminder` to review delivery status.

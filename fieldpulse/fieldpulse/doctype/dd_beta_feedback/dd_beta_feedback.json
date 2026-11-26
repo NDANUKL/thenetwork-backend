@@ -57,7 +57,7 @@
       "fieldtype": "Link",
       "read_only": 1,
       "options": "DD Customer Account",
-      "unique": 1,
+      "search_index": 1,
       "reqd": 1
     },
     {
@@ -256,7 +256,7 @@
     },
     {
       "fieldname": "nearly_stopped",
-      "label": "Anything that nearly stopped you?",
+      "label": "Other feedback / Anything that nearly stopped you?",
       "fieldtype": "Small Text",
       "read_only": 1
     }
