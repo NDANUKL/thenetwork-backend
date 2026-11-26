@@ -45,7 +45,9 @@ Local tests cover event hooks, event deduplication, preferences, stale events, v
 
 Deploy the compatible backend and run ordinary schema migration to add the beta reminder notification type. Deploy the updated feedback placement before inviting clients to use it. Deployment does not queue or send the reminder.
 
-On the intended Frappe site, run a preview with a fixed cutoff in the site's timezone. The cutoff is exclusive and must be in the past. Replace the example site and time with the reviewed values.
+In Frappe Desk, a System Manager can search for **DD Customer Notification**, open the list, and click **Preview beta reminder**. The count covers accounts created before the preview began. Click **Send reminder** to queue delivery, or close the dialog to cancel. The worker rechecks eligibility. The list reports delivery status under `beta_reminder`.
+
+For terminal use, run a preview on the intended Frappe site with a fixed cutoff in the site's timezone. The cutoff is exclusive and must be in the past. Replace the example site and time with the reviewed values.
 
 ```sh
 bench --site SITE execute fieldpulse.beta_client_reminder.queue_existing_clients --kwargs '{"before":"2026-11-26 12:00:00"}'

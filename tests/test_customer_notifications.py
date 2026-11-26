@@ -77,6 +77,25 @@ class CustomerNotificationTests(unittest.TestCase):
             self.assertEqual(first,self.module.queue_event(kind,source))
         self.assertEqual(self.site.enqueue.call_count,6)
         self.assertTrue(all(call.kwargs['enqueue_after_commit'] for call in self.site.enqueue.call_args_list))
+    def test_desk_beta_reminder_requires_system_manager_for_preview_and_send(self):
+        self.site.get_roles = lambda: ["DD Customer"]
+        with patch("fieldpulse.beta_client_reminder.queue_existing_clients") as queue:
+            with self.assertRaises(PermissionError):
+                self.module.preview_beta_reminder()
+            with self.assertRaises(PermissionError):
+                self.module.send_beta_reminder("2026-10-23 11:59:00")
+            queue.assert_not_called()
+
+    def test_desk_beta_reminder_reuses_preview_cutoff_for_send(self):
+        with patch("fieldpulse.beta_client_reminder.queue_existing_clients") as queue:
+            queue.return_value = {"ready": 1}
+            preview = self.module.preview_beta_reminder()
+            self.assertEqual(preview, {"before": "2026-10-23 12:00:00", "ready": 1})
+            queue.assert_called_once_with(preview["before"])
+            queue.reset_mock()
+            self.module.send_beta_reminder(preview["before"])
+            queue.assert_called_once_with(preview["before"], dry_run=False)
+
     def test_beta_reminder_preview_queue_and_delivery_are_single_use(self):
         from fieldpulse.beta_client_reminder import queue_existing_clients
 

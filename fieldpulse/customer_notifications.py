@@ -248,3 +248,22 @@ def retry_notification(notification):
         "next_attempt_at": frappe.utils.now_datetime(), "last_error": ""})
     enqueue(record.name)
     return {"success": True, "status": "Pending"}
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_beta_reminder():
+    if "System Manager" not in frappe.get_roles():
+        frappe.throw("Not permitted", frappe.PermissionError)
+    from fieldpulse.beta_client_reminder import queue_existing_clients
+
+    cutoff = frappe.utils.now_datetime().isoformat(sep=" ")
+    return {"before": cutoff, **queue_existing_clients(cutoff)}
+
+
+@frappe.whitelist(methods=["POST"])
+def send_beta_reminder(before):
+    if "System Manager" not in frappe.get_roles():
+        frappe.throw("Not permitted", frappe.PermissionError)
+    from fieldpulse.beta_client_reminder import queue_existing_clients
+
+    return queue_existing_clients(before, dry_run=False)
