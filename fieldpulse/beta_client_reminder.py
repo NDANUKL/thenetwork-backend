@@ -6,7 +6,7 @@ from string import Template
 
 from fieldpulse.email_branding import render_email
 
-SUBJECT = "Thank you for testing Diaspora Desk"
+SUBJECT = "Try the updated Diaspora Desk"
 TEMPLATE = Path(__file__).parent / "templates/emails/beta_client_reminder.html"
 
 
@@ -21,7 +21,7 @@ def render_reminder(*, first_name, origin):
         origin=origin,
         link=f"{origin}/request",
         label="Log in",
-        note="Thank you for helping shape Diaspora Desk.\nThe Diaspora Desk team",
+        note="The Diaspora Desk team",
     )
 
 
