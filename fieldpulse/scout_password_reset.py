@@ -10,16 +10,16 @@ def update_password(new_password, logout_all_sessions=0, key=None, old_password=
     from frappe.core.doctype.user import user as native
     from frappe.utils.password import update_password as store_password
 
-    # Preserve ordinary staff password changes and recovery.
     if not key:
-        return native.update_password(new_password, logout_all_sessions, key, old_password)
+        user = frappe.session.user if old_password and frappe.session.user != "Guest" else None
+        return _update_native_password(native, new_password, logout_all_sessions, key, old_password, user)
     result = native._get_user_for_update_password(key, old_password)
     if result.get('message'):
         frappe.local.response.http_status_code = 410
         return result['message']
     user = result.get('user')
     if not user or not frappe.db.exists('Scout Profile', {'user': user}):
-        return native.update_password(new_password, logout_all_sessions, key, old_password)
+        return _update_native_password(native, new_password, logout_all_sessions, key, old_password, user)
 
     # Recheck the single-use, expiring token after serializing concurrent resets.
     frappe.db.sql('SELECT name FROM `tabUser` WHERE name=%s FOR UPDATE', [user])
@@ -43,3 +43,13 @@ def update_password(new_password, logout_all_sessions=0, key=None, old_password=
     if frappe.session.user == user:
         frappe.local.login_manager.logout()
     return '/scout-password-reset-complete'
+
+
+def _update_native_password(native, new_password, logout_all_sessions, key, old_password, user):
+    is_customer = user and frappe.db.exists('DD Customer Account', {'user': user, 'email_verified': 1})
+    result = native.update_password(new_password, logout_all_sessions, key, old_password)
+    # Native Frappe can return an error message with HTTP 410 instead of raising.
+    if is_customer and (frappe.local.response.get('http_status_code') or 200) < 400:
+        frappe.enqueue('fieldpulse.customer_accounts.send_password_security_notice',
+                       email=user, password_changed=True, enqueue_after_commit=True)
+    return result

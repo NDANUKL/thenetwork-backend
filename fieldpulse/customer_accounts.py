@@ -8,7 +8,7 @@ from fieldpulse.native_ownership import owned_event, owned_api
 from fieldpulse.beta_access import registration_access, access_status
 
 
-def send_password_security_notice(email):
+def send_password_security_notice(email, *, password_changed=False):
     """Send the customer password-set alert through the branded Resend path."""
     settings = frappe.get_doc("DD Access Settings")
     key = settings.get_password("resend_api_key", raise_exception=False)
@@ -21,14 +21,25 @@ def send_password_security_notice(email):
     from fieldpulse.email_branding import render_email, sender_address
     title = "Your Diaspora Desk password was set"
     body = "A password was set for your Diaspora Desk account after email verification. If you did not complete this, reset your password or contact Diaspora Desk."
+    link = origin + "/request"
+    label = "Open your account"
+    note = "This notice was sent after your email verification."
+    if password_changed:
+        title = "Your Diaspora Desk password was changed"
+        body = ("The password for your Diaspora Desk account was changed. "
+                "If you made this change, you can ignore this email. "
+                "If this wasn’t you, reset your password immediately. "
+                "If you need help, contact info@diaspora-desk.com.")
+        link = origin + "/request?mode=recover"
+        label = "Reset your password"
+        note = ""
     response = requests.post("https://api.resend.com/emails", timeout=20,
         headers={"Authorization": "Bearer " + key},
         json={"from": sender_address(settings.resend_from_email), "to": [email],
               "subject": title,
               "html": render_email(title=title, eyebrow="ACCOUNT SECURITY", body=body,
-                  origin=origin, link=origin + "/request", label="Open your account",
-                  note="This notice was sent after your email verification."),
-              "text": body + "\n\n" + origin + "/request"})
+                  origin=origin, link=link, label=label, note=note),
+              "text": body + "\n\n" + link})
     if not response.ok:
         frappe.throw("Password security email delivery failed")
 
@@ -95,8 +106,6 @@ def registration(**kwargs):
             profile.email_verified = 1
             profile.verified_at = frappe.utils.now_datetime()
             profile.save()
-            frappe.enqueue("fieldpulse.customer_accounts.send_password_security_notice",
-                email=email, enqueue_after_commit=True)
         if not profile.email_verified or not user.enabled:
             frappe.throw("Invalid account", frappe.PermissionError)
         frappe.response["message"] = {"verified": True, "access_status": access_status(profile)}

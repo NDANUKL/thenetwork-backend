@@ -13,6 +13,8 @@ class RecoveryTests(unittest.TestCase):
         self.f.whitelist.return_value=lambda fn:fn
         self.f.throw.side_effect=ValueError
         self.f.session.user='Guest'
+        self.f.local.response=types.SimpleNamespace(http_status_code=200)
+        self.f.local.response.get=lambda key: getattr(self.f.local.response, key, None)
         self.native=MagicMock(MAX_PASSWORD_SIZE=1000)
         self.native._get_user_for_update_password.return_value={'user':'scout@example.test'}
         self.native.test_password_strength.return_value={}
@@ -47,6 +49,38 @@ class RecoveryTests(unittest.TestCase):
         self.native.update_password.reset_mock()
         self.module.update_password('New-password-123',old_password='old')
         self.native.update_password.assert_called_once();self.store.assert_not_called()
+
+    def test_customer_reset_queues_security_notice_after_commit(self):
+        self.f.db.exists.side_effect = lambda doctype, filters: doctype == 'DD Customer Account'
+        self.native.update_password.return_value = '/me'
+        self.assertEqual(self.reset(), '/me')
+        self.f.enqueue.assert_called_once_with(
+            'fieldpulse.customer_accounts.send_password_security_notice',
+            email='scout@example.test', password_changed=True, enqueue_after_commit=True,
+        )
+
+    def test_customer_signed_in_change_uses_session_owner(self):
+        self.f.session.user = 'customer@example.test'
+        self.module.update_password('New-password-123', old_password='old')
+        self.f.enqueue.assert_called_once_with(
+            'fieldpulse.customer_accounts.send_password_security_notice',
+            email='customer@example.test', password_changed=True, enqueue_after_commit=True,
+        )
+
+    def test_failed_customer_password_changes_do_not_queue_notice(self):
+        self.f.db.exists.side_effect = lambda doctype, filters: doctype == 'DD Customer Account'
+
+        def expired(*args):
+            self.f.local.response.http_status_code = 410
+            return 'Expired'
+
+        self.native.update_password.side_effect = expired
+        self.assertEqual(self.reset(), 'Expired')
+        self.f.session.user = 'customer@example.test'
+        self.native.update_password.side_effect = ValueError('Invalid password')
+        with self.assertRaises(ValueError):
+            self.module.update_password('New-password-123', old_password='wrong')
+        self.f.enqueue.assert_not_called()
 
     def test_weak_password_is_rejected_before_consuming_token(self):
         self.native.test_password_strength.return_value={'feedback':{'password_policy_validation_passed':False}}
